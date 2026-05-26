@@ -78,6 +78,32 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* In-app browser 提示遮罩。預設 display:none，JS 偵測命中時改 display:flex。 */
+    #inapp-browser-notice {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #ff8a65;
+      align-items: center;
+      justify-content: center;
+      z-index: 2147483647;
+      font-family: system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      padding: 32px;
+      box-sizing: border-box;
+      color: #ffffff;
+      text-align: center;
+    }
+    #inapp-browser-notice.show { display: flex; }
+    #inapp-browser-notice .card {
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #inapp-browser-notice .icon { font-size: 64px; margin-bottom: 20px; }
+    #inapp-browser-notice .title { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+    #inapp-browser-notice .desc { font-size: 16px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -115,6 +141,28 @@
       // 等淡出動畫跑完再 remove，避免殘留 DOM 節點。
       setTimeout(function () { el.remove(); }, 500);
     });
+  </script>
+
+  <!-- In-app browser 提示遮罩：FB / IG / LINE / WeChat 等內嵌 webview 命中時，
+       下方 script 會加上 .show class 顯示此區塊；命中前保持隱藏。
+       z-index 壓在 Flutter canvas 之上、擋住所有互動，使用者唯一出路是用
+       預設瀏覽器重新開啟網址。 -->
+  <div id="inapp-browser-notice">
+    <div class="card">
+      <div class="icon">🌐</div>
+      <div class="title">請用預設瀏覽器開啟</div>
+      <div class="desc">此頁面無法在 App 內建瀏覽器中正常運作，請使用 Safari、Chrome 等預設瀏覽器開啟本網址。</div>
+    </div>
+  </div>
+
+  <!-- 用 esm.sh CDN 載 inapp-spy（whack-a-mouse 同款偵測庫）；
+       不阻擋 Flutter 載入，命中時才把上方遮罩顯示出來。 -->
+  <script type="module">
+    import InAppSpy from "https://esm.sh/inapp-spy@latest";
+    const { isInApp } = InAppSpy();
+    if (isInApp) {
+      document.getElementById("inapp-browser-notice").classList.add("show");
+    }
   </script>
 
   <!--

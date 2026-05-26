@@ -327,10 +327,15 @@ class SnapDetector {
 		return false;
 	}
 
-	/// 判斷群組中是否有任一片 piece 與「已鎖定 piece」相鄰，或自身靠邊（有 flat 邊）。
+	/// 判斷群組中是否有任一片 piece 與「已鎖定 piece」共享一條有耳朵的邊，
+	/// 或自身靠邊（有 flat 邊 → 邊框就是它的物理鄰居）。
 	///
 	/// 用於 [requireNeighborContact] 模式（不顯示提示線時），避免幼兒把孤立拼片
 	/// 直接拋到中間正確位置而誤觸鎖定。
+	///
+	/// 鄰居條件用 [PuzzlePiece.tabNeighborIds]（與 [_findBestMerge] 一致），
+	/// 即「兩片共用且有耳朵的邊」；純 flat / forceFlat 共用邊不算數，
+	/// 因為這種邊在視覺上沒有卡榫、玩家從畫面上判斷不出它們應該相連。
 	static bool _groupTouchesLockedOrFrame(
 		PuzzleLayout layout,
 		List<PuzzlePiece> groupMembers,
@@ -345,8 +350,8 @@ class SnapDetector {
 			for (final PuzzleEdge e in p.edges) {
 				if (e.type == EdgeType.flat) return true;
 			}
-			// 與某個已鎖定 piece 相鄰
-			for (final int nid in p.neighborIds) {
+			// 與某個已鎖定 piece 透過「有耳朵的邊」相鄰
+			for (final int nid in p.tabNeighborIds) {
 				if (lockedIds.contains(nid)) return true;
 			}
 		}
