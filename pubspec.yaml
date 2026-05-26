@@ -1,0 +1,55 @@
+name: kid_puzzle
+description: "幼兒益智遊戲 - 拼圖"
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # 狀態管理
+  provider: ^6.1.2
+
+  # 音效與語音（語音改走預先合成的 mp3，見 tools/generate_voice.py）
+  audioplayers: ^6.1.0
+  # web 平台直接走 Web Audio API（iOS Safari 上 <audio> element 連續切檔
+  # 會吐解碼雜訊、且 setSrc 中間狀態被打斷會吞音）
+  web: ^1.1.0
+
+  # 圖庫匯入
+  image_picker: ^1.1.2
+  image: ^4.2.0
+
+  # 儲存（hive_ce 為社群維護分支，與原 hive API 相容且追新 source_gen）
+  hive_ce: ^2.10.1
+  hive_ce_flutter: ^2.2.0
+  path_provider: ^2.1.4
+
+  # 工具
+  uuid: ^4.5.1
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+
+  # 動畫
+  flutter_animate: ^4.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  freezed: ^3.0.4
+  json_serializable: ^6.8.0
+  hive_ce_generator: ^1.9.2
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/puzzles/
+    - assets/images/ui/
+    - assets/audio/
+    - assets/audio/voice/

@@ -1,0 +1,22 @@
+# 靜態分析設定：以 flutter_lints 為基底加上專案規則
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # 字串一律使用雙引號
+    prefer_double_quotes: true
+    prefer_single_quotes: false
+    # 多行集合與引數列表結尾加逗號
+    require_trailing_commas: true
+    # 使用 super 參數簡化建構子
+    use_super_parameters: true
+    # 不要省略 ; 結尾
+    always_put_control_body_on_new_line: false
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    # generator 產生的 deprecated 警告會被排除（已在 exclude）
+    invalid_annotation_target: ignore

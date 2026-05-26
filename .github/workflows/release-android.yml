@@ -1,0 +1,91 @@
+# Main 分支 push 帶 v* tag 時建置 Android release APK 並發布到 GitHub Releases
+# 例：git tag v0.1.0 && git push origin v0.1.0
+#
+# 必要的 repo secrets：
+#   ANDROID_KEYSTORE_BASE64    keystore .jks base64 編碼後的內容
+#   ANDROID_KEYSTORE_PASSWORD  keystore 密碼
+#   ANDROID_KEY_PASSWORD       key 密碼（可與 keystore 密碼相同）
+#   ANDROID_KEY_ALIAS          key alias（產生時設為 kid-puzzle）
+name: Release Android APK
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 確認 tag 是基於 main 分支的 commit
+      # （避免在其他分支誤打 tag 也觸發 release）
+      - name: Verify tag is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "${{ github.sha }}" origin/main; then
+            echo "::error::Tag commit is not on main branch; aborting."
+            exit 1
+          fi
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 把 base64 secret 解開成實體 .jks，丟在 runner workspace 下的 android/keystore/
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p android/keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > android/keystore/kid-puzzle.jks
+
+      - name: Build APK
+        env:
+          # build.gradle.kts 在沒有 key.properties 時會讀這些環境變數
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/keystore/kid-puzzle.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: flutter build apk --release
+
+      # 重新命名以 tag 結尾，方便使用者下載辨識
+      - name: Rename APK
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             dist/kid-puzzle-${{ github.ref_name }}.apk
+
+      # tag 形如 v1.2.3 → 正式版；vX.Y.Z-anything 或非標準格式 → prerelease
+      - name: Determine prerelease flag
+        id: prerelease
+        run: |
+          if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/kid-puzzle-${{ github.ref_name }}.apk
+          generate_release_notes: false
+          prerelease: ${{ steps.prerelease.outputs.prerelease }}
+          name: ${{ github.ref_name }}

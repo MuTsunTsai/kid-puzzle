@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="kid_puzzle">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>kid_puzzle</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* 載入期間覆蓋整個畫面的 spinner overlay。
+       Flutter 主程式 + CanvasKit wasm 加起來在行動網路可能要數秒，
+       這層提供視覺回饋，避免使用者以為畫面壞掉。
+       Flutter 第一次繪製完成會 dispatch `flutter-first-frame` event、
+       下方 script 監聽到後加上 .loaded 觸發淡出 + remove。 */
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      background: linear-gradient(135deg, #ff8a65, #ffd54f);
+    }
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      background: linear-gradient(135deg, #ff8a65, #ffd54f);
+      transition: opacity 400ms ease-out;
+      z-index: 9999;
+    }
+    #loading.loaded {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #loading .spinner {
+      width: 64px;
+      height: 64px;
+      border: 6px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    #loading .label {
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="label">載入中…</div>
+    <!-- 字型預熱：放幾個遊戲內會用到的中文字、強迫瀏覽器在 spinner 隱藏前
+         走過系統中文字型 fallback chain；這樣 Flutter 開始繪製時系統字型已
+         被解析、不會出現 XXXX tofu。位置在 spinner 旁邊但用 0 不透明度藏起來。 -->
+    <div aria-hidden="true" style="
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      font-size: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
+    ">開始拼圖選擇塊數範圍家長區圖庫管理載入中</div>
+  </div>
+
+  <script>
+    // 等到「Flutter 第一幀」+「所有字型載入完成」兩件事都發生才隱藏 spinner。
+    // 只等 first-frame 的話，字型尚未下載完時畫面會出現 XXXX tofu 方塊；
+    // document.fonts.ready 在所有 @font-face 字型 fetch 完成時 resolve。
+    var firstFrame = new Promise(function (resolve) {
+      window.addEventListener("flutter-first-frame", resolve, { once: true });
+    });
+    // 多數瀏覽器都支援 document.fonts；萬一沒有就 fallback 成立即 resolve。
+    var fontsReady = (document.fonts && document.fonts.ready)
+      ? document.fonts.ready
+      : Promise.resolve();
+    Promise.all([firstFrame, fontsReady]).then(function () {
+      var el = document.getElementById("loading");
+      if (!el) return;
+      el.classList.add("loaded");
+      // 等淡出動畫跑完再 remove，避免殘留 DOM 節點。
+      setTimeout(function () { el.remove(); }, 500);
+    });
+  </script>
+
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
