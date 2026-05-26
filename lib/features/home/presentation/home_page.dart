@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 
 import "../../../core/constants/app_colors.dart";
 import "../../../core/routing/app_router.dart";
+import "../../../core/system/fullscreen_landscape.dart";
 import "../../../shared/widgets/click_sound.dart";
 // 家長鎖暫時停用、保留 import 以便日後恢復（見 _enterParent）。
 // ignore: unused_import
@@ -40,7 +41,12 @@ class HomePage extends StatelessWidget {
 							// 中央：大「開始」按鈕
 							Center(
 								child: _StartButton(
-									onPressed: () {
+									onPressed: () async {
+										// Web 手機瀏覽器：在 user gesture handler 內請求全螢幕 + 鎖橫向。
+										// 必須在 pushNamed 之前 await，否則 gesture context 已過期、瀏覽器會拒。
+										// 非手機 / 非 web 平台一律 no-op。
+										await requestFullscreenLandscape();
+										if (!context.mounted) return;
 										Navigator.of(context).pushNamed(AppRoutes.puzzleSetup);
 									},
 								),
