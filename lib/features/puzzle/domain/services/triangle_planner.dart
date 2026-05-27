@@ -367,11 +367,7 @@ class TriangleCellPlanner extends CellPlanner {
 		//   × 0.20）→ 從**兩個** owner polygon 同步移除此頂點、讓接合邊乾淨。
 		// - 邊界 degree=1 頂點：共線（180°）才刪、角落 90° 保留。
 		// - 邊界 degree=2 頂點：永不刪（會讓 polygon 離開矩形邊界）。
-		diag("_planOnce: phase4 simplifyVertices SKIPPED (diag) polys=${polys.length}");
-		// 暫時整個 skip 掉 simplifyVertices、確認 hang 的 root cause 是不是這裡。
-		// 若 skip 後就能跑完、確認元兇；若還是卡、元兇不在這裡。
-		// _simplifyVerticesGuarded(polys, innerBounds);
-		diag("_planOnce: phase4 done");
+		_simplifyVertices(polys, innerBounds);
 
 		final List<CellPolygon> cells = <CellPolygon>[
 			for (int i = 0; i < polys.length; i++)
@@ -398,34 +394,16 @@ class TriangleCellPlanner extends CellPlanner {
 	/// - degree ≥ 3：不刪。
 	///
 	/// 反覆迭代直到沒有可刪頂點。
-	/// 內部例外：simplify 超過 wall-clock 預算時、用 throw 跨多層迴圈快速退出。
-	/// 外層 catch 後印 trace、用未完全簡化的 polygons 繼續。
-	// ignore: unused_element
-	static void _simplifyVerticesGuarded(
+	///
+	/// **dart2js bug workaround**：原本內層直接用 `break outer;` 跳出兩層 for；
+	/// release dart2js 模式下會 hang（main thread 凍結、無例外、無 log），疑為
+	/// https://github.com/dart-lang/sdk/issues/62185 同類 codegen bug。
+	/// 把雙層 for 抽成 [_tryRemoveOneVertex] helper 用 `return` 跨層、不踩到雷。
+	/// dev 模式 / VM 上 `break outer` 寫法仍正常；只有 release dart2js 受影響。
+	static void _simplifyVertices(
 		List<List<Offset>> polys,
 		Rect innerBounds,
 	) {
-		// 操作計數保險絲：simplifyVertices 在 web 上偶發 hang（具體 root cause
-		// 還在追、見 trace）。改用「總操作數」上限取代 wall-clock（後者在主執行
-		// 緒卡住時無法觸發、因為 console.log 也沒機會 flush）。
-		// 上限取「所有 polygon 頂點數總和 × 50」—— 理論上每個頂點最多被檢查 50
-		// 次就該結束、若超過必定是死循環。觸發時 throw、外層 catch 後用部分簡化
-		// 的結果繼續。
-		int opBudget = 0;
-		for (final List<Offset> p in polys) {
-			opBudget += p.length;
-		}
-		opBudget *= 50;
-		int opCount = 0;
-		void tickOp(String where) {
-			opCount++;
-			if (opCount > opBudget) {
-				throw _SimplifyTimeoutException(
-					"op budget exceeded at $where (budget=$opBudget)",
-					opCount,
-				);
-			}
-		}
 		bool onBoundary(Offset v) {
 			const double t = _boundaryDetectThreshold;
 			return (v.dx - innerBounds.left).abs() < t ||
@@ -450,17 +428,12 @@ class TriangleCellPlanner extends CellPlanner {
 				"${(o.dx * 10).round()},${(o.dy * 10).round()}";
 
 		for (int iter = 0; iter < 100; iter++) {
-			tickOp("iter=$iter start");
-			if (iter % 10 == 0) {
-				diag("_simplifyVertices: iter=$iter polys.lens=${polys.map((p) => p.length).toList()}");
-			}
 			// 收集每個頂點 → 它屬於哪些 polygon
 			final Map<String, List<int>> vertexToPolys = <String, List<int>>{};
 			for (int p = 0; p < polys.length; p++) {
 				// 用 set 避免同 polygon 多次列入（理論上不會發生）
 				final Set<String> seen = <String>{};
 				for (final Offset v in polys[p]) {
-					tickOp("iter=$iter vertexToPolys p=$p");
 					final String k = vkey(v);
 					if (seen.add(k)) {
 						vertexToPolys.putIfAbsent(k, () => <int>[]).add(p);
@@ -468,69 +441,85 @@ class TriangleCellPlanner extends CellPlanner {
 				}
 			}
 
-			bool removedAny = false;
-			// 找一個可刪頂點：遍歷每個 polygon 的每個頂點、判斷是否符合
-			// （之所以從 polygon 端遍歷而不直接遍歷 vertexToPolys、是因為
-			//  要拿前後鄰居算內角，這在 polygon 內較直接）。
-			outer:
-			for (int p = 0; p < polys.length; p++) {
-				final List<Offset> poly = polys[p];
-				if (poly.length <= 3) continue; // polygon 已是三角形、不能再縮
-				for (int i = 0; i < poly.length; i++) {
-					tickOp("iter=$iter outer p=$p i=$i");
-					final Offset v = poly[i];
-					final String k = vkey(v);
-					final List<int> ownerPolys = vertexToPolys[k] ?? <int>[];
-					final int degree = ownerPolys.length;
-					if (degree > 2) continue; // 不處理 3+ way 接合
-					// 算 v 在當前 polygon 內的內角 + 兩鄰邊長度
-					final Offset prev = poly[(i - 1 + poly.length) % poly.length];
-					final Offset next = poly[(i + 1) % poly.length];
-					final double angle = _vertexAngleDeg(v, prev, next);
-					final double edgePrevLen = (v - prev).distance;
-					final double edgeNextLen = (next - v).distance;
-					final bool nearStraight =
-							(180.0 - angle).abs() <= _collinearAngleTolDeg;
-					final bool hasShortEdge = degree == 2 &&
-							(edgePrevLen < shortEdgeThreshold ||
-									edgeNextLen < shortEdgeThreshold);
-					bool shouldRemove;
-					if (degree == 1) {
-						// 邊界角落：90° 保留、180° 才刪
-						shouldRemove = nearStraight;
-					} else {
-						// degree == 2：要區分是否在矩形邊界上。
-						// 在邊界上的 degree=2 頂點 = 兩 polygon 沿矩形邊相接的點、
-						// 刪掉會讓 polygon 離開矩形邊界、絕對不刪。
-						// 只有純內部的 degree=2 頂點才依共線/短邊規則刪。
-						if (onBoundary(v)) {
-							shouldRemove = false;
-						} else {
-							shouldRemove = nearStraight || hasShortEdge;
-						}
-					}
-					if (!shouldRemove) continue;
-					// 檢查所有 owner polygon 都還有 > 3 頂點（刪後仍合法）
-					bool safe = true;
-					for (final int op in ownerPolys) {
-						if (polys[op].length <= 3) {
-							safe = false;
-							break;
-						}
-					}
-					if (!safe) continue;
-					// 從所有 owner polygon 移除這個頂點（用 vkey 比對、容差安全）
-					for (final int op in ownerPolys) {
-						polys[op].removeWhere((Offset u) => vkey(u) == k);
-					}
-					removedAny = true;
-					break outer; // 重新跑一輪（vertexToPolys 已過時）
-				}
-			}
+			final bool removedAny = _tryRemoveOneVertex(
+				polys: polys,
+				vertexToPolys: vertexToPolys,
+				vkey: vkey,
+				onBoundary: onBoundary,
+				shortEdgeThreshold: shortEdgeThreshold,
+			);
 			if (!removedAny) return;
 		}
-		diag("_simplifyVertices: HIT MAX ITER (100), bailing out");
 	}
+
+	/// 找一個可刪頂點：遍歷每個 polygon 的每個頂點、判斷是否符合，
+	/// 找到立刻從所有 owner polygon 移除、回 true。掃完整圈都沒找到回 false。
+	///
+	/// 抽出來主要原因：dart2js bug 讓 `break outer;` 跨兩層 for hang；
+	/// 改用 helper + `return` 跨層、生成的 JS 沒有 labeled break、沒有問題。
+	/// （也順便讓邏輯更好讀。）
+	static bool _tryRemoveOneVertex({
+		required List<List<Offset>> polys,
+		required Map<String, List<int>> vertexToPolys,
+		required String Function(Offset) vkey,
+		required bool Function(Offset) onBoundary,
+		required double shortEdgeThreshold,
+	}) {
+		for (int p = 0; p < polys.length; p++) {
+			final List<Offset> poly = polys[p];
+			if (poly.length <= 3) continue; // polygon 已是三角形、不能再縮
+			for (int i = 0; i < poly.length; i++) {
+				final Offset v = poly[i];
+				final String k = vkey(v);
+				final List<int> ownerPolys = vertexToPolys[k] ?? <int>[];
+				final int degree = ownerPolys.length;
+				if (degree > 2) continue; // 不處理 3+ way 接合
+				// 算 v 在當前 polygon 內的內角 + 兩鄰邊長度
+				final Offset prev = poly[(i - 1 + poly.length) % poly.length];
+				final Offset next = poly[(i + 1) % poly.length];
+				final double angle = _vertexAngleDeg(v, prev, next);
+				final double edgePrevLen = (v - prev).distance;
+				final double edgeNextLen = (next - v).distance;
+				final bool nearStraight =
+						(180.0 - angle).abs() <= _collinearAngleTolDeg;
+				final bool hasShortEdge = degree == 2 &&
+						(edgePrevLen < shortEdgeThreshold ||
+								edgeNextLen < shortEdgeThreshold);
+				bool shouldRemove;
+				if (degree == 1) {
+					// 邊界角落：90° 保留、180° 才刪
+					shouldRemove = nearStraight;
+				} else {
+					// degree == 2：要區分是否在矩形邊界上。
+					// 在邊界上的 degree=2 頂點 = 兩 polygon 沿矩形邊相接的點、
+					// 刪掉會讓 polygon 離開矩形邊界、絕對不刪。
+					// 只有純內部的 degree=2 頂點才依共線/短邊規則刪。
+					if (onBoundary(v)) {
+						shouldRemove = false;
+					} else {
+						shouldRemove = nearStraight || hasShortEdge;
+					}
+				}
+				if (!shouldRemove) continue;
+				// 檢查所有 owner polygon 都還有 > 3 頂點（刪後仍合法）
+				bool safe = true;
+				for (final int op in ownerPolys) {
+					if (polys[op].length <= 3) {
+						safe = false;
+						break;
+					}
+				}
+				if (!safe) continue;
+				// 從所有 owner polygon 移除這個頂點（用 vkey 比對、容差安全）
+				for (final int op in ownerPolys) {
+					polys[op].removeWhere((Offset u) => vkey(u) == k);
+				}
+				return true; // 已刪一個、回外層重新算 vertexToPolys
+			}
+		}
+		return false; // 整圈都沒可刪的
+	}
+
 
 	/// 把三角形 idx 按「質心距 anchor」排序，回索引 list。
 	static List<int> _sortTrianglesByDistance(
@@ -837,14 +826,4 @@ class _Edge {
 	const _Edge(this.a, this.b);
 	final int a;
 	final int b;
-}
-
-/// 內部例外：simplify 超過 wall-clock 預算時 throw、跨多層迴圈快速退出。
-/// 外層 catch 後印 where + elapsed、用未完全簡化的 polygons 繼續。
-class _SimplifyTimeoutException implements Exception {
-	const _SimplifyTimeoutException(this.where, this.elapsedMs);
-	final String where;
-	final int elapsedMs;
-	@override
-	String toString() => "_SimplifyTimeoutException(where=$where, elapsed=${elapsedMs}ms)";
 }

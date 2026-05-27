@@ -3,11 +3,11 @@
 // release build 也會印（用 print，瀏覽器 console 仍會收到）。
 // 復現後查完問題請務必把 [kDiagTrace] 改回 false，避免 production log 噪音。
 
-const bool kDiagTrace = true;
+const bool kDiagTrace = false;
 
 /// Build 標記：用來分辨使用者瀏覽器是不是真的拿到最新的 build。
 /// 每次部署前手動 bump（或改成有意義的字串、例如時間戳）。
-const String kDiagBuildTag = "diag-v5-skip-simplify";
+const String kDiagBuildTag = "v17-helper-return";
 
 void diag(String msg) {
 	if (!kDiagTrace) return;
