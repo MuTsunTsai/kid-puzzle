@@ -368,7 +368,16 @@ class TriangleCellPlanner extends CellPlanner {
 		// - 邊界 degree=1 頂點：共線（180°）才刪、角落 90° 保留。
 		// - 邊界 degree=2 頂點：永不刪（會讓 polygon 離開矩形邊界）。
 		diag("_planOnce: phase4 simplifyVertices polys=${polys.length}");
-		_simplifyVertices(polys, innerBounds);
+		// 防禦：simplifyVertices 在 web 上偶發卡死（n=5 voronoi 某些 seed），
+		// 加超時保險絲 + try/catch 兜底。失敗就用未簡化的 polygons 繼續、
+		// 視覺上頂點稍多但功能正確（共線頂點 cutter 仍能處理）。
+		try {
+			_simplifyVerticesGuarded(polys, innerBounds);
+		} catch (e, st) {
+			diag("_simplifyVertices THREW $e — using unsimplified polygons");
+			// ignore: avoid_print
+			print("[puzzle-diag] simplifyVertices stack: $st");
+		}
 		diag("_planOnce: phase4 done");
 
 		final List<CellPolygon> cells = <CellPolygon>[
@@ -396,10 +405,15 @@ class TriangleCellPlanner extends CellPlanner {
 	/// - degree ≥ 3：不刪。
 	///
 	/// 反覆迭代直到沒有可刪頂點。
-	static void _simplifyVertices(
+	static void _simplifyVerticesGuarded(
 		List<List<Offset>> polys,
 		Rect innerBounds,
 	) {
+		// Wall-clock 超時保險絲：simplifyVertices 在 web 上偶發 hang（具體 root
+		// cause 還在追，見 trace）。卡超過 250ms 就放棄、用部分簡化的結果繼續、
+		// 避免阻塞整個 isolate。
+		final Stopwatch guard = Stopwatch()..start();
+		const int maxWallMs = 250;
 		bool onBoundary(Offset v) {
 			const double t = _boundaryDetectThreshold;
 			return (v.dx - innerBounds.left).abs() < t ||
@@ -424,6 +438,14 @@ class TriangleCellPlanner extends CellPlanner {
 				"${(o.dx * 10).round()},${(o.dy * 10).round()}";
 
 		for (int iter = 0; iter < 100; iter++) {
+			if (guard.elapsedMilliseconds > maxWallMs) {
+				diag("_simplifyVertices: WALL TIMEOUT iter=$iter "
+						"elapsed=${guard.elapsedMilliseconds}ms, bailing out");
+				return;
+			}
+			if (iter % 10 == 0) {
+				diag("_simplifyVertices: iter=$iter polys.lens=${polys.map((p) => p.length).toList()}");
+			}
 			// 收集每個頂點 → 它屬於哪些 polygon
 			final Map<String, List<int>> vertexToPolys = <String, List<int>>{};
 			for (int p = 0; p < polys.length; p++) {
@@ -497,6 +519,7 @@ class TriangleCellPlanner extends CellPlanner {
 			}
 			if (!removedAny) return;
 		}
+		diag("_simplifyVertices: HIT MAX ITER (100), bailing out");
 	}
 
 	/// 把三角形 idx 按「質心距 anchor」排序，回索引 list。
