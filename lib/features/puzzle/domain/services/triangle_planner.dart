@@ -60,35 +60,96 @@ class TriangleCellPlanner extends CellPlanner {
 	static const double _minWaistRatio = 0.18;
 	static const double _waistIndexSepRatio = 0.3;
 
+	/// 統計用：最近一次 [plan] 的 retry 次數（0 表示第一次就過）。
+	/// 給品質測試 sweep 收統計用；production 不使用。
+	static int debugLastRetryCount = 0;
+
 	@override
 	CellLayout plan({
 		required int pieceCount,
 		required Rect innerBounds,
 		required int seed,
 	}) {
-		// retry loop：planOnce 結果若有「腰太細」polygon，換 seed 重 plan。
-		// 經驗上 5800 case sweep 中 ~5.5% 需要 retry、最差只到 3 次，20 次上限
-		// 相當寬鬆；上限到了就回最後一次結果硬撐、避免極端輸入卡住。
+		// retry loop：planOnce 結果若 (a) 有「腰太細」polygon、或 (b) 有「尖角」
+		// polygon、或 (c) max/min 面積比過大，換 seed 重 plan。經驗上：
+		// - 腰太細：5800 case sweep 中 ~5.5% retry、最差只到 3 次
+		// - 尖角（< 30°）：46400 case sweep 中 ~0.02% retry
+		// - 面積比（> 5.5）：2900 case sweep 中 ~4.45% retry
+		// 合起來 retry 機率不到 10%；20 次上限相當寬鬆。上限到了就回最後一次
+		// 結果硬撐、避免極端輸入卡住。
 		const int maxRetries = 20;
 		int trySeed = seed;
-		diag("triangle.plan: planOnce attempt=initial seed=$trySeed");
 		CellLayout layout = _planOnce(
 			pieceCount: pieceCount, innerBounds: innerBounds, seed: trySeed,
 		);
-		diag("triangle.plan: initial done cells=${layout.cells.length}, validating waist");
+		debugLastRetryCount = 0;
 		for (int attempt = 0; attempt < maxRetries; attempt++) {
-			if (_validateNoThinWaist(layout)) {
-				diag("triangle.plan: waist PASS attempt=$attempt, return");
+			if (_validateNoThinWaist(layout) &&
+					_validateNoSharpAngle(layout) &&
+					_validateAreaRatio(layout)) {
 				break;
 			}
+			debugLastRetryCount++;
 			trySeed = trySeed * 1664525 + 1013904223;
-			diag("triangle.plan: waist FAIL retry=$attempt newSeed=$trySeed");
 			layout = _planOnce(
 				pieceCount: pieceCount, innerBounds: innerBounds, seed: trySeed,
 			);
-			diag("triangle.plan: retry=$attempt planOnce done cells=${layout.cells.length}");
 		}
 		return layout;
+	}
+
+	/// 「最大塊 / 最小塊」面積比上限。
+	///
+	/// 量測值見 [test/triangle_planner_area_ratio_test.dart]：
+	/// raw planOnce 輸出的 ratio 分布 mean=3.21 stdev=1.17、約 95.5% 樣本 ≤ 5.5。
+	/// 用此值當 retry 閾值能在「過濾極端不均勻切割」與「retry 成本」間取平衡。
+	static const double _maxAreaRatio = 5.5;
+
+	/// 檢查 layout 中最大 / 最小 cell 面積比 ≤ [_maxAreaRatio]。
+	bool _validateAreaRatio(CellLayout layout) {
+		double minA = double.infinity;
+		double maxA = -double.infinity;
+		for (final CellPolygon cell in layout.cells) {
+			final List<Offset> v = cell.vertices;
+			final int n = v.length;
+			if (n < 3) continue;
+			double s = 0;
+			for (int i = 0; i < n; i++) {
+				final Offset a = v[i];
+				final Offset b = v[(i + 1) % n];
+				s += a.dx * b.dy - b.dx * a.dy;
+			}
+			final double area = s.abs() / 2;
+			if (area <= 0) continue;
+			if (area < minA) minA = area;
+			if (area > maxA) maxA = area;
+		}
+		if (minA <= 0 || !minA.isFinite || !maxA.isFinite) return true;
+		return maxA / minA <= _maxAreaRatio;
+	}
+
+	/// 「尖角」判定閾值：cell polygon 上任一頂點內角 < 此值就視為太尖。
+	///
+	/// 30° 約等於正三角形（60°）的一半；視覺上 30° 以下會像針狀、玩家難辨識。
+	/// 量測值見 [test/triangle_planner_quality_test.dart]，整體出現率約 0.02%。
+	static const double _minInteriorAngleDeg = 30.0;
+
+	/// 檢查每個 cell polygon 沒有過尖的內角。
+	bool _validateNoSharpAngle(CellLayout layout) {
+		for (final CellPolygon cell in layout.cells) {
+			final List<Offset> v = cell.vertices;
+			final int n = v.length;
+			if (n < 3) continue;
+			for (int i = 0; i < n; i++) {
+				final Offset prev = v[(i - 1 + n) % n];
+				final Offset cur = v[i];
+				final Offset next = v[(i + 1) % n];
+				if (_vertexAngleDeg(cur, prev, next) < _minInteriorAngleDeg) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	/// 檢查每個 cell polygon 沒有「不相鄰兩點靠太近」。
