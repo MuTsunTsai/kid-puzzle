@@ -21,6 +21,19 @@ class KidPuzzleApp extends StatelessWidget {
 				),
 				useMaterial3: true,
 				fontFamily: "Roboto",
+				// CupertinoPageTransitionsBuilder 會無條件在 iOS / macOS route 上安裝
+				// _CupertinoBackGestureDetector（不檢查 kIsWeb），導致 iOS Safari / PWA
+				// 上從左緣往右滑會 pop 路由。全平台統一改用 FadeForwards 殺掉手勢。
+				pageTransitionsTheme: const PageTransitionsTheme(
+					builders: <TargetPlatform, PageTransitionsBuilder>{
+						TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+						TargetPlatform.iOS: FadeForwardsPageTransitionsBuilder(),
+						TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
+						TargetPlatform.fuchsia: FadeForwardsPageTransitionsBuilder(),
+						TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+						TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+					},
+				),
 			),
 			initialRoute: AppRoutes.home,
 			routes: AppRouter.routes,

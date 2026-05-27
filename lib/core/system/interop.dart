@@ -15,3 +15,11 @@ Future<void> requestFullscreenLandscape() => requestFullscreenLandscapeImpl();
 ///
 /// 給 web/index.html 的 spinner 隱藏邏輯收訊號用；其他平台 no-op。
 void dispatchFontsReadyEvent() => dispatchFontsReadyEventImpl();
+
+/// 安裝「不寫入瀏覽器 history」的 UrlStrategy。
+///
+/// Flutter Web 預設每次 Navigator.pushNamed 都會 `history.pushState`，
+/// 結果 iOS Safari / standalone PWA 的左/右邊緣手勢就會觸發 back / forward
+/// 換頁。把所有 pushState 改成 replaceState 之後 history 長度永遠 = 1，
+/// 邊緣手勢無事可做。其他平台 no-op。
+void installNoHistoryUrlStrategy() => installNoHistoryUrlStrategyImpl();

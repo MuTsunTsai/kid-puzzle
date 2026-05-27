@@ -1,5 +1,6 @@
 import "dart:js_interop";
 
+import "package:flutter_web_plugins/url_strategy.dart";
 import "package:web/web.dart" as web;
 
 // ===== 全螢幕 + 橫向鎖定 =====
@@ -68,4 +69,25 @@ void dispatchFontsReadyEventImpl() {
 	try {
 		web.window.dispatchEvent(web.Event("flutter-fonts-ready"));
 	} catch (_) {}
+}
+
+// ===== No-history UrlStrategy =====
+
+/// 安裝「永遠不堆 history」的 UrlStrategy。
+///
+/// Flutter 預設 [HashUrlStrategy] 換頁時走 `history.pushState`，
+/// 結果 iOS Safari / standalone PWA 的左右邊緣手勢會 back / forward 換頁。
+/// 這裡覆寫 [pushState] 改呼叫 [replaceState]，history 長度永遠 = 1。
+void installNoHistoryUrlStrategyImpl() {
+	setUrlStrategy(const _NoHistoryHashUrlStrategy());
+}
+
+class _NoHistoryHashUrlStrategy extends HashUrlStrategy {
+	const _NoHistoryHashUrlStrategy();
+
+	@override
+	void pushState(Object? state, String title, String url) {
+		// 改用 replaceState：不新增 history entry。
+		replaceState(state, title, url);
+	}
 }

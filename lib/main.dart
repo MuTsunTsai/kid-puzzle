@@ -8,9 +8,13 @@ import "core/audio/audio_service.dart";
 import "core/audio/voice_service.dart";
 import "core/storage/gallery_repository.dart";
 import "core/storage/settings_repository.dart";
+import "core/system/interop.dart";
 
 Future<void> main() async {
 	WidgetsFlutterBinding.ensureInitialized();
+
+	// Web：禁止 Flutter 換頁堆 history。iOS Safari / PWA 邊緣手勢就無事可做。
+	installNoHistoryUrlStrategy();
 
 	// 鎖定為橫向：4:3 圖在橫向體驗較好，幼兒平板/手機橫拿也是常見姿勢
 	await SystemChrome.setPreferredOrientations(<DeviceOrientation>[

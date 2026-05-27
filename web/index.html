@@ -119,28 +119,6 @@
   </div>
 
   <script>
-    // iOS Safari / standalone PWA：螢幕左右邊緣左/右滑會觸發 history back / forward。
-    // 兩層防線：
-    //   (1) 攔截邊緣 touchstart：左/右 20 px 內的觸控直接 preventDefault，
-    //       系統手勢辨識器在 non-passive listener preventDefault 後就不會啟動。
-    //   (2) sentinel history entry：進站時 pushState 推一筆假紀錄，
-    //       萬一 (1) 漏掉、popstate 觸發時立刻再 pushState 推回去、不會真的離開。
-    (function () {
-      var EDGE = 20;
-      document.addEventListener("touchstart", function (e) {
-        var t = e.touches[0];
-        if (!t) return;
-        if (t.clientX < EDGE || t.clientX > window.innerWidth - EDGE) {
-          e.preventDefault();
-        }
-      }, { passive: false });
-
-      try { history.pushState(null, "", location.href); } catch (_) {}
-      window.addEventListener("popstate", function () {
-        try { history.pushState(null, "", location.href); } catch (_) {}
-      });
-    })();
-
     // 等到「Flutter 第一幀」+「字型實際完成渲染」兩件事都發生才隱藏 spinner。
     // 注意：不能用 document.fonts.ready —— 某些系統字型在實際 glyph 解碼前就
     // 提早 resolve，導致 TextPainter / RenderBox 量到的中文字寬仍是 tofu 寬度。
