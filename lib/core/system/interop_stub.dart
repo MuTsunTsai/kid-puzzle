@@ -5,3 +5,5 @@ Future<void> requestFullscreenLandscapeImpl() async {}
 void dispatchFontsReadyEventImpl() {}
 
 void installNoHistoryUrlStrategyImpl() {}
+
+String? pwaInstallHintImpl() => null;

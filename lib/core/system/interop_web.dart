@@ -91,3 +91,46 @@ class _NoHistoryHashUrlStrategy extends HashUrlStrategy {
 		replaceState(state, title, url);
 	}
 }
+
+// ===== PWA install hint =====
+
+/// 回傳 PWA「加到主畫面」引導標籤；已 standalone 時回 null。
+///
+/// 文案不在這裡定義（見 [interop.dart] 的 `pwaInstallHint` 說明）。
+String? pwaInstallHintImpl() {
+	if (_isStandalone()) return null;
+	return _isSafari() ? "safari" : "generic";
+}
+
+/// 偵測「已以 standalone PWA 啟動」：
+/// - 大多數瀏覽器：`matchMedia("(display-mode: standalone)")`
+/// - iOS Safari：non-standard `navigator.standalone === true`
+bool _isStandalone() {
+	try {
+		if (web.window.matchMedia("(display-mode: standalone)").matches) {
+			return true;
+		}
+	} catch (_) {}
+	try {
+		final bool? s = (web.window.navigator as _NavStandalone).standalone;
+		if (s == true) return true;
+	} catch (_) {}
+	return false;
+}
+
+@JS()
+extension type _NavStandalone(JSObject _) implements JSObject {
+	external bool? get standalone;
+}
+
+/// 偵測 Safari（含 iOS Safari）；排除 Chrome / Edge / Firefox（UA 也含 "Safari"）。
+bool _isSafari() {
+	final String ua = web.window.navigator.userAgent;
+	if (ua.contains("CriOS") || ua.contains("FxiOS") || ua.contains("EdgiOS")) {
+		return false;
+	}
+	if (ua.contains("Chrome") || ua.contains("Chromium") || ua.contains("Edg/")) {
+		return false;
+	}
+	return ua.contains("Safari");
+}

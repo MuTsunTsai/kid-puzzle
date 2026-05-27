@@ -42,9 +42,19 @@ class HomePage extends StatefulWidget {
 	static const String _gearTutorial = "從這邊可以進入設定頁；"
 			"為了避免小朋友誤觸，這個要長壓一秒喔！";
 
+	// PWA 安裝引導兩種文案（依瀏覽器擇一）— 在 web 且尚未 standalone 時顯示。
+	// 一併寫入 FontReadyProbe 預熱字元集，避免氣泡彈出時觸發 fallback。
+	static const String _pwaHintSafari =
+			"如果喜歡這個應用程式，可以在「分享」選單中點選「加入主畫面」、"
+			"即可安裝成為一般的應用程式喔！";
+	static const String _pwaHintOther =
+			"如果喜歡這個應用程式，可以在瀏覽器選單中點選「加到主畫面」、"
+			"即可安裝成為一般的應用程式喔！";
+
 	/// FontReadyProbe 預熱字元集 = 所有教學文字 + UI 上常駐標題。
 	static const String _fontProbeText =
-			"$_welcomeMessage$_startTutorial$_gearTutorial幼兒益智遊戲開始拼圖";
+			"$_welcomeMessage$_startTutorial$_gearTutorial"
+			"$_pwaHintSafari$_pwaHintOther幼兒益智遊戲開始拼圖";
 
 	@override
 	State<HomePage> createState() => _HomePageState();
@@ -52,9 +62,14 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with RouteAware {
 	final GlobalKey _welcomeKey = GlobalKey();
+	final GlobalKey _pwaHintKey = GlobalKey();
 	final GlobalKey _startKey = GlobalKey();
 	final GlobalKey _gearKey = GlobalKey();
 	late final ShowcaseView _showcase;
+
+	/// PWA 安裝引導文案；null 表示不顯示（非 web 或已 standalone）。
+	/// `_maybeStartTutorial` 啟動時固定一次，避免步驟陣列在中途變動。
+	String? _pwaHint;
 
 	@override
 	void initState() {
@@ -103,7 +118,24 @@ class _HomePageState extends State<HomePage> with RouteAware {
 		// 與 RenderBox 量到 fallback tofu 寬度導致氣泡 layout / target rect 失準。
 		await waitForFontsReady();
 		if (!mounted) return;
-		_showcase.startShowCase(<GlobalKey>[_welcomeKey, _startKey, _gearKey]);
+
+		// 依平台/瀏覽器決定是否插入 PWA 安裝引導步驟（welcome 之後）。
+		// interop 只回 "safari" / "generic" / null 標籤，文案在本檔對應。
+		final String? kind = pwaInstallHint();
+		final String? hint = switch (kind) {
+			"safari" => HomePage._pwaHintSafari,
+			"generic" => HomePage._pwaHintOther,
+			_ => null,
+		};
+		setState(() => _pwaHint = hint);
+
+		final List<GlobalKey> steps = <GlobalKey>[
+			_welcomeKey,
+			if (hint != null) _pwaHintKey,
+			_startKey,
+			_gearKey,
+		];
+		_showcase.startShowCase(steps);
 		// 不等使用者真的看完，直接記為「已看過」— 避免使用者中途離開又每次都被
 		// 強塞同一輪教學。要重看請從家長區提供入口（後續實作）。
 		repo.setTutorialVersionSeen("home", HomePage._homeTutorialVersion);
@@ -198,6 +230,15 @@ class _HomePageState extends State<HomePage> with RouteAware {
 										requestFullscreenLandscape();
 										_showcase.next();
 									},
+								),
+								// 教學第二步（僅 web 且非 standalone）：PWA 安裝引導純氣泡。
+								// _pwaHint == null 時 _maybeStartTutorial 不會把這個 key
+								// 加進 steps，CenteredShowcaseBubble 雖仍掛在 tree 上但不會
+								// 被觸發；message 給空字串避免 build 期 layout 計算。
+								CenteredShowcaseBubble(
+									showcaseKey: _pwaHintKey,
+									message: _pwaHint ?? "",
+									onTap: _showcase.next,
 								),
 							],
 						),

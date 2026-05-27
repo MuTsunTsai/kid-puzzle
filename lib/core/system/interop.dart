@@ -23,3 +23,15 @@ void dispatchFontsReadyEvent() => dispatchFontsReadyEventImpl();
 /// 換頁。把所有 pushState 改成 replaceState 之後 history 長度永遠 = 1，
 /// 邊緣手勢無事可做。其他平台 no-op。
 void installNoHistoryUrlStrategy() => installNoHistoryUrlStrategyImpl();
+
+/// 回傳 PWA「加到主畫面」引導種類；不需要顯示時回 null。
+///
+/// 回傳值為簡單字串標籤，由 UI 端對應到實際文案（文案集中在 UI 端、
+/// 一併寫入 FontReadyProbe 預熱字元集，不在 interop 層重複定義）：
+/// - `"safari"`：Safari（含 iOS Safari）→ 分享選單 → 加入主畫面
+/// - `"generic"`：其他瀏覽器 → 瀏覽器選單 → 加到主畫面
+/// - `null`：非 web、或已 standalone（已安裝為 PWA）
+///
+/// 用字串而非 enum：跨 conditional import 邊界需要共用型別會被迫多開檔，
+/// 標籤集合就兩個值、簡單字串更輕。
+String? pwaInstallHint() => pwaInstallHintImpl();
