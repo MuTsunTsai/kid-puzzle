@@ -1,6 +1,9 @@
 ﻿import "dart:math";
 import "dart:ui";
 
+// 暫時 import 上層 _diag 做卡死 debug；查完拔掉。
+// ignore: avoid_relative_lib_imports
+import "../../presentation/_diag.dart";
 import "cell_planner.dart";
 import "voronoi.dart";
 
@@ -68,15 +71,22 @@ class TriangleCellPlanner extends CellPlanner {
 		// 相當寬鬆；上限到了就回最後一次結果硬撐、避免極端輸入卡住。
 		const int maxRetries = 20;
 		int trySeed = seed;
+		diag("triangle.plan: planOnce attempt=initial seed=$trySeed");
 		CellLayout layout = _planOnce(
 			pieceCount: pieceCount, innerBounds: innerBounds, seed: trySeed,
 		);
+		diag("triangle.plan: initial done cells=${layout.cells.length}, validating waist");
 		for (int attempt = 0; attempt < maxRetries; attempt++) {
-			if (_validateNoThinWaist(layout)) break;
+			if (_validateNoThinWaist(layout)) {
+				diag("triangle.plan: waist PASS attempt=$attempt, return");
+				break;
+			}
 			trySeed = trySeed * 1664525 + 1013904223;
+			diag("triangle.plan: waist FAIL retry=$attempt newSeed=$trySeed");
 			layout = _planOnce(
 				pieceCount: pieceCount, innerBounds: innerBounds, seed: trySeed,
 			);
+			diag("triangle.plan: retry=$attempt planOnce done cells=${layout.cells.length}");
 		}
 		return layout;
 	}
@@ -121,6 +131,7 @@ class TriangleCellPlanner extends CellPlanner {
 		}
 
 		// === 階段 1：Voronoi → 收集頂點 → Delaunay ===
+		diag("_planOnce: phase1 generatePoissonLikePoints");
 		final int voronoiSeeds = (pieceCount * seedMultiplier).ceil();
 		final List<Offset> seeds = VoronoiBuilder.generatePoissonLikePoints(
 			bounds: innerBounds,
@@ -128,10 +139,12 @@ class TriangleCellPlanner extends CellPlanner {
 			random: random,
 			lloydIterations: lloydIterations,
 		);
+		diag("_planOnce: phase1 computeVoronoi");
 		final List<VoronoiCell> vCells = VoronoiBuilder.computeVoronoi(
 			points: seeds,
 			bounds: innerBounds,
 		);
+		diag("_planOnce: phase1 voronoi done seeds=${seeds.length}");
 		// 收集所有 cell polygon 的頂點 + 矩形四角，去重
 		final List<Offset> vertices = <Offset>[];
 		void addVertex(Offset p) {
@@ -154,8 +167,11 @@ class TriangleCellPlanner extends CellPlanner {
 		addVertex(Offset(innerBounds.right, innerBounds.bottom));
 		addVertex(Offset(innerBounds.left, innerBounds.bottom));
 
+		diag("_planOnce: phase1 delaunay (vertices=${vertices.length})");
 		final List<_Triangle> triangles = _delaunay(vertices);
+		diag("_planOnce: phase1 delaunay done triangles=${triangles.length}");
 		if (triangles.length < pieceCount) {
+			diag("_planOnce: triangles<pieceCount fallback to VoronoiCellPlanner");
 			// 三角形數不足 N → 無法分 N 群。退到 Voronoi planner 當 fallback。
 			return const VoronoiCellPlanner(oversampleRatio: 1.0).plan(
 				pieceCount: pieceCount,
@@ -316,11 +332,19 @@ class TriangleCellPlanner extends CellPlanner {
 		}
 
 		// 主成長迴圈：先用合法相鄰圖、卡住就退到物理相鄰圖補完。
+		diag("_planOnce: phase3 region growing (triangles=${triPolys.length})");
+		int growIter = 0;
 		while (true) {
+			growIter++;
+			if (growIter > triPolys.length + 10) {
+				diag("_planOnce: phase3 RUNAWAY iter=$growIter, force-break");
+				break;
+			}
 			if (growStep(triLegalNeighbors)) continue;
 			if (growStep(triNeighbors)) continue;
 			break;
 		}
+		diag("_planOnce: phase3 region growing done iter=$growIter");
 
 		// === 輸出：把每群組的三角形 union 成一個 polygon ===
 		// 用「邊計數」法：群組內所有三角形的邊，**出現 2 次的是內部邊（消去）、
@@ -343,7 +367,9 @@ class TriangleCellPlanner extends CellPlanner {
 		//   × 0.20）→ 從**兩個** owner polygon 同步移除此頂點、讓接合邊乾淨。
 		// - 邊界 degree=1 頂點：共線（180°）才刪、角落 90° 保留。
 		// - 邊界 degree=2 頂點：永不刪（會讓 polygon 離開矩形邊界）。
+		diag("_planOnce: phase4 simplifyVertices polys=${polys.length}");
 		_simplifyVertices(polys, innerBounds);
+		diag("_planOnce: phase4 done");
 
 		final List<CellPolygon> cells = <CellPolygon>[
 			for (int i = 0; i < polys.length; i++)
