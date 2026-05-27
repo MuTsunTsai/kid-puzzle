@@ -231,5 +231,19 @@ void main() {
 					reason: "自交率太高: $selfIntersectingPieces/$totalPieces "
 							"(${(rate * 100).toStringAsFixed(1)}%). cases: $failures");
 		});
+
+		test("validateLockability：每片至少有一條 flat 邊或一個 tab neighbor", () {
+			// Grid 切割：無不規則拓樸，理論上每片都應該 pass。
+			for (int pieceCount = 2; pieceCount <= 30; pieceCount++) {
+				for (int seed = 0; seed < 5; seed++) {
+					final PuzzleLayout layout = _cutWithGrid(pieceCount, seed);
+					expect(
+						PuzzleCutter.validateLockability(layout),
+						isTrue,
+						reason: "Grid n=$pieceCount seed=$seed 有片不可鎖定",
+					);
+				}
+			}
+		});
 	});
 }

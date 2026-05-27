@@ -843,17 +843,33 @@ class PuzzleController extends ChangeNotifier {
 			// 不規則模式：用 Triangle planner（Voronoi 頂點 + Delaunay + 群組成長）。
 			CutMode.voronoi => const TriangleCellPlanner(),
 		};
-		final CellLayout cellLayout = planner.plan(
-			pieceCount: pieceCount,
-			innerBounds: innerBounds,
-			seed: seed,
-		);
-		final PuzzleLayout layout = PuzzleCutter.cut(
-			boardSize: stageLayout.boardSize,
-			boardPadding: boardPadding,
-			cellLayout: cellLayout,
-			seed: seed,
-		);
+
+		// 切割安全檢查：每片 piece 必須至少有一條 flat 邊（相鄰邊框）或一個
+		// tab neighbor（透過耳朵連到其他片），否則該片在「無提示線」模式下
+		// 永遠無法鎖定（見 [PuzzleCutter.validateLockability] / SnapDetector）。
+		// 在加入這個防護之前，實務上從來沒有遇過這種狀況真的發生，
+		// 所以就算理論上這個不是完全不可能、也是機率極低的現象，
+		// 但總之保險起見還是加上防護。
+		// 若檢查失敗就用新 seed 重切；retry 數量上限避免極端情況下無限迴圈。
+		PuzzleLayout layout;
+		int trySeed = seed;
+		const int maxRetries = 20;
+		for (int attempt = 0; ; attempt++) {
+			final CellLayout cellLayout = planner.plan(
+				pieceCount: pieceCount,
+				innerBounds: innerBounds,
+				seed: trySeed,
+			);
+			layout = PuzzleCutter.cut(
+				boardSize: stageLayout.boardSize,
+				boardPadding: boardPadding,
+				cellLayout: cellLayout,
+				seed: trySeed,
+			);
+			if (PuzzleCutter.validateLockability(layout)) break;
+			if (attempt >= maxRetries) break; // 用最後一次結果硬撐，避免永遠卡住
+			trySeed = trySeed * 1664525 + 1013904223; // LCG 衍生下一個 seed
+		}
 		// 把 piece 的位置從相對 (0,0) 轉成相對 stage（加 boardOrigin）
 		for (final PuzzlePiece p in layout.pieces) {
 			p.currentPosition = ui.Offset(

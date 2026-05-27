@@ -156,6 +156,26 @@ class PuzzleCutter {
 		);
 	}
 
+	/// 檢查每片 piece 是否「可鎖定」。
+	///
+	/// 鎖定條件（見 [SnapDetector._groupTouchesLockedOrFrame]）：
+	/// 1. 有任一條 [EdgeType.flat] 邊（= 相鄰邊框）→ 可鎖
+	/// 2. 有任一個 tab neighbor（= 透過耳朵相連的鄰居）→ 可鎖（等鄰居先鎖）
+	///
+	/// 兩條都不滿足的 piece 在「無提示線」模式下永遠進不去鎖定流程，是 bug。
+	///
+	/// 呼叫端應在拿到 [PuzzleLayout] 後立刻檢查、若 false 就換 seed 重切。
+	static bool validateLockability(PuzzleLayout layout) {
+		for (final PuzzlePiece p in layout.pieces) {
+			final bool hasFlat = p.edges.any((PuzzleEdge e) => e.type == EdgeType.flat);
+			if (hasFlat) continue;
+			if (p.tabNeighborIds.isNotEmpty) continue;
+			// 這片沒有 flat 邊、也沒有 tab neighbor — 永遠進不去鎖定條件
+			return false;
+		}
+		return true;
+	}
+
 	/// 對每個 cell 算出鄰居集合（共享至少一條 polygon 邊的其他 cell idx）。
 	///
 	/// 用「邊端點對 quantized key」分組：兩個 cell 的某條邊端點對 key 相同 → 相鄰。
