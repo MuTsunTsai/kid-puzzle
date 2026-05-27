@@ -11,6 +11,7 @@ import "../domain/services/puzzle_cutter.dart";
 import "../domain/services/snap_detector.dart";
 import "../domain/services/triangle_planner.dart";
 import "../domain/services/voronoi.dart";
+import "_diag.dart";
 
 /// 拼圖場景的可繪製區域劃分。
 ///
@@ -858,13 +859,16 @@ class PuzzleController extends ChangeNotifier {
 		// 用來追查網頁版偶發的「過關後當機」— 若超過 500ms 印 warning。
 		final Stopwatch totalSw = Stopwatch()..start();
 		final List<int> attemptMs = <int>[];
+		diag("newLevel: enter retry loop n=$pieceCount cutMode=$cutMode seed=$seed");
 		for (int attempt = 0; ; attempt++) {
 			final Stopwatch attemptSw = Stopwatch()..start();
+			diag("newLevel: attempt=$attempt trySeed=$trySeed → planner.plan");
 			final CellLayout cellLayout = planner.plan(
 				pieceCount: pieceCount,
 				innerBounds: innerBounds,
 				seed: trySeed,
 			);
+			diag("newLevel: attempt=$attempt planner.plan done cells=${cellLayout.cells.length} → cutter");
 			layout = PuzzleCutter.cut(
 				boardSize: stageLayout.boardSize,
 				boardPadding: boardPadding,
@@ -873,10 +877,19 @@ class PuzzleController extends ChangeNotifier {
 			);
 			attemptSw.stop();
 			attemptMs.add(attemptSw.elapsedMilliseconds);
-			if (PuzzleCutter.validateLockability(layout)) break;
-			if (attempt >= maxRetries) break; // 用最後一次結果硬撐，避免永遠卡住
+			diag("newLevel: attempt=$attempt cutter done pieces=${layout.pieces.length} elapsed=${attemptSw.elapsedMilliseconds}ms → validate");
+			if (PuzzleCutter.validateLockability(layout)) {
+				diag("newLevel: attempt=$attempt validate PASS, break");
+				break;
+			}
+			if (attempt >= maxRetries) {
+				diag("newLevel: attempt=$attempt hit maxRetries, break");
+				break;
+			}
+			diag("newLevel: attempt=$attempt validate FAIL, retry");
 			trySeed = trySeed * 1664525 + 1013904223; // LCG 衍生下一個 seed
 		}
+		diag("newLevel: exit retry loop");
 		totalSw.stop();
 		if (totalSw.elapsedMilliseconds > 500) {
 			debugPrint(
