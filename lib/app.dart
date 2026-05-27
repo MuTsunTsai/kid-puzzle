@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 
+import "core/analytics/analytics_service.dart";
 import "core/constants/app_colors.dart";
 import "core/constants/ui_strings.dart";
 import "core/routing/app_router.dart";
@@ -50,9 +51,16 @@ class KidPuzzleApp extends StatelessWidget {
 				),
 			],
 			onUnknownRoute: AppRouter.onUnknownRoute,
-			// 全域 RouteObserver：讓各頁面用 RouteAware 監聽「自己再次成為 top route」
-			// 事件（didPopNext），用於從子頁面 pop 回來時重新檢查教學狀態等。
-			navigatorObservers: <NavigatorObserver>[appRouteObserver],
+			// 全域 NavigatorObserver：
+			// - [appRouteObserver]：頁面用 RouteAware 監聽「自己再次成為 top route」
+			//   事件（didPopNext），用於從子頁面 pop 回來時重新檢查教學狀態等。
+			// - [FirebaseAnalyticsObserver]：自動送 screen_view 事件。未初始化時
+			//   為 null，這邊用 whereType 過濾掉。
+			navigatorObservers: <NavigatorObserver>[
+				appRouteObserver,
+				if (AnalyticsService.instance.observer != null)
+					AnalyticsService.instance.observer!,
+			],
 			// 全域 overlay 與字型預熱：
 			// - FontReadyProbe 用集中的 [preheatCharSet] 預熱整個 App 的中文 glyph，
 			//   ready 前所有 route 都是透明 + IgnorePointer，避免子頁面第一次進去

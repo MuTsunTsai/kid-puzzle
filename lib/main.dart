@@ -1,17 +1,28 @@
+import "package:firebase_core/firebase_core.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:hive_ce_flutter/hive_flutter.dart";
 import "package:provider/provider.dart";
 
 import "app.dart";
+import "core/analytics/analytics_service.dart";
 import "core/audio/audio_service.dart";
 import "core/audio/voice_service.dart";
 import "core/storage/gallery_repository.dart";
 import "core/storage/settings_repository.dart";
 import "core/system/interop.dart";
+import "firebase_options.dart";
 
 Future<void> main() async {
 	WidgetsFlutterBinding.ensureInitialized();
+
+	// Firebase 初始化（含 Analytics）。失敗不擋啟動 — 應用本身不依賴 Firebase。
+	try {
+		await Firebase.initializeApp(
+			options: DefaultFirebaseOptions.currentPlatform,
+		);
+		AnalyticsService.instance.init();
+	} catch (_) {}
 
 	// Web：禁止 Flutter 換頁堆 history。iOS Safari / PWA 邊緣手勢就無事可做。
 	installNoHistoryUrlStrategy();

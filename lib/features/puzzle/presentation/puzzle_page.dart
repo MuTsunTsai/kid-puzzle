@@ -7,6 +7,7 @@ import "package:flutter/services.dart";
 import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/audio/audio_service.dart";
 import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
@@ -110,6 +111,9 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	/// 永遠等不到完整 click。教學顯示時用 IgnorePointer 把 canvas 整片暫停。
 	bool _tutorialActive = false;
 
+	/// 當前關卡開始時間（Analytics 用）。null 表示尚未開始任何關卡。
+	DateTime? _levelStartTime;
+
 	@override
 	void initState() {
 		super.initState();
@@ -121,12 +125,31 @@ class _PuzzlePageState extends State<PuzzlePage> {
 
 	@override
 	void dispose() {
+		// 若離開拼圖頁時尚有未完成的關卡 → 送 level_exit。完成關卡時 _levelStartTime
+		// 會被清為 null、這裡就不重複送。
+		_logLevelExitIfActive();
 		_controller?.dispose();
 		_showcase.unregister();
 		// 離開拼圖頁 → 解除 app pinning。fire-and-forget；非 Android / 未啟用
 		// 都會靜默 no-op。
 		SystemGuard.disable();
 		super.dispose();
+	}
+
+	int _elapsedSecondsSinceStart() {
+		final DateTime? t = _levelStartTime;
+		if (t == null) return 0;
+		return DateTime.now().difference(t).inSeconds;
+	}
+
+	void _logLevelExitIfActive() {
+		if (_levelStartTime == null) return;
+		AnalyticsService.instance.logLevelExit(
+			pieceCount: _pieceCount,
+			cutMode: _cutMode.name,
+			durationSec: _elapsedSecondsSinceStart(),
+		);
+		_levelStartTime = null;
 	}
 
 	Future<void> _maybeStartTutorial() async {
@@ -330,10 +353,22 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		c.onCompleted = () {
 			audio.play(SfxKind.complete);
 			voice.speakLevelComplete();
+			AnalyticsService.instance.logLevelComplete(
+				pieceCount: _pieceCount,
+				cutMode: _cutMode.name,
+				durationSec: _elapsedSecondsSinceStart(),
+			);
+			_levelStartTime = null;
 			_handleCompleted();
 		};
 		// 進關卡的語音提示
 		voice.speakLevelStart();
+		// Analytics：標記新關卡開始
+		_levelStartTime = DateTime.now();
+		AnalyticsService.instance.logLevelStart(
+			pieceCount: _pieceCount,
+			cutMode: _cutMode.name,
+		);
 
 		if (!mounted) {
 			loaded.image.dispose();

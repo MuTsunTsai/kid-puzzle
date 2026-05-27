@@ -40,6 +40,10 @@ dependencies:
   flutter_animate: ^4.5.0
   showcaseview: ^5.0.2
 
+  # Firebase Analytics（跨平台事件追蹤；Android/iOS/Web 共用同一 API）
+  firebase_core: ^4.9.0
+  firebase_analytics: ^12.4.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
