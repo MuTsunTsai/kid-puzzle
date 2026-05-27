@@ -854,7 +854,12 @@ class PuzzleController extends ChangeNotifier {
 		PuzzleLayout layout;
 		int trySeed = seed;
 		const int maxRetries = 20;
+		// 診斷用：總 newLevel 切割耗時、每次 attempt 耗時。
+		// 用來追查網頁版偶發的「過關後當機」— 若超過 500ms 印 warning。
+		final Stopwatch totalSw = Stopwatch()..start();
+		final List<int> attemptMs = <int>[];
 		for (int attempt = 0; ; attempt++) {
+			final Stopwatch attemptSw = Stopwatch()..start();
 			final CellLayout cellLayout = planner.plan(
 				pieceCount: pieceCount,
 				innerBounds: innerBounds,
@@ -866,9 +871,19 @@ class PuzzleController extends ChangeNotifier {
 				cellLayout: cellLayout,
 				seed: trySeed,
 			);
+			attemptSw.stop();
+			attemptMs.add(attemptSw.elapsedMilliseconds);
 			if (PuzzleCutter.validateLockability(layout)) break;
 			if (attempt >= maxRetries) break; // 用最後一次結果硬撐，避免永遠卡住
 			trySeed = trySeed * 1664525 + 1013904223; // LCG 衍生下一個 seed
+		}
+		totalSw.stop();
+		if (totalSw.elapsedMilliseconds > 500) {
+			debugPrint(
+				"[puzzle] SLOW newLevel: total=${totalSw.elapsedMilliseconds}ms "
+				"n=$pieceCount cutMode=$cutMode attempts=${attemptMs.length} "
+				"per-attempt=$attemptMs ms",
+			);
 		}
 		// 把 piece 的位置從相對 (0,0) 轉成相對 stage（加 boardOrigin）
 		for (final PuzzlePiece p in layout.pieces) {
