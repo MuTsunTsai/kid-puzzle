@@ -5,6 +5,7 @@ import "package:showcaseview/showcaseview.dart";
 
 import "../../../core/audio/audio_service.dart";
 import "../../../core/constants/app_colors.dart";
+import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../shared/widgets/click_sound.dart";
@@ -172,7 +173,7 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 											mainAxisSize: MainAxisSize.min,
 											children: <Widget>[
 												const Text(
-													"選擇拼圖片數範圍",
+													SetupStrings.rangeTitle,
 													style: TextStyle(
 														fontSize: 24,
 														fontWeight: FontWeight.bold,
@@ -182,8 +183,7 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 												const SizedBox(height: 20),
 												tutorialWrap(
 													key: _tutorialRangeKey,
-													text: "在這邊可以選擇拼圖片數範圍，"
-															"會隨機從範圍中選一個來進行切割～",
+													text: SetupStrings.rangeTutorial,
 													child: _PieceRangeRow(
 														min: _min,
 														max: _max,
@@ -225,20 +225,17 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 															},
 															wrapShowHintRow: (Widget row) => tutorialWrap(
 																key: _tutorialHintKey,
-																text: "啟用這個會顯示切割提示線，"
-																		"關掉的話會稍微增加難度喔！",
+																text: SetupStrings.hintTutorial,
 																child: row,
 															),
 															wrapRotationRow: (Widget row) => tutorialWrap(
 																key: _tutorialRotationKey,
-																text: "啟用這個會增加旋轉的維度，"
-																		"會更加提昇難度喔！",
+																text: SetupStrings.rotationTutorial,
 																child: row,
 															),
 															wrapScreenLockRow: (Widget row) => tutorialWrap(
 																key: _tutorialScreenLockKey,
-																text: "啟用這個會鎖定應用程式，"
-																		"在部份手機上有助於避免幼兒誤觸系統返回～",
+																text: SetupStrings.screenLockTutorial,
 																child: row,
 															),
 														),
@@ -248,14 +245,12 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 														// 不會同時 active，套件靠 active key 找對應 widget，不會混淆。
 														tutorialWrap(
 															key: _tutorialCutModeKey,
-															text: "這邊可以選擇不同的切割模式，"
-																	"不規則型的形狀提示較明顯，"
-																	"對許多幼兒來說反而比較容易喔～",
+															text: SetupStrings.cutModeTutorial,
 															position: TooltipPosition.top,
 															child: Showcase.withWidget(
 																key: _cutModeRequiredKey,
 																container: TutorialBubble(
-																	text: "這邊至少要選一種喔！",
+																	text: SetupStrings.cutModeRequired,
 																	onTap: _showcase.next,
 																),
 																tooltipPosition: TooltipPosition.top,
@@ -435,7 +430,7 @@ class _OptionsCard extends StatelessWidget {
 						wrap(
 							wrapShowHintRow,
 							_OptionCheckRow(
-								label: "顯示提示線",
+								label: SetupStrings.showHintLabel,
 								value: showHint,
 								onChanged: onShowHintChanged,
 							),
@@ -443,7 +438,7 @@ class _OptionsCard extends StatelessWidget {
 						wrap(
 							wrapRotationRow,
 							_OptionCheckRow(
-								label: "旋轉",
+								label: SetupStrings.rotationLabel,
 								value: rotation,
 								onChanged: onRotationChanged,
 							),
@@ -452,7 +447,7 @@ class _OptionsCard extends StatelessWidget {
 							wrap(
 								wrapScreenLockRow,
 								_OptionCheckRow(
-									label: "鎖定畫面",
+									label: SetupStrings.screenLockLabel,
 									value: screenLock,
 									onChanged: onScreenLockChanged,
 								),
@@ -492,12 +487,12 @@ class _CutModeCard extends StatelessWidget {
 					segments: const <ButtonSegment<CutMode>>[
 						ButtonSegment<CutMode>(
 							value: CutMode.grid,
-							label: Text("方格"),
+							label: Text(SetupStrings.cutModeGrid),
 							icon: Icon(Icons.grid_view),
 						),
 						ButtonSegment<CutMode>(
 							value: CutMode.voronoi,
-							label: Text("不規則"),
+							label: Text(SetupStrings.cutModeVoronoi),
 							icon: Icon(Icons.scatter_plot),
 						),
 					],
@@ -529,7 +524,7 @@ class _StartButton extends StatelessWidget {
 				elevation: 6,
 			),
 			child: const Text(
-				"開始",
+				SetupStrings.startButton,
 				style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
 			),
 		);

@@ -3,13 +3,13 @@ import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
 
 import "../../../core/constants/app_colors.dart";
+import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/routing/route_observer.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../core/system/interop.dart";
 import "../../../shared/widgets/centered_showcase_bubble.dart";
 import "../../../shared/widgets/click_sound.dart";
-import "../../../shared/widgets/font_ready_probe.dart";
 import "../../../shared/widgets/font_ready_signal.dart";
 import "../../../shared/widgets/tutorial_bubble.dart";
 // 家長鎖暫時停用、保留 import 以便日後恢復（見 _enterParent）。
@@ -26,35 +26,6 @@ class HomePage extends StatefulWidget {
 
 	/// 首頁教學「當前版本」。更新教學內容時 bump 此值，舊使用者會重看一次。
 	static const int _homeTutorialVersion = 1;
-
-	// === 教學文字常數 ===
-	// 把實際渲染的字串集中、暴露給 FontReadyProbe 用作字型預熱字元集，
-	// 避免進入首頁時還有少量字觸發 web font 延遲載入。
-
-	static const String _welcomeMessage = "歡迎來到《幼兒益智遊戲》！"
-			"本應用程式特別針對幼兒進行開發，"
-			"在操作上特別考慮到幼兒的手部協調特性，"
-			"搭配精心製作的可愛風格插畫，喜歡大小朋友都喜歡！";
-
-	static const String _startTutorial = "目前本遊戲只提供拼圖，"
-			"我們未來會再加入更多內容，敬請期待！";
-
-	static const String _gearTutorial = "從這邊可以進入設定頁；"
-			"為了避免小朋友誤觸，這個要長壓一秒喔！";
-
-	// PWA 安裝引導兩種文案（依瀏覽器擇一）— 在 web 且尚未 standalone 時顯示。
-	// 一併寫入 FontReadyProbe 預熱字元集，避免氣泡彈出時觸發 fallback。
-	static const String _pwaHintSafari =
-			"如果喜歡這個應用程式，可以在「分享」選單中點選「加入主畫面」、"
-			"即可安裝成為一般的應用程式喔！";
-	static const String _pwaHintOther =
-			"如果喜歡這個應用程式，可以在瀏覽器選單中點選「加到主畫面」、"
-			"即可安裝成為一般的應用程式喔！";
-
-	/// FontReadyProbe 預熱字元集 = 所有教學文字 + UI 上常駐標題。
-	static const String _fontProbeText =
-			"$_welcomeMessage$_startTutorial$_gearTutorial"
-			"$_pwaHintSafari$_pwaHintOther幼兒益智遊戲開始拼圖";
 
 	@override
 	State<HomePage> createState() => _HomePageState();
@@ -123,8 +94,8 @@ class _HomePageState extends State<HomePage> with RouteAware {
 		// interop 只回 "safari" / "generic" / null 標籤，文案在本檔對應。
 		final String? kind = pwaInstallHint();
 		final String? hint = switch (kind) {
-			"safari" => HomePage._pwaHintSafari,
-			"generic" => HomePage._pwaHintOther,
+			"safari" => HomeStrings.pwaHintSafari,
+			"generic" => HomeStrings.pwaHintGeneric,
 			_ => null,
 		};
 		setState(() => _pwaHint = hint);
@@ -143,105 +114,101 @@ class _HomePageState extends State<HomePage> with RouteAware {
 
 	@override
 	Widget build(BuildContext context) {
-		return FontReadyProbe(
-			probeText: HomePage._fontProbeText,
-			child: Scaffold(
-				body: Container(
-					decoration: const BoxDecoration(
-						gradient: LinearGradient(
-							begin: Alignment.topLeft,
-							end: Alignment.bottomRight,
-							colors: <Color>[
-								AppColors.primary,
-								AppColors.accent,
-							],
-						),
+		return Scaffold(
+			body: Container(
+				decoration: const BoxDecoration(
+					gradient: LinearGradient(
+						begin: Alignment.topLeft,
+						end: Alignment.bottomRight,
+						colors: <Color>[
+							AppColors.primary,
+							AppColors.accent,
+						],
 					),
-
-					child: SafeArea(
-						child: Stack(
-							children: <Widget>[
-								// 右上：家長入口
-								Positioned(
-									top: 12,
-									right: 12,
-									child: Showcase.withWidget(
-										key: _gearKey,
-										targetShapeBorder: const CircleBorder(),
-										container: TutorialBubble(
-											text: HomePage._gearTutorial,
-											onTap: _showcase.next,
-										),
-										child: GearButton(
-											onLongPressComplete: () => _enterParent(context),
+				),
+				child: SafeArea(
+					child: Stack(
+						children: <Widget>[
+							// 右上：家長入口
+							Positioned(
+								top: 12,
+								right: 12,
+								child: Showcase.withWidget(
+									key: _gearKey,
+									targetShapeBorder: const CircleBorder(),
+									container: TutorialBubble(
+										text: HomeStrings.gearTutorial,
+										onTap: _showcase.next,
+									),
+									child: GearButton(
+										onLongPressComplete: () => _enterParent(context),
+									),
+								),
+							),
+							// 中央：大「開始」按鈕
+							Center(
+								child: Showcase.withWidget(
+									key: _startKey,
+									container: TutorialBubble(
+										text: HomeStrings.startTutorial,
+										onTap: _showcase.next,
+									),
+									child: _StartButton(
+										onPressed: () async {
+											// Web 手機瀏覽器：在 user gesture handler 內請求全螢幕 + 鎖橫向。
+											// 必須在 pushNamed 之前 await，否則 gesture context 已過期、瀏覽器會拒。
+											// 非手機 / 非 web 平台一律 no-op。
+											await requestFullscreenLandscape();
+											if (!context.mounted) return;
+											Navigator.of(context).pushNamed(AppRoutes.puzzleSetup);
+										},
+									),
+								),
+							),
+							// 底部標題
+							const Positioned(
+								bottom: 24,
+								left: 0,
+								right: 0,
+								child: Center(
+									child: Text(
+										HomeStrings.appTitle,
+										style: TextStyle(
+											fontSize: 24,
+											color: Colors.white,
+											fontWeight: FontWeight.bold,
+											shadows: <Shadow>[
+												Shadow(
+													offset: Offset(1, 1),
+													blurRadius: 3,
+													color: Colors.black38,
+												),
+											],
 										),
 									),
 								),
-								// 中央：大「開始」按鈕
-								Center(
-									child: Showcase.withWidget(
-										key: _startKey,
-										container: TutorialBubble(
-											text: HomePage._startTutorial,
-											onTap: _showcase.next,
-										),
-										child: _StartButton(
-											onPressed: () async {
-												// Web 手機瀏覽器：在 user gesture handler 內請求全螢幕 + 鎖橫向。
-												// 必須在 pushNamed 之前 await，否則 gesture context 已過期、瀏覽器會拒。
-												// 非手機 / 非 web 平台一律 no-op。
-												await requestFullscreenLandscape();
-												if (!context.mounted) return;
-												Navigator.of(context).pushNamed(AppRoutes.puzzleSetup);
-											},
-										),
-									),
-								),
-								// 底部標題
-								const Positioned(
-									bottom: 24,
-									left: 0,
-									right: 0,
-									child: Center(
-										child: Text(
-											"幼兒益智遊戲",
-											style: TextStyle(
-												fontSize: 24,
-												color: Colors.white,
-												fontWeight: FontWeight.bold,
-												shadows: <Shadow>[
-													Shadow(
-														offset: Offset(1, 1),
-														blurRadius: 3,
-														color: Colors.black38,
-													),
-												],
-											),
-										),
-									),
-								),
-								// 教學流程第一步：歡迎訊息純氣泡
-								CenteredShowcaseBubble(
-									showcaseKey: _welcomeKey,
-									message: HomePage._welcomeMessage,
-									// 點任意處：先請求全螢幕橫向（user gesture context 內），
-									// 再推進到下一步教學。
-									onTap: () {
-										requestFullscreenLandscape();
-										_showcase.next();
-									},
-								),
-								// 教學第二步（僅 web 且非 standalone）：PWA 安裝引導純氣泡。
-								// _pwaHint == null 時 _maybeStartTutorial 不會把這個 key
-								// 加進 steps，CenteredShowcaseBubble 雖仍掛在 tree 上但不會
-								// 被觸發；message 給空字串避免 build 期 layout 計算。
-								CenteredShowcaseBubble(
-									showcaseKey: _pwaHintKey,
-									message: _pwaHint ?? "",
-									onTap: _showcase.next,
-								),
-							],
-						),
+							),
+							// 教學流程第一步：歡迎訊息純氣泡
+							CenteredShowcaseBubble(
+								showcaseKey: _welcomeKey,
+								message: HomeStrings.welcomeMessage,
+								// 點任意處：先請求全螢幕橫向（user gesture context 內），
+								// 再推進到下一步教學。
+								onTap: () {
+									requestFullscreenLandscape();
+									_showcase.next();
+								},
+							),
+							// 教學第二步（僅 web 且非 standalone）：PWA 安裝引導純氣泡。
+							// _pwaHint == null 時 _maybeStartTutorial 不會把這個 key
+							// 加進 steps，CenteredShowcaseBubble 雖仍掛在 tree 上但不會
+							// 被觸發；message 給空字串避免 build 期 layout 計算。
+							CenteredShowcaseBubble(
+								showcaseKey: _pwaHintKey,
+								message: _pwaHint ?? "",
+								onTap: _showcase.next,
+							),
+						],
 					),
 				),
 			),
@@ -278,7 +245,7 @@ class _StartButton extends StatelessWidget {
 				elevation: 8,
 			),
 			child: const Text(
-				"開始拼圖",
+				HomeStrings.startButton,
 				style: TextStyle(
 					fontSize: 32,
 					fontWeight: FontWeight.bold,

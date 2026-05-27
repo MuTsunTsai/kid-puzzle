@@ -4,6 +4,7 @@ import "package:image_picker/image_picker.dart";
 import "package:provider/provider.dart";
 
 import "../../../core/constants/app_colors.dart";
+import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/storage/gallery_repository.dart";
 import "../../../shared/models/gallery_set.dart";
@@ -39,8 +40,8 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 		final String? id = _setId;
 		if (id == null) {
 			return Scaffold(
-				appBar: AppBar(title: const Text("圖庫")),
-				body: const Center(child: Text("未指定圖庫 id")),
+				appBar: AppBar(title: const Text(GalleryDetailStrings.title)),
+				body: const Center(child: Text(GalleryDetailStrings.missingId)),
 			);
 		}
 		return Consumer<GalleryRepository>(
@@ -48,8 +49,8 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 				final GallerySet? set = repo.findById(id);
 				if (set == null) {
 					return Scaffold(
-						appBar: AppBar(title: const Text("圖庫")),
-						body: const Center(child: Text("找不到此圖庫")),
+						appBar: AppBar(title: const Text(GalleryDetailStrings.title)),
+						body: const Center(child: Text(GalleryDetailStrings.notFound)),
 					);
 				}
 				// 用 keys（內建：assets 路徑；自訂：imageId）統一索引選取狀態。
@@ -81,7 +82,7 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 						: null,
 				title: Text(
 					_inSelectionMode
-							? "已選取 ${_selected.length}"
+							? "${GalleryDetailStrings.selected} ${_selected.length}"
 							: set.name,
 				),
 				backgroundColor: AppColors.primary,
@@ -90,7 +91,7 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 					if (editable && _inSelectionMode)
 						IconButton(
 							icon: const Icon(Icons.delete),
-							tooltip: "刪除已選取",
+							tooltip: GalleryDetailStrings.deleteSelected,
 							onPressed: ClickSound.wrap(
 								context,
 								() => _confirmDeleteSelected(context, set.id),
@@ -99,7 +100,7 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 					if (editable && !_inSelectionMode)
 						IconButton(
 							icon: const Icon(Icons.add_a_photo),
-							tooltip: "新增圖片",
+							tooltip: GalleryDetailStrings.addImage,
 							onPressed: ClickSound.wrap(
 								context,
 								() => _onAddImages(context, set.id),
@@ -119,7 +120,9 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 									),
 									const SizedBox(height: 12),
 									Text(
-										editable ? "還沒有圖片，點右上＋新增" : "此圖庫沒有圖片",
+										editable
+												? GalleryDetailStrings.emptyHint
+												: GalleryDetailStrings.emptyTitle,
 										style: const TextStyle(color: Colors.black54),
 									),
 								],
@@ -213,7 +216,7 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 			debugPrint("[gallery] _onAddImages failed: $e\n$st");
 			if (context.mounted) {
 				ScaffoldMessenger.of(context).showSnackBar(
-					SnackBar(content: Text("匯入失敗：$e")),
+					SnackBar(content: Text("${GalleryDetailStrings.importFailed}$e")),
 				);
 			}
 		}
@@ -251,15 +254,18 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 		final bool ok = await showDialog<bool>(
 					context: context,
 					builder: (BuildContext ctx) => AlertDialog(
-						title: const Text("刪除已選取？"),
-						content: Text("確定要刪除 $n 張圖片嗎？此操作無法復原。"),
+						title: const Text(GalleryDetailStrings.deletePrompt),
+						content: Text(
+							"${GalleryDetailStrings.deleteDesc1}$n"
+							"${GalleryDetailStrings.deleteDesc2}",
+						),
 						actions: <Widget>[
 							TextButton(
 								onPressed: ClickSound.wrap(
 									ctx,
 									() => Navigator.of(ctx).pop(false),
 								),
-								child: const Text("取消"),
+								child: const Text(GalleryStrings.cancel),
 							),
 							ElevatedButton(
 								onPressed: ClickSound.wrap(
@@ -270,7 +276,7 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 									backgroundColor: Colors.red,
 									foregroundColor: Colors.white,
 								),
-								child: const Text("刪除"),
+								child: const Text(GalleryDetailStrings.delete),
 							),
 						],
 					),

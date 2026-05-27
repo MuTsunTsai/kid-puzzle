@@ -3,6 +3,7 @@ import "package:provider/provider.dart";
 
 import "../../../core/audio/audio_service.dart";
 import "../../../core/constants/app_colors.dart";
+import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/storage/gallery_repository.dart";
 import "../../../shared/models/gallery_set.dart";
@@ -20,7 +21,7 @@ class GalleryPage extends StatelessWidget {
 	Widget build(BuildContext context) {
 		return Scaffold(
 			appBar: AppBar(
-				title: const Text("圖庫管理"),
+				title: const Text(GalleryStrings.title),
 				backgroundColor: AppColors.primary,
 				foregroundColor: Colors.white,
 			),
@@ -42,7 +43,7 @@ class GalleryPage extends StatelessWidget {
 			floatingActionButton: FloatingActionButton.extended(
 				onPressed: ClickSound.wrap(context, () => _onCreate(context)),
 				icon: const Icon(Icons.add),
-				label: const Text("新增圖庫"),
+				label: const Text(GalleryStrings.addGallery),
 				backgroundColor: AppColors.accent,
 				foregroundColor: Colors.white,
 			),
@@ -50,7 +51,7 @@ class GalleryPage extends StatelessWidget {
 	}
 
 	Future<void> _onCreate(BuildContext context) async {
-		final String? name = await _askForName(context, initial: "自訂圖庫");
+		final String? name = await _askForName(context, initial: GalleryStrings.customGallery);
 		if (name == null) return;
 		if (!context.mounted) return;
 		await context.read<GalleryRepository>().createUserSet(name);
@@ -64,7 +65,7 @@ class GalleryPage extends StatelessWidget {
 	static Future<String?> _askForName(
 		BuildContext context, {
 		required String initial,
-		String title = "新增圖庫",
+		String title = GalleryStrings.addGallery,
 	}) async {
 		final String? result = await showDialog<String>(
 			context: context,
@@ -115,7 +116,7 @@ class _AskNameDialogState extends State<_AskNameDialog> {
 				controller: _ctrl,
 				autofocus: true,
 				decoration: const InputDecoration(
-					labelText: "圖庫名稱",
+					labelText: GalleryStrings.galleryName,
 					border: OutlineInputBorder(),
 				),
 				onSubmitted: (String v) => Navigator.of(context).pop(v),
@@ -126,14 +127,14 @@ class _AskNameDialogState extends State<_AskNameDialog> {
 						context,
 						() => Navigator.of(context).pop(),
 					),
-					child: const Text("取消"),
+					child: const Text(GalleryStrings.cancel),
 				),
 				ElevatedButton(
 					onPressed: ClickSound.wrap(
 						context,
 						() => Navigator.of(context).pop(_ctrl.text),
 					),
-					child: const Text("確定"),
+					child: const Text(GalleryStrings.confirm),
 				),
 			],
 		);
@@ -163,7 +164,8 @@ class _GallerySetTile extends StatelessWidget {
 				style: const TextStyle(fontWeight: FontWeight.w600),
 			),
 			subtitle: Text(
-				set.builtin ? "內建．$n 張圖" : "自訂．$n 張圖",
+				"${set.builtin ? GalleryStrings.builtin : GalleryStrings.custom}"
+				"${GalleryStrings.separator}$n ${GalleryStrings.imagesUnit}",
 				style: const TextStyle(fontSize: 12, color: Colors.black54),
 			),
 			trailing: set.builtin
@@ -182,7 +184,7 @@ class _GallerySetTile extends StatelessWidget {
 									value: "rename",
 									child: ListTile(
 										leading: Icon(Icons.edit),
-										title: Text("重新命名"),
+										title: Text(GalleryStrings.rename),
 										contentPadding: EdgeInsets.zero,
 									),
 								),
@@ -191,7 +193,7 @@ class _GallerySetTile extends StatelessWidget {
 									child: ListTile(
 										leading: Icon(Icons.delete, color: Colors.red),
 										title: Text(
-											"刪除整套",
+											GalleryStrings.deleteSet,
 											style: TextStyle(color: Colors.red),
 										),
 										contentPadding: EdgeInsets.zero,
@@ -222,7 +224,7 @@ class _GallerySetTile extends StatelessWidget {
 		final String? newName = await GalleryPage._askForName(
 			context,
 			initial: set.name,
-			title: "重新命名",
+			title: GalleryStrings.rename,
 		);
 		if (newName == null) return;
 		if (!context.mounted) return;
@@ -233,9 +235,11 @@ class _GallerySetTile extends StatelessWidget {
 		final bool ok = await showDialog<bool>(
 					context: context,
 					builder: (BuildContext ctx) => AlertDialog(
-						title: const Text("刪除整套？"),
+						title: const Text(GalleryStrings.deleteSetPrompt),
 						content: Text(
-							"確定要刪除「${set.name}」與其中 ${set.imageCount} 張圖嗎？此操作無法復原。",
+							"${GalleryStrings.deleteSetDesc1}${set.name}"
+							"${GalleryStrings.deleteSetDesc2}${set.imageCount}"
+							"${GalleryStrings.deleteSetDesc3}",
 						),
 						actions: <Widget>[
 							TextButton(
@@ -243,7 +247,7 @@ class _GallerySetTile extends StatelessWidget {
 									ctx,
 									() => Navigator.of(ctx).pop(false),
 								),
-								child: const Text("取消"),
+								child: const Text(GalleryStrings.cancel),
 							),
 							ElevatedButton(
 								onPressed: ClickSound.wrap(
@@ -254,7 +258,7 @@ class _GallerySetTile extends StatelessWidget {
 									backgroundColor: Colors.red,
 									foregroundColor: Colors.white,
 								),
-								child: const Text("刪除"),
+								child: const Text(GalleryStrings.delete),
 							),
 						],
 					),

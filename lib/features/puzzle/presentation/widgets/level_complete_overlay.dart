@@ -1,6 +1,8 @@
 import "package:flutter/material.dart";
 import "package:flutter_animate/flutter_animate.dart";
 
+import "../../../../core/constants/ui_strings.dart";
+
 /// 過關慶祝 overlay：在指定區域內顯示半透明遮罩 + 文字提示，點該區域進下一關。
 ///
 /// 為了讓小朋友能看到左邊拼好的完整圖，遮罩與互動範圍**只覆蓋右半的散落區**，
@@ -58,7 +60,7 @@ class LevelCompleteOverlay extends StatelessWidget {
 									mainAxisSize: MainAxisSize.min,
 									children: <Widget>[
 										const Text(
-											"你完成囉！",
+											PuzzleStrings.levelComplete,
 											style: TextStyle(
 												fontSize: 36,
 												fontWeight: FontWeight.bold,
@@ -71,7 +73,7 @@ class LevelCompleteOverlay extends StatelessWidget {
 												),
 										const SizedBox(height: 12),
 										const Text(
-											"點這裡進入下一關",
+											PuzzleStrings.nextLevel,
 											style: TextStyle(
 												fontSize: 18,
 												color: Colors.black54,

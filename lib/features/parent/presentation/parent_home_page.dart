@@ -4,6 +4,7 @@ import "package:provider/provider.dart";
 import "../../../core/audio/audio_service.dart";
 import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
+import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../shared/widgets/click_sound.dart";
@@ -39,18 +40,18 @@ class _ParentHomePageState extends State<ParentHomePage> {
 	Widget build(BuildContext context) {
 		return Scaffold(
 			appBar: AppBar(
-				title: const Text("家長區"),
+				title: const Text(ParentStrings.homeTitle),
 				backgroundColor: AppColors.primary,
 				foregroundColor: Colors.white,
 			),
 			body: ListView(
 				padding: const EdgeInsets.symmetric(vertical: 8),
 				children: <Widget>[
-					_SectionTitle(text: "內容"),
+					_SectionTitle(text: ParentStrings.sectionContent),
 					ListTile(
 						leading: const Icon(Icons.collections),
-						title: const Text("圖庫管理"),
-						subtitle: const Text("一套一套組織內建與自訂圖庫"),
+						title: const Text(ParentStrings.gallery),
+						subtitle: const Text(ParentStrings.gallerySubtitle),
 						trailing: const Icon(Icons.chevron_right),
 						onTap: ClickSound.wrap(
 							context,
@@ -58,15 +59,15 @@ class _ParentHomePageState extends State<ParentHomePage> {
 						),
 					),
 					const Divider(),
-					_SectionTitle(text: "系統"),
+					_SectionTitle(text: ParentStrings.sectionSystem),
 					// 音效 / 語音提示並排在同一列、各佔一半寬度
 					Row(
 						crossAxisAlignment: CrossAxisAlignment.start,
 						children: <Widget>[
 							Expanded(
 								child: SwitchListTile(
-									title: const Text("音效"),
-									subtitle: const Text("點擊、拖曳、過關等"),
+									title: const Text(ParentStrings.audio),
+									subtitle: const Text(ParentStrings.audioSubtitle),
 									value: _audioEnabled,
 									controlAffinity: ListTileControlAffinity.leading,
 									onChanged: (bool v) {
@@ -78,8 +79,8 @@ class _ParentHomePageState extends State<ParentHomePage> {
 							),
 							Expanded(
 								child: SwitchListTile(
-									title: const Text("語音提示"),
-									subtitle: const Text("進關卡 / 過關的鼓勵"),
+									title: const Text(ParentStrings.voice),
+									subtitle: const Text(ParentStrings.voiceSubtitle),
 									value: _ttsEnabled,
 									controlAffinity: ListTileControlAffinity.leading,
 									onChanged: (bool v) {
@@ -93,8 +94,8 @@ class _ParentHomePageState extends State<ParentHomePage> {
 					),
 					ListTile(
 						leading: const Icon(Icons.school_outlined),
-						title: const Text("重新觀看教學"),
-						subtitle: const Text("清除所有教學的「已看過」紀錄"),
+						title: const Text(ParentStrings.resetTutorial),
+						subtitle: const Text(ParentStrings.resetTutorialSubtitle),
 						onTap: ClickSound.wrap(context, _resetTutorials),
 					),
 				],
@@ -108,7 +109,7 @@ class _ParentHomePageState extends State<ParentHomePage> {
 		if (!mounted) return;
 		messenger.showSnackBar(
 			const SnackBar(
-				content: Text("已重設教學，下次進入相關畫面會再次顯示。"),
+				content: Text(ParentStrings.resetTutorialDone),
 				duration: Duration(seconds: 2),
 			),
 		);

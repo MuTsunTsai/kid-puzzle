@@ -5,6 +5,7 @@ import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:image/image.dart" as img;
 
+import "../../../core/constants/ui_strings.dart";
 import "../../../shared/widgets/click_sound.dart";
 
 /// 進入 [ImageCropPage] 的引數。
@@ -93,14 +94,14 @@ class _ImageCropPageState extends State<ImageCropPage> {
 			appBar: AppBar(
 				backgroundColor: Colors.black,
 				foregroundColor: Colors.white,
-				title: const Text("裁切成 4:3"),
+				title: const Text(CropStrings.title),
 				actions: <Widget>[
 					TextButton(
 						onPressed: _processing
 								? null
 								: ClickSound.wrap(context, _onConfirm),
 						child: const Text(
-							"完成",
+							CropStrings.done,
 							style: TextStyle(
 								color: Colors.white,
 								fontSize: 16,
@@ -370,7 +371,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
 			if (!mounted) return;
 			setState(() => _processing = false);
 			ScaffoldMessenger.of(context).showSnackBar(
-				const SnackBar(content: Text("裁切區域太小")),
+				const SnackBar(content: Text(CropStrings.tooSmall)),
 			);
 			return;
 		}
@@ -388,7 +389,7 @@ class _ImageCropPageState extends State<ImageCropPage> {
 		if (out == null) {
 			setState(() => _processing = false);
 			ScaffoldMessenger.of(context).showSnackBar(
-				const SnackBar(content: Text("裁切失敗")),
+				const SnackBar(content: Text(CropStrings.cropFailed)),
 			);
 			return;
 		}

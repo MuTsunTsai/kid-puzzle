@@ -6,6 +6,7 @@ import "package:provider/provider.dart";
 import "../../core/audio/audio_service.dart";
 import "../../core/constants/app_colors.dart";
 import "../../core/constants/app_dimens.dart";
+import "../../core/constants/ui_strings.dart";
 
 /// 家長鎖 dialog：問一道兩個 1~9 的加法題，答對才放行。
 ///
@@ -103,7 +104,7 @@ class _ParentalLockDialogState extends State<ParentalLockDialog> {
 						mainAxisSize: MainAxisSize.min,
 						children: <Widget>[
 							const Text(
-								"請輸入答案",
+								SharedStrings.parentalLockPrompt,
 								style: TextStyle(
 									fontSize: 18,
 									color: Colors.black54,
@@ -133,7 +134,7 @@ class _ParentalLockDialogState extends State<ParentalLockDialog> {
 							),
 							const SizedBox(height: 16),
 							Text(
-								"答錯次數：$_failures / ${AppDimens.maxParentLockFailures}",
+								"${SharedStrings.parentalLockFailures}$_failures / ${AppDimens.maxParentLockFailures}",
 								style: const TextStyle(
 									fontSize: 12,
 									color: Colors.black45,

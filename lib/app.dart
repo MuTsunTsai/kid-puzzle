@@ -1,8 +1,10 @@
 import "package:flutter/material.dart";
 
 import "core/constants/app_colors.dart";
+import "core/constants/ui_strings.dart";
 import "core/routing/app_router.dart";
 import "core/routing/route_observer.dart";
+import "shared/widgets/font_ready_probe.dart";
 import "shared/widgets/rotate_device_overlay.dart";
 
 /// 根 App Widget：MaterialApp、主題、路由註冊。
@@ -51,9 +53,17 @@ class KidPuzzleApp extends StatelessWidget {
 			// 全域 RouteObserver：讓各頁面用 RouteAware 監聽「自己再次成為 top route」
 			// 事件（didPopNext），用於從子頁面 pop 回來時重新檢查教學狀態等。
 			navigatorObservers: <NavigatorObserver>[appRouteObserver],
-			// 全域 overlay：web 直向時顯示「請打橫」遮罩；其餘平台 pass-through
+			// 全域 overlay 與字型預熱：
+			// - FontReadyProbe 用集中的 [preheatCharSet] 預熱整個 App 的中文 glyph，
+			//   ready 前所有 route 都是透明 + IgnorePointer，避免子頁面第一次進去
+			//   還看到 fallback / tofu。
+			// - RotateDeviceOverlay 在 web 直向時顯示「請打橫」遮罩；其餘平台
+			//   pass-through。
 			builder: (BuildContext context, Widget? child) {
-				return RotateDeviceOverlay(child: child ?? const SizedBox.shrink());
+				return FontReadyProbe(
+					probeText: preheatCharSet,
+					child: RotateDeviceOverlay(child: child ?? const SizedBox.shrink()),
+				);
 			},
 		);
 	}

@@ -11,6 +11,7 @@ import "../../../core/audio/audio_service.dart";
 import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/app_dimens.dart";
+import "../../../core/constants/ui_strings.dart";
 import "../../../core/storage/gallery_repository.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../core/system/system_guard.dart";
@@ -198,14 +199,12 @@ class _PuzzlePageState extends State<PuzzlePage> {
 			context: context,
 			barrierDismissible: false,
 			builder: (BuildContext ctx) => AlertDialog(
-				title: const Text("沒有可用的圖庫"),
-				content: const Text(
-					"請先在「家長區 → 圖庫管理」勾選或新增至少一套含圖片的圖庫。",
-				),
+				title: const Text(PuzzleStrings.noGalleryTitle),
+				content: const Text(PuzzleStrings.noGalleryDesc),
 				actions: <Widget>[
 					ElevatedButton(
 						onPressed: ClickSound.wrap(ctx, () => Navigator.of(ctx).pop()),
-						child: const Text("好"),
+						child: const Text(PuzzleStrings.ok),
 					),
 				],
 			),
@@ -522,9 +521,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 					// 首次進拼圖頁的教學氣泡（畫面中央，無 highlight）。
 					CenteredShowcaseBubble(
 						showcaseKey: _tutorialWelcomeKey,
-						message: "將拼片逐一放回左邊的框中以完成拼圖。"
-								"長壓右上角的關閉圖示即可退出（為了避免誤觸，"
-								"必須先將附近的拼片移開、圖示才會出現喔～）",
+						message: PuzzleStrings.tutorial,
 						onTap: _dismissTutorial,
 					),
 
