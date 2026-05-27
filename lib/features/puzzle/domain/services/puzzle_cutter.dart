@@ -176,6 +176,7 @@ class PuzzleCutter {
 		return true;
 	}
 
+
 	/// 對每個 cell 算出鄰居集合（共享至少一條 polygon 邊的其他 cell idx）。
 	///
 	/// 用「邊端點對 quantized key」分組：兩個 cell 的某條邊端點對 key 相同 → 相鄰。
