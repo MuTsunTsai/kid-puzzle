@@ -416,53 +416,57 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		_preloadedNextImage = null;
 		_preloadedNextImageIndex = null;
 
-		// 抽塊數、seed、cutMode；圖片若已預載則沿用、否則重抽
-		_seed = _random.nextInt(1 << 31);
-		_pieceCount = _minPieces == _maxPieces
-				? _minPieces
-				: _minPieces + _random.nextInt(_maxPieces - _minPieces + 1);
-		_cutMode = _pickRandomCutMode();
-		if (preIndex != null) {
-			_imageIndex = preIndex;
-		} else {
-			_imageIndex = _pickNextImageIndex();
-			pre = null;
-		}
-
-		// 如果預載 Future 還沒 resolve，這裡會被 await 住 → 給使用者一個 spinner
-		// 視覺反饋。已 resolve 的話就會立刻往下走、不顯示 spinner（避免閃一下）。
 		bool spinnerShown = false;
-		if (pre != null) {
-			final Completer<void> readyOrTimeout = Completer<void>();
-			pre.whenComplete(() {
-				if (!readyOrTimeout.isCompleted) readyOrTimeout.complete();
-			});
-			// 給 16ms（一幀）的機會：若 Future 已 resolve 就不顯示 spinner
-			await Future.any(<Future<void>>[
-				readyOrTimeout.future,
-				Future<void>.delayed(const Duration(milliseconds: 16)),
-			]);
-			if (!mounted) return;
-			if (!readyOrTimeout.isCompleted) {
+
+		// 整個轉場流程包在 try/finally：任何例外（圖片解碼失敗、Provider 缺失等）
+		// 都要保證解開 _advancing 鎖與 spinner，否則畫面會卡死、所有按鈕都點不動。
+		try {
+			// 抽塊數、seed、cutMode；圖片若已預載則沿用、否則重抽
+			_seed = _random.nextInt(1 << 31);
+			_pieceCount = _minPieces == _maxPieces
+					? _minPieces
+					: _minPieces + _random.nextInt(_maxPieces - _minPieces + 1);
+			_cutMode = _pickRandomCutMode();
+			if (preIndex != null) {
+				_imageIndex = preIndex;
+			} else {
+				_imageIndex = _pickNextImageIndex();
+				pre = null;
+			}
+
+			// 如果預載 Future 還沒 resolve，這裡會被 await 住 → 給使用者一個 spinner
+			// 視覺反饋。已 resolve 的話就會立刻往下走、不顯示 spinner（避免閃一下）。
+			if (pre != null) {
+				final Completer<void> readyOrTimeout = Completer<void>();
+				pre.whenComplete(() {
+					if (!readyOrTimeout.isCompleted) readyOrTimeout.complete();
+				});
+				// 給 16ms（一幀）的機會：若 Future 已 resolve 就不顯示 spinner
+				await Future.any(<Future<void>>[
+					readyOrTimeout.future,
+					Future<void>.delayed(const Duration(milliseconds: 16)),
+				]);
+				if (!mounted) return;
+				if (!readyOrTimeout.isCompleted) {
+					setState(() => _loadingNextImage = true);
+					spinnerShown = true;
+				}
+			} else {
 				setState(() => _loadingNextImage = true);
 				spinnerShown = true;
 			}
-		} else {
-			setState(() => _loadingNextImage = true);
-			spinnerShown = true;
-		}
 
-		await _resetController(preloaded: pre);
-
-		if (!mounted) {
+			await _resetController(preloaded: pre);
+		} catch (e, st) {
+			debugPrint("[puzzle] _goNextLevel failed: $e\n$st");
+		} finally {
+			if (mounted && spinnerShown) {
+				setState(() => _loadingNextImage = false);
+			}
+			// 下一關 controller 已就緒（或失敗）、UI 已切換 → 一律解鎖，
+			// 避免任何例外把畫面鎖死。
 			_advancing = false;
-			return;
 		}
-		if (spinnerShown) {
-			setState(() => _loadingNextImage = false);
-		}
-		// 下一關 controller 已就緒、UI 已切換 → 解鎖，允許下次過關後再進
-		_advancing = false;
 	}
 
 	/// 是否該隱藏右上 X 按鈕：有任何拼片接近右上角區域時隱藏，避免拖曳誤觸。
