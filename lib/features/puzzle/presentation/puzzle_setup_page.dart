@@ -1,22 +1,24 @@
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
+import "package:showcaseview/showcaseview.dart";
 
 import "../../../core/audio/audio_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../shared/widgets/click_sound.dart";
+import "../../../shared/widgets/tutorial_bubble.dart";
 import "../domain/services/cell_planner.dart";
 import "../puzzle_dimens.dart";
 
-/// 進入拼圖前的設定頁：選擇塊數的下限與上限。
+/// 進入拼圖前的設定頁：選擇片數的下限與上限。
 ///
-/// 進入遊戲後每關會從 [min, max] 範圍內隨機選一個塊數。
+/// 進入遊戲後每關會從 [min, max] 範圍內隨機選一個片數。
 ///
 /// 排版：
 /// - 第一排：「最小數字 ── slider ── 最大數字」
-/// - 第二排：「顯示提示線 + 切割模式 + 開始按鈕」
+/// - 第二排：「玩法選項 card + 切割模式 card + 開始按鈕」
 class PuzzleSetupPage extends StatefulWidget {
 	const PuzzleSetupPage({super.key});
 
@@ -32,6 +34,53 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 	bool _rotation = false;
 	bool _screenLock = false;
 	bool _loadedFromRepo = false;
+
+	// 完整教學流程 key（首次進入或從家長區重設後，依序播放）
+	final GlobalKey _tutorialRangeKey = GlobalKey();
+	final GlobalKey _tutorialHintKey = GlobalKey();
+	final GlobalKey _tutorialRotationKey = GlobalKey();
+	final GlobalKey _tutorialScreenLockKey = GlobalKey();
+	final GlobalKey _tutorialCutModeKey = GlobalKey();
+
+	/// 開始按鈕點下、但切割模式空集合 → 觸發這個 showcase 提醒（與完整教學流程獨立）。
+	final GlobalKey _cutModeRequiredKey = GlobalKey();
+
+	late final ShowcaseView _showcase;
+
+	/// setup 頁教學「當前版本」。更新教學內容時 bump 此值，舊使用者會重看一次。
+	static const int _setupTutorialVersion = 1;
+
+	@override
+	void initState() {
+		super.initState();
+		_showcase = ShowcaseView.register(
+			scope: "puzzleSetup",
+			disableMovingAnimation: true,
+		);
+		WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartTutorial());
+	}
+
+	@override
+	void dispose() {
+		_showcase.unregister();
+		super.dispose();
+	}
+
+	Future<void> _maybeStartTutorial() async {
+		if (!mounted) return;
+		final SettingsRepository repo = context.read<SettingsRepository>();
+		final int seen = repo.tutorialVersionSeen("puzzleSetup");
+		if (seen >= _setupTutorialVersion) return;
+		final List<GlobalKey> sequence = <GlobalKey>[
+			_tutorialRangeKey,
+			_tutorialHintKey,
+			_tutorialRotationKey,
+			if (_showScreenLockOption) _tutorialScreenLockKey,
+			_tutorialCutModeKey,
+		];
+		_showcase.startShowCase(sequence);
+		repo.setTutorialVersionSeen("puzzleSetup", _setupTutorialVersion);
+	}
 
 	/// 只有 Android 才顯示「鎖定畫面」選項。
 	bool get _showScreenLockOption =>
@@ -86,38 +135,34 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 	Widget build(BuildContext context) {
 		final int minInt = _min.round();
 		final int maxInt = _max.round();
+		// helper：把某個 child 用 Showcase.withWidget 包起來，tooltip 點氣泡推進。
+		Widget tutorialWrap({
+			required GlobalKey key,
+			required String text,
+			required Widget child,
+			TooltipPosition position = TooltipPosition.bottom,
+		}) {
+			return Showcase.withWidget(
+				key: key,
+				container: TutorialBubble(text: text, onTap: _showcase.next),
+				tooltipPosition: position,
+				targetBorderRadius: const BorderRadius.all(Radius.circular(8)),
+				child: child,
+			);
+		}
 		return Scaffold(
 			body: Container(
 				decoration: const BoxDecoration(
 					gradient: LinearGradient(
 						begin: Alignment.topLeft,
 						end: Alignment.bottomRight,
-						colors: <Color>[
-							AppColors.primary,
-							AppColors.accent,
-						],
+						colors: <Color>[AppColors.primary, AppColors.accent],
 					),
 				),
 				child: SafeArea(
 					child: Stack(
 						children: <Widget>[
-							// 右上：返回首頁
-							Positioned(
-								top: 12,
-								right: 12,
-								child: IconButton.filled(
-									onPressed: ClickSound.wrap(
-										context,
-										() => Navigator.of(context).maybePop(),
-									),
-									icon: const Icon(Icons.close),
-									iconSize: 28,
-									style: IconButton.styleFrom(
-										backgroundColor: Colors.white.withValues(alpha: 0.9),
-										foregroundColor: AppColors.primary,
-									),
-								),
-							),
+							const _CloseButton(),
 							Center(
 								child: ConstrainedBox(
 									constraints: const BoxConstraints(maxWidth: 720),
@@ -127,7 +172,7 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 											mainAxisSize: MainAxisSize.min,
 											children: <Widget>[
 												const Text(
-													"選擇拼圖塊數範圍",
+													"選擇拼圖片數範圍",
 													style: TextStyle(
 														fontSize: 24,
 														fontWeight: FontWeight.bold,
@@ -135,136 +180,90 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 													),
 												),
 												const SizedBox(height: 20),
-
-												// 第一排：左數字 — slider — 右數字
-												Row(
-													children: <Widget>[
-														_PieceCountBadge(value: minInt),
-														Expanded(
-															child: SliderTheme(
-																data: SliderThemeData(
-																	activeTrackColor: Colors.white,
-																	inactiveTrackColor:
-																			Colors.white.withValues(alpha: 0.3),
-																	thumbColor: Colors.white,
-																	overlayColor:
-																			Colors.white.withValues(alpha: 0.2),
-																	valueIndicatorColor: Colors.white,
-																	valueIndicatorTextStyle: const TextStyle(
-																		color: AppColors.primary,
-																		fontWeight: FontWeight.bold,
-																	),
-																),
-																child: RangeSlider(
-																	min: _absoluteMin,
-																	max: _absoluteMax,
-																	divisions:
-																			(_absoluteMax - _absoluteMin).toInt(),
-																	values: RangeValues(_min, _max),
-																	labels:
-																			RangeLabels("$minInt", "$maxInt"),
-																	onChanged: (RangeValues v) {
-																		setState(() {
-																			_min = v.start;
-																			_max = v.end;
-																		});
-																		_persist();
-																	},
-																),
-															),
-														),
-														_PieceCountBadge(value: maxInt),
-													],
+												tutorialWrap(
+													key: _tutorialRangeKey,
+													text: "在這邊可以選擇拼圖片數範圍，"
+															"會隨機從範圍中選一個來進行切割～",
+													child: _PieceRangeRow(
+														min: _min,
+														max: _max,
+														absoluteMin: _absoluteMin,
+														absoluteMax: _absoluteMax,
+														onChanged: (RangeValues v) {
+															setState(() {
+																_min = v.start;
+																_max = v.end;
+															});
+															_persist();
+														},
+													),
 												),
-
 												const SizedBox(height: 20),
-
-												// 第二排：兩張 card（玩法選項 + 切割模式）+ 開始按鈕
 												Row(
 													crossAxisAlignment: CrossAxisAlignment.center,
 													mainAxisAlignment: MainAxisAlignment.center,
 													children: <Widget>[
-														// 玩法選項 card：提示線 + 旋轉（上下並排）
-														Material(
-															color: Colors.white,
-															borderRadius: BorderRadius.circular(12),
-															child: Padding(
-																padding: const EdgeInsets.symmetric(
-																		horizontal: 8, vertical: 4),
-																child: Column(
-																	mainAxisSize: MainAxisSize.min,
-																	crossAxisAlignment: CrossAxisAlignment.start,
-																	children: <Widget>[
-																		_OptionCheckRow(
-																			label: "顯示提示線",
-																			value: _showHint,
-																			onChanged: (bool v) {
-																				_click();
-																				setState(() => _showHint = v);
-																				_persist();
-																			},
-																		),
-																		_OptionCheckRow(
-																			label: "旋轉",
-																			value: _rotation,
-																			onChanged: (bool v) {
-																				_click();
-																				setState(() => _rotation = v);
-																				_persist();
-																			},
-																		),
-																		if (_showScreenLockOption)
-																			_OptionCheckRow(
-																				label: "鎖定畫面",
-																				value: _screenLock,
-																				onChanged: (bool v) {
-																					_click();
-																					setState(() => _screenLock = v);
-																					_persist();
-																				},
-																			),
-																	],
-																),
+														_OptionsCard(
+															showHint: _showHint,
+															rotation: _rotation,
+															screenLock: _screenLock,
+															showScreenLockOption: _showScreenLockOption,
+															onShowHintChanged: (bool v) {
+																_click();
+																setState(() => _showHint = v);
+																_persist();
+															},
+															onRotationChanged: (bool v) {
+																_click();
+																setState(() => _rotation = v);
+																_persist();
+															},
+															onScreenLockChanged: (bool v) {
+																_click();
+																setState(() => _screenLock = v);
+																_persist();
+															},
+															wrapShowHintRow: (Widget row) => tutorialWrap(
+																key: _tutorialHintKey,
+																text: "啟用這個會顯示切割提示線，"
+																		"關掉的話會稍微增加難度喔！",
+																child: row,
+															),
+															wrapRotationRow: (Widget row) => tutorialWrap(
+																key: _tutorialRotationKey,
+																text: "啟用這個會增加旋轉的維度，"
+																		"會更加提昇難度喔！",
+																child: row,
+															),
+															wrapScreenLockRow: (Widget row) => tutorialWrap(
+																key: _tutorialScreenLockKey,
+																text: "啟用這個會鎖定應用程式，"
+																		"在部份手機上有助於避免幼兒誤觸系統返回～",
+																child: row,
 															),
 														),
 														const SizedBox(width: 16),
-
-														// 切割模式：方格 / 不規則（垂直排列）
-														Material(
-															color: Colors.white,
-															borderRadius: BorderRadius.circular(12),
-															child: Padding(
-																padding: const EdgeInsets.symmetric(
-																		horizontal: 8, vertical: 4),
-																child: SegmentedButton<CutMode>(
-																	multiSelectionEnabled: true,
-																	emptySelectionAllowed: false,
-																	direction: Axis.vertical,
-																	style: ButtonStyle(
-																		shape: WidgetStateProperty.all(
-																			RoundedRectangleBorder(
-																				borderRadius:
-																						BorderRadius.circular(12),
-																			),
-																		),
-																	),
-																	segments: const <ButtonSegment<CutMode>>[
-																		ButtonSegment<CutMode>(
-																			value: CutMode.grid,
-																			label: Text("方格"),
-																			icon: Icon(Icons.grid_view),
-																		),
-																		ButtonSegment<CutMode>(
-																			value: CutMode.voronoi,
-																			label: Text("不規則"),
-																			icon: Icon(Icons.scatter_plot),
-																		),
-																	],
+														// 兩層 Showcase 並存：外層教學流程（startShowCase 帶 [_tutorialCutModeKey]
+														// 時觸發）、內層「至少選一種」提示（_cutModeRequiredKey）。兩個 key 永遠
+														// 不會同時 active，套件靠 active key 找對應 widget，不會混淆。
+														tutorialWrap(
+															key: _tutorialCutModeKey,
+															text: "這邊可以選擇不同的切割模式，"
+																	"不規則型的形狀提示較明顯，"
+																	"對許多幼兒來說反而比較容易喔～",
+															position: TooltipPosition.top,
+															child: Showcase.withWidget(
+																key: _cutModeRequiredKey,
+																container: TutorialBubble(
+																	text: "這邊至少要選一種喔！",
+																	onTap: _showcase.next,
+																),
+																tooltipPosition: TooltipPosition.top,
+																targetBorderRadius:
+																		const BorderRadius.all(Radius.circular(12)),
+																child: _CutModeCard(
 																	selected: _cutModes,
-																	onSelectionChanged: (Set<CutMode> sel) {
-																		// emptySelectionAllowed = false 已會擋掉「全空」
-																		// 的點擊，這裡保險再過濾一次。
-																		if (sel.isEmpty) return;
+																	onChanged: (Set<CutMode> sel) {
 																		_click();
 																		setState(
 																				() => _cutModes = Set<CutMode>.from(sel));
@@ -274,10 +273,14 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 															),
 														),
 														const SizedBox(width: 16),
-
-														// 開始按鈕
-														ElevatedButton(
+														_StartButton(
 															onPressed: ClickSound.wrap(context, () {
+																// 切割模式必選一種；沒選就以 showcase 提示而非導頁。
+																if (_cutModes.isEmpty) {
+																	_showcase.startShowCase(
+																			<GlobalKey>[_cutModeRequiredKey]);
+																	return;
+																}
 																// 設定變更已即時存（_persist），這裡只需導頁。
 																Navigator.of(context).pushReplacementNamed(
 																	AppRoutes.puzzle,
@@ -291,23 +294,6 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 																	),
 																);
 															}),
-															style: ElevatedButton.styleFrom(
-																backgroundColor: Colors.white,
-																foregroundColor: AppColors.primary,
-																padding: const EdgeInsets.symmetric(
-																		horizontal: 40, vertical: 14),
-																shape: RoundedRectangleBorder(
-																	borderRadius: BorderRadius.circular(28),
-																),
-																elevation: 6,
-															),
-															child: const Text(
-																"開始",
-																style: TextStyle(
-																	fontSize: 22,
-																	fontWeight: FontWeight.bold,
-																),
-															),
 														),
 													],
 												),
@@ -319,6 +305,232 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 						],
 					),
 				),
+			),
+		);
+	}
+}
+
+/// 右上「返回首頁」X 按鈕。
+class _CloseButton extends StatelessWidget {
+	const _CloseButton();
+
+	@override
+	Widget build(BuildContext context) {
+		return Positioned(
+			top: 12,
+			right: 12,
+			child: IconButton.filled(
+				onPressed: ClickSound.wrap(
+					context,
+					() => Navigator.of(context).maybePop(),
+				),
+				icon: const Icon(Icons.close),
+				iconSize: 28,
+				style: IconButton.styleFrom(
+					backgroundColor: Colors.white.withValues(alpha: 0.9),
+					foregroundColor: AppColors.primary,
+				),
+			),
+		);
+	}
+}
+
+/// 左數字 — 滑桿 — 右數字 的片數範圍選擇列。
+class _PieceRangeRow extends StatelessWidget {
+	const _PieceRangeRow({
+		required this.min,
+		required this.max,
+		required this.absoluteMin,
+		required this.absoluteMax,
+		required this.onChanged,
+	});
+
+	final double min;
+	final double max;
+	final double absoluteMin;
+	final double absoluteMax;
+	final ValueChanged<RangeValues> onChanged;
+
+	@override
+	Widget build(BuildContext context) {
+		final int minInt = min.round();
+		final int maxInt = max.round();
+		return Row(
+			children: <Widget>[
+				_PieceCountBadge(value: minInt),
+				Expanded(
+					child: SliderTheme(
+						data: SliderThemeData(
+							activeTrackColor: Colors.white,
+							inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+							thumbColor: Colors.white,
+							overlayColor: Colors.white.withValues(alpha: 0.2),
+							valueIndicatorColor: Colors.white,
+							valueIndicatorTextStyle: const TextStyle(
+								color: AppColors.primary,
+								fontWeight: FontWeight.bold,
+							),
+						),
+						child: RangeSlider(
+							min: absoluteMin,
+							max: absoluteMax,
+							divisions: (absoluteMax - absoluteMin).toInt(),
+							values: RangeValues(min, max),
+							labels: RangeLabels("$minInt", "$maxInt"),
+							onChanged: onChanged,
+						),
+					),
+				),
+				_PieceCountBadge(value: maxInt),
+			],
+		);
+	}
+}
+
+/// 玩法選項白卡：提示線 / 旋轉 / （Android）鎖定畫面 上下並排。
+///
+/// 每個 row 可以接一個 builder（傳入該 row 的 widget、回傳已包好 Showcase 的 widget）。
+/// 沒傳 builder 時用 row 原樣。這樣外層可以把對應 row 包進 [Showcase]、
+/// 而 `_OptionsCard` 內部不需要認識 Showcase 細節。
+class _OptionsCard extends StatelessWidget {
+	const _OptionsCard({
+		required this.showHint,
+		required this.rotation,
+		required this.screenLock,
+		required this.showScreenLockOption,
+		required this.onShowHintChanged,
+		required this.onRotationChanged,
+		required this.onScreenLockChanged,
+		this.wrapShowHintRow,
+		this.wrapRotationRow,
+		this.wrapScreenLockRow,
+	});
+
+	final bool showHint;
+	final bool rotation;
+	final bool screenLock;
+	final bool showScreenLockOption;
+	final ValueChanged<bool> onShowHintChanged;
+	final ValueChanged<bool> onRotationChanged;
+	final ValueChanged<bool> onScreenLockChanged;
+
+	/// 對「顯示提示線」row 額外包一層（一般用來放 [Showcase]）。
+	final Widget Function(Widget)? wrapShowHintRow;
+	final Widget Function(Widget)? wrapRotationRow;
+	final Widget Function(Widget)? wrapScreenLockRow;
+
+	@override
+	Widget build(BuildContext context) {
+		Widget wrap(Widget Function(Widget)? f, Widget child) =>
+				f == null ? child : f(child);
+		return Material(
+			color: Colors.white,
+			borderRadius: BorderRadius.circular(12),
+			child: Padding(
+				padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+				child: Column(
+					mainAxisSize: MainAxisSize.min,
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: <Widget>[
+						wrap(
+							wrapShowHintRow,
+							_OptionCheckRow(
+								label: "顯示提示線",
+								value: showHint,
+								onChanged: onShowHintChanged,
+							),
+						),
+						wrap(
+							wrapRotationRow,
+							_OptionCheckRow(
+								label: "旋轉",
+								value: rotation,
+								onChanged: onRotationChanged,
+							),
+						),
+						if (showScreenLockOption)
+							wrap(
+								wrapScreenLockRow,
+								_OptionCheckRow(
+									label: "鎖定畫面",
+									value: screenLock,
+									onChanged: onScreenLockChanged,
+								),
+							),
+					],
+				),
+			),
+		);
+	}
+}
+
+/// 切割模式選擇白卡（方格 / 不規則，可複選）。
+class _CutModeCard extends StatelessWidget {
+	const _CutModeCard({required this.selected, required this.onChanged});
+
+	final Set<CutMode> selected;
+	final ValueChanged<Set<CutMode>> onChanged;
+
+	@override
+	Widget build(BuildContext context) {
+		return Material(
+			color: Colors.white,
+			borderRadius: BorderRadius.circular(12),
+			child: Padding(
+				padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+				child: SegmentedButton<CutMode>(
+					multiSelectionEnabled: true,
+					emptySelectionAllowed: true,
+					direction: Axis.vertical,
+					style: ButtonStyle(
+						shape: WidgetStateProperty.all(
+							RoundedRectangleBorder(
+								borderRadius: BorderRadius.circular(12),
+							),
+						),
+					),
+					segments: const <ButtonSegment<CutMode>>[
+						ButtonSegment<CutMode>(
+							value: CutMode.grid,
+							label: Text("方格"),
+							icon: Icon(Icons.grid_view),
+						),
+						ButtonSegment<CutMode>(
+							value: CutMode.voronoi,
+							label: Text("不規則"),
+							icon: Icon(Icons.scatter_plot),
+						),
+					],
+					selected: selected,
+					onSelectionChanged: onChanged,
+				),
+			),
+		);
+	}
+}
+
+/// 大「開始」按鈕。
+class _StartButton extends StatelessWidget {
+	const _StartButton({required this.onPressed});
+
+	final VoidCallback? onPressed;
+
+	@override
+	Widget build(BuildContext context) {
+		return ElevatedButton(
+			onPressed: onPressed,
+			style: ElevatedButton.styleFrom(
+				backgroundColor: Colors.white,
+				foregroundColor: AppColors.primary,
+				padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+				shape: RoundedRectangleBorder(
+					borderRadius: BorderRadius.circular(28),
+				),
+				elevation: 6,
+			),
+			child: const Text(
+				"開始",
+				style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
 			),
 		);
 	}
@@ -383,7 +595,7 @@ class _OptionCheckRow extends StatelessWidget {
 
 	final String label;
 	final bool value;
-	final void Function(bool) onChanged;
+	final ValueChanged<bool> onChanged;
 
 	@override
 	Widget build(BuildContext context) {

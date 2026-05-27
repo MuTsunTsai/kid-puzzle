@@ -2,6 +2,8 @@ import "dart:js_interop";
 
 import "package:web/web.dart" as web;
 
+// ===== 全螢幕 + 橫向鎖定 =====
+
 /// 嘗試請求全螢幕 + 鎖定橫向。
 ///
 /// 只在「手機瀏覽器」上做，理由：
@@ -57,4 +59,13 @@ bool _isMobileBrowser() {
 	// fallback：iPad 上桌機 UA + 有觸控 → 也視為手機
 	if (ua.contains("macintosh") && touch > 1) return true;
 	return false;
+}
+
+// ===== 字型 ready DOM event =====
+
+/// Dispatch `flutter-fonts-ready` 到 window，讓 index.html 的 spinner 隱藏邏輯收到。
+void dispatchFontsReadyEventImpl() {
+	try {
+		web.window.dispatchEvent(web.Event("flutter-fonts-ready"));
+	} catch (_) {}
 }

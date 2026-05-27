@@ -18,6 +18,12 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <!-- 行動裝置 viewport：device-width + initial-scale=1 避免被當桌機頁面縮小；
+       maximum-scale=1 + user-scalable=no 禁止使用者用雙指縮放（教學氣泡尺寸是
+       設計好的、被縮放會破壞 layout，且幼兒可能誤觸縮放）。
+       viewport-fit=cover 讓內容填滿到瀏海螢幕的安全區之外（PWA 全螢幕用）。 -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="專為幼兒設計的益智遊戲集，目前包含拼圖模式。">
 
   <!-- iOS meta tags & icons -->
@@ -110,30 +116,20 @@
   <div id="loading">
     <div class="spinner"></div>
     <div class="label">載入中…</div>
-    <!-- 字型預熱：放幾個遊戲內會用到的中文字、強迫瀏覽器在 spinner 隱藏前
-         走過系統中文字型 fallback chain；這樣 Flutter 開始繪製時系統字型已
-         被解析、不會出現 XXXX tofu。位置在 spinner 旁邊但用 0 不透明度藏起來。 -->
-    <div aria-hidden="true" style="
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-      font-size: 24px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-        'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
-    ">開始拼圖選擇塊數範圍家長區圖庫管理載入中</div>
   </div>
 
   <script>
-    // 等到「Flutter 第一幀」+「所有字型載入完成」兩件事都發生才隱藏 spinner。
-    // 只等 first-frame 的話，字型尚未下載完時畫面會出現 XXXX tofu 方塊；
-    // document.fonts.ready 在所有 @font-face 字型 fetch 完成時 resolve。
+    // 等到「Flutter 第一幀」+「字型實際完成渲染」兩件事都發生才隱藏 spinner。
+    // 注意：不能用 document.fonts.ready —— 某些系統字型在實際 glyph 解碼前就
+    // 提早 resolve，導致 TextPainter / RenderBox 量到的中文字寬仍是 tofu 寬度。
+    // 改由 Flutter 端 probe widget 量到「合理寬度」之後 dispatch
+    // `flutter-fonts-ready` 自訂事件，這層才把 spinner 撤掉。
     var firstFrame = new Promise(function (resolve) {
       window.addEventListener("flutter-first-frame", resolve, { once: true });
     });
-    // 多數瀏覽器都支援 document.fonts；萬一沒有就 fallback 成立即 resolve。
-    var fontsReady = (document.fonts && document.fonts.ready)
-      ? document.fonts.ready
-      : Promise.resolve();
+    var fontsReady = new Promise(function (resolve) {
+      window.addEventListener("flutter-fonts-ready", resolve, { once: true });
+    });
     Promise.all([firstFrame, fontsReady]).then(function () {
       var el = document.getElementById("loading");
       if (!el) return;

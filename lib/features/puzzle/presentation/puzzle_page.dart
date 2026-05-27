@@ -5,13 +5,16 @@ import "dart:ui" as ui;
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:provider/provider.dart";
+import "package:showcaseview/showcaseview.dart";
 
 import "../../../core/audio/audio_service.dart";
 import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/app_dimens.dart";
 import "../../../core/storage/gallery_repository.dart";
+import "../../../core/storage/settings_repository.dart";
 import "../../../core/system/system_guard.dart";
+import "../../../shared/widgets/centered_showcase_bubble.dart";
 import "../../../shared/widgets/click_sound.dart";
 import "../../../shared/widgets/long_press_progress_button.dart";
 import "../domain/services/cell_planner.dart";
@@ -91,6 +94,58 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	/// 避免幼兒連點 / 多指亂按時排到一堆重複的轉場。
 	bool _advancing = false;
 
+	/// 拼圖頁 welcome 教學 key + controller。第一次進來顯示一段說明；之後不再顯示。
+	final GlobalKey _tutorialWelcomeKey = GlobalKey();
+	late final ShowcaseView _showcase;
+
+	/// 拼圖頁教學「當前版本」。更新教學內容時 bump 此值，舊使用者會重看一次。
+	static const int _puzzleTutorialVersion = 1;
+
+	/// 教學氣泡 active 期間 PuzzleCanvas 不接受輸入。
+	///
+	/// 原因：PuzzleCanvas 內部用 `Listener` 整片接 pointer events（raw 事件、
+	/// 不進 gesture arena），會立刻處理 pointer-down 把事件 capture 掉，
+	/// 導致 Showcase 的 backdrop tap（走 GestureDetector → tap recognizer 等 release）
+	/// 永遠等不到完整 click。教學顯示時用 IgnorePointer 把 canvas 整片暫停。
+	bool _tutorialActive = false;
+
+	@override
+	void initState() {
+		super.initState();
+		_showcase = ShowcaseView.register(
+			scope: "puzzle",
+			disableMovingAnimation: true,
+		);
+	}
+
+	@override
+	void dispose() {
+		_controller?.dispose();
+		_showcase.unregister();
+		// 離開拼圖頁 → 解除 app pinning。fire-and-forget；非 Android / 未啟用
+		// 都會靜默 no-op。
+		SystemGuard.disable();
+		super.dispose();
+	}
+
+	Future<void> _maybeStartTutorial() async {
+		if (!mounted) return;
+		final SettingsRepository repo = context.read<SettingsRepository>();
+		final int seen = repo.tutorialVersionSeen("puzzle");
+		if (seen >= _puzzleTutorialVersion) return;
+		setState(() => _tutorialActive = true);
+		_showcase.startShowCase(<GlobalKey>[_tutorialWelcomeKey]);
+		repo.setTutorialVersionSeen("puzzle", _puzzleTutorialVersion);
+	}
+
+	/// 教學氣泡被點掉時呼叫：先讓套件推進 / 結束流程，再解除 PuzzleCanvas 的
+	/// IgnorePointer。
+	void _dismissTutorial() {
+		_showcase.next();
+		if (!mounted) return;
+		setState(() => _tutorialActive = false);
+	}
+
 	@override
 	void didChangeDependencies() {
 		super.didChangeDependencies();
@@ -132,6 +187,9 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		});
 		_pickRandomLevelParams();
 		await _resetController();
+		if (!mounted) return;
+		// controller 就緒、第一關拼片散落後才啟動教學氣泡。
+		await _maybeStartTutorial();
 	}
 
 	/// 沒有任何可用圖時：顯示提示對話框 → 關掉後返回上一頁。
@@ -373,15 +431,6 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		_advancing = false;
 	}
 
-	@override
-	void dispose() {
-		_controller?.dispose();
-		// 離開拼圖頁 → 解除 app pinning。fire-and-forget；非 Android / 未啟用
-		// 都會靜默 no-op。
-		SystemGuard.disable();
-		super.dispose();
-	}
-
 	/// 是否該隱藏右上 X 按鈕：有任何拼片接近右上角區域時隱藏，避免拖曳誤觸。
 	bool _shouldHideCloseButton() {
 		final PuzzleController? c = _controller;
@@ -410,9 +459,15 @@ class _PuzzlePageState extends State<PuzzlePage> {
 			body: Stack(
 				children: <Widget>[
 					if (_controller != null)
-						PuzzleCanvas(
-							controller: _controller!,
-							showCutLineHint: _showHint,
+						IgnorePointer(
+							// 教學氣泡 active 時，整片 canvas 不接受輸入；否則 PuzzleCanvas
+							// 內部的 Listener 會立刻 capture pointer-down，使 Showcase
+							// backdrop 的 tap recognizer 永遠等不到 release 確認。
+							ignoring: _tutorialActive,
+							child: PuzzleCanvas(
+								controller: _controller!,
+								showCutLineHint: _showHint,
+							),
 						)
 					else
 						const Center(child: CircularProgressIndicator()),
@@ -463,6 +518,15 @@ class _PuzzlePageState extends State<PuzzlePage> {
 								),
 							),
 						),
+
+					// 首次進拼圖頁的教學氣泡（畫面中央，無 highlight）。
+					CenteredShowcaseBubble(
+						showcaseKey: _tutorialWelcomeKey,
+						message: "將拼片逐一放回左邊的框中以完成拼圖。"
+								"長壓右上角的關閉圖示即可退出（為了避免誤觸，"
+								"必須先將附近的拼片移開、圖示才會出現喔～）",
+						onTap: _dismissTutorial,
+					),
 
 					// 右上角返回按鈕：必須長按 [closeLongPressSeconds] 秒才真的關閉（避
 					// 免幼兒誤觸）；拼片靠近時淡出避讓（500ms 由 AnimatedOpacity 處理）。

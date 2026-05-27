@@ -46,28 +46,6 @@ class _ParentHomePageState extends State<ParentHomePage> {
 			body: ListView(
 				padding: const EdgeInsets.symmetric(vertical: 8),
 				children: <Widget>[
-					_SectionTitle(text: "音效"),
-					SwitchListTile(
-						title: const Text("音效"),
-						subtitle: const Text("點擊、拖曳、過關等音效"),
-						value: _audioEnabled,
-						onChanged: (bool v) {
-							setState(() => _audioEnabled = v);
-							context.read<AudioService>().enabled = v;
-							context.read<SettingsRepository>().setAudioEnabled(v);
-						},
-					),
-					SwitchListTile(
-						title: const Text("語音提示"),
-						subtitle: const Text("進關卡 / 過關的語音鼓勵"),
-						value: _ttsEnabled,
-						onChanged: (bool v) {
-							setState(() => _ttsEnabled = v);
-							context.read<VoiceService>().enabled = v;
-							context.read<SettingsRepository>().setTtsEnabled(v);
-						},
-					),
-					const Divider(),
 					_SectionTitle(text: "內容"),
 					ListTile(
 						leading: const Icon(Icons.collections),
@@ -79,7 +57,59 @@ class _ParentHomePageState extends State<ParentHomePage> {
 							() => Navigator.of(context).pushNamed(AppRoutes.parentGallery),
 						),
 					),
+					const Divider(),
+					_SectionTitle(text: "系統"),
+					// 音效 / 語音提示並排在同一列、各佔一半寬度
+					Row(
+						crossAxisAlignment: CrossAxisAlignment.start,
+						children: <Widget>[
+							Expanded(
+								child: SwitchListTile(
+									title: const Text("音效"),
+									subtitle: const Text("點擊、拖曳、過關等"),
+									value: _audioEnabled,
+									controlAffinity: ListTileControlAffinity.leading,
+									onChanged: (bool v) {
+										setState(() => _audioEnabled = v);
+										context.read<AudioService>().enabled = v;
+										context.read<SettingsRepository>().setAudioEnabled(v);
+									},
+								),
+							),
+							Expanded(
+								child: SwitchListTile(
+									title: const Text("語音提示"),
+									subtitle: const Text("進關卡 / 過關的鼓勵"),
+									value: _ttsEnabled,
+									controlAffinity: ListTileControlAffinity.leading,
+									onChanged: (bool v) {
+										setState(() => _ttsEnabled = v);
+										context.read<VoiceService>().enabled = v;
+										context.read<SettingsRepository>().setTtsEnabled(v);
+									},
+								),
+							),
+						],
+					),
+					ListTile(
+						leading: const Icon(Icons.school_outlined),
+						title: const Text("重新觀看教學"),
+						subtitle: const Text("清除所有教學的「已看過」紀錄"),
+						onTap: ClickSound.wrap(context, _resetTutorials),
+					),
 				],
+			),
+		);
+	}
+
+	Future<void> _resetTutorials() async {
+		final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+		await context.read<SettingsRepository>().resetAllTutorials();
+		if (!mounted) return;
+		messenger.showSnackBar(
+			const SnackBar(
+				content: Text("已重設教學，下次進入相關畫面會再次顯示。"),
+				duration: Duration(seconds: 2),
 			),
 		);
 	}

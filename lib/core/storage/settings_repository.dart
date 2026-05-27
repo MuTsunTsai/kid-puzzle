@@ -22,6 +22,11 @@ class SettingsRepository {
 	static const String _kAudioEnabled = "audioEnabled";
 	static const String _kTtsEnabled = "ttsEnabled";
 
+	/// 各畫面教學流程「最後看過的版本」存檔。
+	/// key 形如 "tutorialVersion.home"、"tutorialVersion.setup"。
+	/// 新版教學流程要強制重播時、把對應畫面常數 bump 即可。
+	static const String _kTutorialVersionPrefix = "tutorialVersion.";
+
 	/// 舊版只存單一模式的 key；如果新版讀不到 [_kCutModes] 就退回讀它做遷移。
 	static const String _kLegacyCutMode = "cutMode";
 
@@ -112,6 +117,34 @@ class SettingsRepository {
 			await _box.put(_kTtsEnabled, value);
 		} catch (e) {
 			debugPrint("SettingsRepository.setTtsEnabled failed: $e");
+		}
+	}
+
+	/// 讀指定畫面教學的「已看過版本號」，從未看過回 0。
+	int tutorialVersionSeen(String screen) {
+		return (_box.get("$_kTutorialVersionPrefix$screen") as int?) ?? 0;
+	}
+
+	/// 記錄指定畫面教學的「當前版本已看過」。
+	Future<void> setTutorialVersionSeen(String screen, int version) async {
+		try {
+			await _box.put("$_kTutorialVersionPrefix$screen", version);
+		} catch (e) {
+			debugPrint("SettingsRepository.setTutorialVersionSeen failed: $e");
+		}
+	}
+
+	/// 清掉所有教學畫面的「已看過」紀錄，下次開對應畫面會重新播放教學。
+	/// 用於家長區「重新觀看教學」按鈕。
+	Future<void> resetAllTutorials() async {
+		try {
+			final List<dynamic> tutorialKeys = _box.keys
+					.where((dynamic k) =>
+							k is String && k.startsWith(_kTutorialVersionPrefix))
+					.toList();
+			await _box.deleteAll(tutorialKeys);
+		} catch (e) {
+			debugPrint("SettingsRepository.resetAllTutorials failed: $e");
 		}
 	}
 }

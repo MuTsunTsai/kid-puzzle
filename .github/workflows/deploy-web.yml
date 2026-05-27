@@ -23,10 +23,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Flutter 版本鎖定：與本地開發環境一致，避免雲端抓到比本地新的版本後
+      # 造成行為差異。升級本地後一併把這裡 bump。
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: "3.44.0"
           cache: true
 
       - name: Install dependencies
