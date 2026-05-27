@@ -27,6 +27,26 @@ import "puzzle_setup_page.dart";
 import "widgets/level_complete_overlay.dart";
 import "widgets/puzzle_canvas.dart";
 
+/// 「過關後當機」診斷用 trace 開關。
+///
+/// release build 也會印（用 [debugPrint]、release 仍會走到 console）。
+/// 復現後查完問題請務必改回 false、避免 production log 噪音。
+const bool _kDiagTrace = true;
+
+void _diag(String msg) {
+	if (!_kDiagTrace) return;
+	final DateTime t = DateTime.now();
+	final String hms =
+			"${t.hour.toString().padLeft(2, '0')}:"
+			"${t.minute.toString().padLeft(2, '0')}:"
+			"${t.second.toString().padLeft(2, '0')}."
+			"${t.millisecond.toString().padLeft(3, '0')}";
+	// 用 print 而不是 debugPrint：debugPrint 在 web 上會被 throttle，
+	// 我們需要保證每行都看得到。
+	// ignore: avoid_print
+	print("[puzzle-diag $hms] $msg");
+}
+
 /// 拼圖頁面：每關隨機抽圖（不重複前幾關）、塊數依設定範圍隨機。
 ///
 /// 進入時必須從 Navigator 帶入 [PuzzleArguments]（minPieces / maxPieces / showHint）。
@@ -315,6 +335,8 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	}
 
 	Future<void> _resetController({Future<_LoadedImage>? preloaded}) async {
+		_diag("_resetController ENTER preloaded!=null=${preloaded != null} "
+				"n=$_pieceCount cutMode=$_cutMode seed=$_seed");
 		if (_puzzleAssets.isEmpty) return;
 		// 先在 await 之前把要的東西從 context 取出來
 		final Size size = MediaQuery.of(context).size;
@@ -324,11 +346,14 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		final String assetPath = _puzzleAssets[
 			_imageIndex % _puzzleAssets.length
 		];
+		_diag("_resetController awaiting image future");
 		final Future<_LoadedImage> future = preloaded ??
 				_loadAssetImage(assetPath, gallery);
 		final _LoadedImage loaded = await future;
+		_diag("_resetController image loaded ${loaded.size}");
 
 		final PuzzleStageLayout stage = PuzzleStageLayout.forSize(size);
+		_diag("_resetController calling newLevel");
 		final PuzzleController c = PuzzleController.newLevel(
 			stageLayout: stage,
 			boardImage: loaded.image,
@@ -337,6 +362,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 			cutMode: _cutMode,
 			seed: _seed,
 		);
+		_diag("_resetController newLevel done");
 		// 旋轉設定要在 scatter 之前套，否則初始角度不會被灑進去
 		c.rotationEnabled = _rotationEnabled;
 		c.rotationStepDeg = _cutMode == CutMode.grid
@@ -371,17 +397,21 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		);
 
 		if (!mounted) {
+			_diag("_resetController UNMOUNTED before setState");
 			loaded.image.dispose();
 			return;
 		}
+		_diag("_resetController setState(swap controller)");
 		setState(() {
 			_controller?.dispose();
 			_controller = c;
 			_completed = false;
 		});
+		_diag("_resetController EXIT");
 	}
 
 	void _handleCompleted() {
+		_diag("_handleCompleted mounted=$mounted _advancing=$_advancing");
 		if (!mounted) return;
 		setState(() => _completed = true);
 		// 玩家還在看慶祝動畫 / 點下一關前，先預下載下一關的圖。
@@ -393,6 +423,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	/// 注意：這裡只「先決定圖」，塊數 / seed / cutMode 等仍在 _goNextLevel 才抽，
 	/// 因為這些不影響圖片下載、且避免提前消耗 RNG 狀態。
 	void _startPreloadNext() {
+		_diag("_startPreloadNext begin preExists=${_preloadedNextImage != null}");
 		if (_puzzleAssets.isEmpty) return;
 		// 已經有預載中的 Future（極端狀況：double-tap 觸發了兩次完成）→ 不重發
 		if (_preloadedNextImage != null) return;
@@ -401,13 +432,26 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		final String token = _puzzleAssets[nextIndex % _puzzleAssets.length];
 		final GalleryRepository gallery = context.read<GalleryRepository>();
 		_preloadedNextImageIndex = nextIndex;
-		_preloadedNextImage = _loadAssetImage(token, gallery);
+		_preloadedNextImage = _loadAssetImage(token, gallery)
+			..then(
+				(_) => _diag("preload future RESOLVED idx=$nextIndex"),
+				onError: (Object e) =>
+						_diag("preload future REJECTED idx=$nextIndex err=$e"),
+			);
+		_diag("_startPreloadNext launched idx=$nextIndex");
 	}
 
 	Future<void> _goNextLevel() async {
-		if (_puzzleAssets.isEmpty) return;
+		_diag("_goNextLevel ENTER _advancing=$_advancing assets=${_puzzleAssets.length}");
+		if (_puzzleAssets.isEmpty) {
+			_diag("_goNextLevel EARLY-RETURN empty-assets");
+			return;
+		}
 		// 重入鎖：第一指按下後，後續多指 / 連點全部 no-op，直到本次轉場結束
-		if (_advancing) return;
+		if (_advancing) {
+			_diag("_goNextLevel EARLY-RETURN already-advancing");
+			return;
+		}
 		_advancing = true;
 
 		// 接手預載的 Future / 索引；若沒有（極端狀況）則 fallback 走原本流程
@@ -415,6 +459,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		final int? preIndex = _preloadedNextImageIndex;
 		_preloadedNextImage = null;
 		_preloadedNextImageIndex = null;
+		_diag("_goNextLevel claimed-preload pre!=null=${pre != null} preIdx=$preIndex");
 
 		bool spinnerShown = false;
 
@@ -437,6 +482,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 			// 如果預載 Future 還沒 resolve，這裡會被 await 住 → 給使用者一個 spinner
 			// 視覺反饋。已 resolve 的話就會立刻往下走、不顯示 spinner（避免閃一下）。
 			if (pre != null) {
+				_diag("_goNextLevel waiting for preload (16ms grace)");
 				final Completer<void> readyOrTimeout = Completer<void>();
 				pre.whenComplete(() {
 					if (!readyOrTimeout.isCompleted) readyOrTimeout.complete();
@@ -446,26 +492,38 @@ class _PuzzlePageState extends State<PuzzlePage> {
 					readyOrTimeout.future,
 					Future<void>.delayed(const Duration(milliseconds: 16)),
 				]);
-				if (!mounted) return;
+				if (!mounted) {
+					_diag("_goNextLevel UNMOUNTED during preload wait");
+					return;
+				}
 				if (!readyOrTimeout.isCompleted) {
+					_diag("_goNextLevel preload not ready in 16ms, showing spinner");
 					setState(() => _loadingNextImage = true);
 					spinnerShown = true;
+				} else {
+					_diag("_goNextLevel preload ready");
 				}
 			} else {
+				_diag("_goNextLevel no preload, showing spinner");
 				setState(() => _loadingNextImage = true);
 				spinnerShown = true;
 			}
 
+			_diag("_goNextLevel calling _resetController");
 			await _resetController(preloaded: pre);
+			_diag("_goNextLevel _resetController returned");
 		} catch (e, st) {
+			_diag("_goNextLevel CAUGHT $e");
 			debugPrint("[puzzle] _goNextLevel failed: $e\n$st");
 		} finally {
+			_diag("_goNextLevel finally spinnerShown=$spinnerShown mounted=$mounted");
 			if (mounted && spinnerShown) {
 				setState(() => _loadingNextImage = false);
 			}
 			// 下一關 controller 已就緒（或失敗）、UI 已切換 → 一律解鎖，
 			// 避免任何例外把畫面鎖死。
 			_advancing = false;
+			_diag("_goNextLevel EXIT");
 		}
 	}
 
@@ -514,7 +572,10 @@ class _PuzzlePageState extends State<PuzzlePage> {
 					if (_completed && _controller != null)
 						LevelCompleteOverlay(
 							region: _controller!.stageLayout.scatterRect,
-							onContinue: _goNextLevel,
+							onContinue: () {
+								_diag("LevelCompleteOverlay tapped");
+								_goNextLevel();
+							},
 						),
 
 					// 切換下一關時，若預載的圖片尚未下載完成 → 顯示全螢幕 spinner
