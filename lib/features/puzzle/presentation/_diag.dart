@@ -5,6 +5,10 @@
 
 const bool kDiagTrace = true;
 
+/// Build 標記：用來分辨使用者瀏覽器是不是真的拿到最新的 build。
+/// 每次部署前手動 bump（或改成有意義的字串、例如時間戳）。
+const String kDiagBuildTag = "diag-v5-skip-simplify";
+
 void diag(String msg) {
 	if (!kDiagTrace) return;
 	final DateTime t = DateTime.now();

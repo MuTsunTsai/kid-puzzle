@@ -123,6 +123,33 @@ extension type _NavStandalone(JSObject _) implements JSObject {
 	external bool? get standalone;
 }
 
+// ===== Debug 後門：URL query 讀 (n, seed) =====
+
+/// 從 `window.location.search` 解析 `?n=...&seed=...`。
+/// 兩個都成功 parse 才回；任一缺失 / 非整數 → null。
+({int n, int seed})? readDebugLevelQueryImpl() {
+	try {
+		final String search = web.window.location.search;
+		if (search.isEmpty) return null;
+		// search 以 "?" 開頭、去掉再拆
+		final String s = search.startsWith("?") ? search.substring(1) : search;
+		final Map<String, String> params = <String, String>{};
+		for (final String pair in s.split("&")) {
+			if (pair.isEmpty) continue;
+			final int eq = pair.indexOf("=");
+			if (eq < 0) continue;
+			params[Uri.decodeComponent(pair.substring(0, eq))] =
+					Uri.decodeComponent(pair.substring(eq + 1));
+		}
+		final int? n = int.tryParse(params["n"] ?? "");
+		final int? seed = int.tryParse(params["seed"] ?? "");
+		if (n == null || seed == null) return null;
+		return (n: n, seed: seed);
+	} catch (_) {
+		return null;
+	}
+}
+
 /// 偵測 Safari（含 iOS Safari）；排除 Chrome / Edge / Firefox（UA 也含 "Safari"）。
 bool _isSafari() {
 	final String ua = web.window.navigator.userAgent;

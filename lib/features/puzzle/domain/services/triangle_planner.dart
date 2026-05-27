@@ -367,17 +367,10 @@ class TriangleCellPlanner extends CellPlanner {
 		//   × 0.20）→ 從**兩個** owner polygon 同步移除此頂點、讓接合邊乾淨。
 		// - 邊界 degree=1 頂點：共線（180°）才刪、角落 90° 保留。
 		// - 邊界 degree=2 頂點：永不刪（會讓 polygon 離開矩形邊界）。
-		diag("_planOnce: phase4 simplifyVertices polys=${polys.length}");
-		// 防禦：simplifyVertices 在 web 上偶發卡死（n=5 voronoi 某些 seed），
-		// 加超時保險絲 + try/catch 兜底。失敗就用未簡化的 polygons 繼續、
-		// 視覺上頂點稍多但功能正確（共線頂點 cutter 仍能處理）。
-		try {
-			_simplifyVerticesGuarded(polys, innerBounds);
-		} catch (e, st) {
-			diag("_simplifyVertices THREW $e — using unsimplified polygons");
-			// ignore: avoid_print
-			print("[puzzle-diag] simplifyVertices stack: $st");
-		}
+		diag("_planOnce: phase4 simplifyVertices SKIPPED (diag) polys=${polys.length}");
+		// 暫時整個 skip 掉 simplifyVertices、確認 hang 的 root cause 是不是這裡。
+		// 若 skip 後就能跑完、確認元兇；若還是卡、元兇不在這裡。
+		// _simplifyVerticesGuarded(polys, innerBounds);
 		diag("_planOnce: phase4 done");
 
 		final List<CellPolygon> cells = <CellPolygon>[
@@ -405,15 +398,34 @@ class TriangleCellPlanner extends CellPlanner {
 	/// - degree ≥ 3：不刪。
 	///
 	/// 反覆迭代直到沒有可刪頂點。
+	/// 內部例外：simplify 超過 wall-clock 預算時、用 throw 跨多層迴圈快速退出。
+	/// 外層 catch 後印 trace、用未完全簡化的 polygons 繼續。
+	// ignore: unused_element
 	static void _simplifyVerticesGuarded(
 		List<List<Offset>> polys,
 		Rect innerBounds,
 	) {
-		// Wall-clock 超時保險絲：simplifyVertices 在 web 上偶發 hang（具體 root
-		// cause 還在追，見 trace）。卡超過 250ms 就放棄、用部分簡化的結果繼續、
-		// 避免阻塞整個 isolate。
-		final Stopwatch guard = Stopwatch()..start();
-		const int maxWallMs = 250;
+		// 操作計數保險絲：simplifyVertices 在 web 上偶發 hang（具體 root cause
+		// 還在追、見 trace）。改用「總操作數」上限取代 wall-clock（後者在主執行
+		// 緒卡住時無法觸發、因為 console.log 也沒機會 flush）。
+		// 上限取「所有 polygon 頂點數總和 × 50」—— 理論上每個頂點最多被檢查 50
+		// 次就該結束、若超過必定是死循環。觸發時 throw、外層 catch 後用部分簡化
+		// 的結果繼續。
+		int opBudget = 0;
+		for (final List<Offset> p in polys) {
+			opBudget += p.length;
+		}
+		opBudget *= 50;
+		int opCount = 0;
+		void tickOp(String where) {
+			opCount++;
+			if (opCount > opBudget) {
+				throw _SimplifyTimeoutException(
+					"op budget exceeded at $where (budget=$opBudget)",
+					opCount,
+				);
+			}
+		}
 		bool onBoundary(Offset v) {
 			const double t = _boundaryDetectThreshold;
 			return (v.dx - innerBounds.left).abs() < t ||
@@ -438,11 +450,7 @@ class TriangleCellPlanner extends CellPlanner {
 				"${(o.dx * 10).round()},${(o.dy * 10).round()}";
 
 		for (int iter = 0; iter < 100; iter++) {
-			if (guard.elapsedMilliseconds > maxWallMs) {
-				diag("_simplifyVertices: WALL TIMEOUT iter=$iter "
-						"elapsed=${guard.elapsedMilliseconds}ms, bailing out");
-				return;
-			}
+			tickOp("iter=$iter start");
 			if (iter % 10 == 0) {
 				diag("_simplifyVertices: iter=$iter polys.lens=${polys.map((p) => p.length).toList()}");
 			}
@@ -452,6 +460,7 @@ class TriangleCellPlanner extends CellPlanner {
 				// 用 set 避免同 polygon 多次列入（理論上不會發生）
 				final Set<String> seen = <String>{};
 				for (final Offset v in polys[p]) {
+					tickOp("iter=$iter vertexToPolys p=$p");
 					final String k = vkey(v);
 					if (seen.add(k)) {
 						vertexToPolys.putIfAbsent(k, () => <int>[]).add(p);
@@ -468,6 +477,7 @@ class TriangleCellPlanner extends CellPlanner {
 				final List<Offset> poly = polys[p];
 				if (poly.length <= 3) continue; // polygon 已是三角形、不能再縮
 				for (int i = 0; i < poly.length; i++) {
+					tickOp("iter=$iter outer p=$p i=$i");
 					final Offset v = poly[i];
 					final String k = vkey(v);
 					final List<int> ownerPolys = vertexToPolys[k] ?? <int>[];
@@ -827,4 +837,14 @@ class _Edge {
 	const _Edge(this.a, this.b);
 	final int a;
 	final int b;
+}
+
+/// 內部例外：simplify 超過 wall-clock 預算時 throw、跨多層迴圈快速退出。
+/// 外層 catch 後印 where + elapsed、用未完全簡化的 polygons 繼續。
+class _SimplifyTimeoutException implements Exception {
+	const _SimplifyTimeoutException(this.where, this.elapsedMs);
+	final String where;
+	final int elapsedMs;
+	@override
+	String toString() => "_SimplifyTimeoutException(where=$where, elapsed=${elapsedMs}ms)";
 }

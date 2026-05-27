@@ -28,6 +28,15 @@ import "_diag.dart";
 import "widgets/level_complete_overlay.dart";
 import "widgets/puzzle_canvas.dart";
 
+/// 設定 debug 後門：下次進入 [PuzzlePage] 時固定用這組 (n, seed) + voronoi 跑
+/// 第一關，用完自動清空、之後關卡恢復隨機。
+///
+/// 由 [KidPuzzleApp.onGenerateInitialRoutes] 在偵測到 URL query
+/// `?n=...&seed=...` 時呼叫。
+void setPuzzleDebugFirstLevel(({int n, int seed})? v) {
+	_PuzzlePageState.debugFirstLevel = v;
+}
+
 /// 拼圖頁面：每關隨機抽圖（不重複前幾關）、塊數依設定範圍隨機。
 ///
 /// 進入時必須從 Navigator 帶入 [PuzzleArguments]（minPieces / maxPieces / showHint）。
@@ -71,9 +80,12 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	int _levelCounter = 0;
 
 	/// Debug：第一次進入時強制使用的參數。null 表示直接走隨機。
-	/// 找到問題切割時把 (n, seed) 填進來，重啟 App 即可重現；驗證修好後改回 null。
-	// ignore: unnecessary_nullable_for_final_variable_declarations
-	static const ({int n, int seed})? _debugFirstLevel = null;
+	/// 找到問題切割時把 (n, seed) 填進來，重啟 App 即可重現；驗證修好後設回 null。
+	///
+	/// 也可以由外部設定（例如從 URL query `?n=...&seed=...` 注入）：
+	/// 在 push PuzzlePage 之前呼叫 `_PuzzlePageState.debugFirstLevel = (n: ..., seed: ...)`。
+	/// 該值只影響「第一關」、之後恢復隨機；用完一次自動清為 null、避免後續關卡又被鎖定。
+	static ({int n, int seed})? debugFirstLevel;
 
 	/// Debug：是否在右下角顯示 n / seed / mode 並讓它可點擊切下一關。
 	/// 找問題切割時開啟、平常關閉。
@@ -118,6 +130,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	@override
 	void initState() {
 		super.initState();
+		diag("PuzzlePage initState build=$kDiagBuildTag");
 		_showcase = ShowcaseView.register(
 			scope: "puzzle",
 			disableMovingAnimation: true,
@@ -239,11 +252,16 @@ class _PuzzlePageState extends State<PuzzlePage> {
 
 	/// 隨機決定下一關的 seed / 塊數 / 圖片索引（避開最近用過的）。
 	void _pickRandomLevelParams() {
-		if (_firstLevel && _debugFirstLevel != null) {
-			_pieceCount = _debugFirstLevel!.n;
-			_seed = _debugFirstLevel!.seed;
+		final ({int n, int seed})? debugFirst = _PuzzlePageState.debugFirstLevel;
+		if (_firstLevel && debugFirst != null) {
+			_pieceCount = debugFirst.n;
+			_seed = debugFirst.seed;
+			// debug 後門固定走 voronoi（grid 不會卡死、debug 主要是不規則模式用）
+			_cutMode = CutMode.voronoi;
 			_imageIndex = _pickNextImageIndex();
 			_firstLevel = false;
+			// 用完即清，避免後續關卡又被鎖在同樣的 (n, seed)
+			_PuzzlePageState.debugFirstLevel = null;
 			return;
 		}
 		_firstLevel = false;

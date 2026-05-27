@@ -7,3 +7,5 @@ void dispatchFontsReadyEventImpl() {}
 void installNoHistoryUrlStrategyImpl() {}
 
 String? pwaInstallHintImpl() => null;
+
+({int n, int seed})? readDebugLevelQueryImpl() => null;

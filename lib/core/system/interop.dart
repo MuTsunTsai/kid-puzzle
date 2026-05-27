@@ -35,3 +35,9 @@ void installNoHistoryUrlStrategy() => installNoHistoryUrlStrategyImpl();
 /// 用字串而非 enum：跨 conditional import 邊界需要共用型別會被迫多開檔，
 /// 標籤集合就兩個值、簡單字串更輕。
 String? pwaInstallHint() => pwaInstallHintImpl();
+
+/// Debug 後門：讀 URL query 中的 `n` 與 `seed`，回傳 (n, seed)。
+///
+/// 只在 web 有意義；其他平台 / 缺參數 / 解析失敗一律 null。
+/// 用法：`?n=5&seed=1250263700` → 直接跳進拼圖頁用該參數 + voronoi 切割。
+({int n, int seed})? readDebugLevelQuery() => readDebugLevelQueryImpl();
