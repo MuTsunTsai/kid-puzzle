@@ -44,6 +44,6 @@ String? pwaInstallHint() => pwaInstallHintImpl();
 
 /// 在新分頁 / 系統瀏覽器開啟外部 URL（給「請作者喝咖啡」等外連用）。
 ///
-/// Web 走 `window.open` + noopener；其他平台目前 no-op（之後若 Android 要支援
-/// 再導入 url_launcher）。
+/// Web 走 `window.open` + noopener；其他平台走 url_launcher 的
+/// `externalApplication` 模式（Android/iOS 都會跳出系統瀏覽器）。
 void openExternalUrl(String url) => openExternalUrlImpl(url);

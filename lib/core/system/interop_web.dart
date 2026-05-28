@@ -105,15 +105,26 @@ String? pwaInstallHintImpl() {
 	return _isSafari() ? "safari" : "generic";
 }
 
-/// 偵測「已以 standalone PWA 啟動」：
-/// - 大多數瀏覽器：`matchMedia("(display-mode: standalone)")`
-/// - iOS Safari：non-standard `navigator.standalone === true`
+/// 偵測「已以 PWA 啟動」（不是在一般瀏覽器分頁裡）。
+///
+/// - 大多數瀏覽器：`matchMedia("(display-mode: X)")`，X 涵蓋 manifest 可能
+///   設定的所有「非 browser」模式（standalone / fullscreen / minimal-ui）。
+///   我們 manifest 目前是 fullscreen；漏掉就會誤判成未安裝、繼續顯示 PWA
+///   安裝提示。
+/// - iOS Safari：non-standard `navigator.standalone === true`，與 manifest
+///   的 display 設定無關（iOS 自家「加到主畫面」判定）。
 bool _isStandalone() {
-	try {
-		if (web.window.matchMedia("(display-mode: standalone)").matches) {
-			return true;
-		}
-	} catch (_) {}
+	for (final String mode in const <String>[
+		"standalone",
+		"fullscreen",
+		"minimal-ui",
+	]) {
+		try {
+			if (web.window.matchMedia("(display-mode: $mode)").matches) {
+				return true;
+			}
+		} catch (_) {}
+	}
 	try {
 		final bool? s = (web.window.navigator as _NavStandalone).standalone;
 		if (s == true) return true;
