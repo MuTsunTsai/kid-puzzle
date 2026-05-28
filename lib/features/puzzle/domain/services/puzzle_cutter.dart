@@ -116,6 +116,7 @@ class PuzzleCutter {
 		// 對該片所用的「tabSize 最大」兩個 segment 縮 70%；反覆直到全部無自交
 		// 或所有 segment 都已被縮到失效。共享 segment 同時影響兩片，互補性
 		// 在 segment 層級自動保留。
+		await Future<void>.delayed(Duration.zero);
 		await _resolveSelfIntersections(
 			cells: cells,
 			segments: segments,

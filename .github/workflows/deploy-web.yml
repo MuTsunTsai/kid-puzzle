@@ -46,8 +46,11 @@ jobs:
         run: flutter pub get
 
       # base-href 結尾必須有斜線；對應 repo 名稱 kid-puzzle
+      # --wasm 產 dual output（wasm + JS fallback）：支援 WasmGC 的瀏覽器
+      # （Chrome 119+ / Firefox 120+ / Safari 18.2+）會跑 wasm、切割演算法
+      # 約快 5×；舊瀏覽器自動 fallback 到 dart2js 版本、不會白畫面。
       - name: Build web
-        run: flutter build web --release --base-href /kid-puzzle/
+        run: flutter build web --release --wasm --base-href /kid-puzzle/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

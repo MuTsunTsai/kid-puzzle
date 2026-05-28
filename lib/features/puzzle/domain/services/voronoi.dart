@@ -1,5 +1,8 @@
 import "dart:math";
+import "dart:typed_data";
 import "dart:ui";
+
+import "delaunator.dart";
 
 /// 一個 Voronoi cell：包含原始種子點與多邊形頂點（順時針或逆時針）。
 class VoronoiCell {
@@ -158,101 +161,20 @@ class VoronoiBuilder {
 		return Offset(ux, uy);
 	}
 
-	/// Bowyer-Watson Delaunay triangulation。
+	/// Delaunay triangulation；用 [Delaunator]（Mapbox delaunator 的 Dart port，
+	/// O(n log n)），比 naive Bowyer-Watson O(n²) 快很多倍。
 	///
-	/// 回傳的三角形以 [points] 索引描述。包含「super triangle」頂點的三角形已被
-	/// 過濾掉，但為了讓邊界 cell 有完整外接圓圓心，呼叫端通常會把「遠端虛擬點」
-	/// 一起塞進來。
+	/// 回傳的三角形以 [points] 索引描述。
 	static List<_Triangle> _delaunay(List<Offset> points) {
 		final int n = points.length;
 		if (n < 3) return <_Triangle>[];
-
-		// 建 super triangle：足以包住所有點的大三角形
-		double minX = double.infinity, minY = double.infinity;
-		double maxX = -double.infinity, maxY = -double.infinity;
-		for (final Offset p in points) {
-			if (p.dx < minX) minX = p.dx;
-			if (p.dy < minY) minY = p.dy;
-			if (p.dx > maxX) maxX = p.dx;
-			if (p.dy > maxY) maxY = p.dy;
+		final Delaunator d = Delaunator(points);
+		final Uint32List tri = d.triangles;
+		final List<_Triangle> out = <_Triangle>[];
+		for (int i = 0; i < tri.length; i += 3) {
+			out.add(_Triangle(tri[i], tri[i + 1], tri[i + 2]));
 		}
-		final double dx = maxX - minX;
-		final double dy = maxY - minY;
-		final double deltaMax = max(dx, dy) * 10;
-		final double midX = (minX + maxX) / 2;
-		final double midY = (minY + maxY) / 2;
-		// 三個 super triangle 頂點，加到 points 末端
-		final Offset st1 = Offset(midX - 20 * deltaMax, midY - deltaMax);
-		final Offset st2 = Offset(midX, midY + 20 * deltaMax);
-		final Offset st3 = Offset(midX + 20 * deltaMax, midY - deltaMax);
-		final List<Offset> pts = <Offset>[...points, st1, st2, st3];
-		final int stA = n;
-		final int stB = n + 1;
-		final int stC = n + 2;
-
-		final List<_Triangle> triangles = <_Triangle>[_Triangle(stA, stB, stC)];
-
-		for (int i = 0; i < n; i++) {
-			final Offset p = pts[i];
-			// 找出 circumcircle 包含 p 的三角形
-			final List<_Triangle> bad = <_Triangle>[];
-			for (final _Triangle t in triangles) {
-				if (_inCircumcircle(pts[t.a], pts[t.b], pts[t.c], p)) {
-					bad.add(t);
-				}
-			}
-			// 找出 bad triangles 的邊界 (每條邊只屬於一個 bad triangle 的)
-			final List<_Edge> polygon = <_Edge>[];
-			for (final _Triangle t in bad) {
-				for (final _Edge e in <_Edge>[
-					_Edge(t.a, t.b),
-					_Edge(t.b, t.c),
-					_Edge(t.c, t.a),
-				]) {
-					// 此邊是否在其他 bad triangle 也出現？
-					int sharedCount = 0;
-					for (final _Triangle u in bad) {
-						if (identical(u, t)) continue;
-						if (_triangleHasEdge(u, e)) sharedCount++;
-					}
-					if (sharedCount == 0) polygon.add(e);
-				}
-			}
-			// 移除 bad triangles
-			triangles.removeWhere(bad.contains);
-			// 加入新三角形：p 與 polygon 每條邊形成新三角形
-			for (final _Edge e in polygon) {
-				triangles.add(_Triangle(e.a, e.b, i));
-			}
-		}
-
-		// 過濾掉含 super triangle 頂點的三角形
-		triangles.removeWhere((_Triangle t) =>
-				t.a >= n || t.b >= n || t.c >= n);
-		return triangles;
-	}
-
-	/// 點 p 是否在三角形 abc 的外接圓內。
-	static bool _inCircumcircle(Offset a, Offset b, Offset c, Offset p) {
-		final double ax = a.dx - p.dx;
-		final double ay = a.dy - p.dy;
-		final double bx = b.dx - p.dx;
-		final double by = b.dy - p.dy;
-		final double cx = c.dx - p.dx;
-		final double cy = c.dy - p.dy;
-		final double det = (ax * ax + ay * ay) * (bx * cy - cx * by) -
-				(bx * bx + by * by) * (ax * cy - cx * ay) +
-				(cx * cx + cy * cy) * (ax * by - bx * ay);
-		// abc 為逆時針時 det > 0 表示 p 在內。需檢查 abc 方向
-		final double cross = (b.dx - a.dx) * (c.dy - a.dy) -
-				(b.dy - a.dy) * (c.dx - a.dx);
-		// cross > 0 = 逆時針
-		return cross > 0 ? det > 0 : det < 0;
-	}
-
-	static bool _triangleHasEdge(_Triangle t, _Edge e) {
-		final Set<int> verts = <int>{t.a, t.b, t.c};
-		return verts.contains(e.a) && verts.contains(e.b);
+		return out;
 	}
 
 	/// Sutherland-Hodgman 多邊形裁剪到矩形。
@@ -342,17 +264,3 @@ class _Triangle {
 	final int c;
 }
 
-class _Edge {
-	const _Edge(this.a, this.b);
-	final int a;
-	final int b;
-
-	@override
-	bool operator ==(Object other) =>
-			other is _Edge &&
-			((a == other.a && b == other.b) ||
-					(a == other.b && b == other.a));
-
-	@override
-	int get hashCode => a.hashCode ^ b.hashCode;
-}
