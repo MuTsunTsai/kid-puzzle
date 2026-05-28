@@ -56,12 +56,21 @@
   <title>幼兒益智遊戲</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- 預載關鍵資源：讓瀏覽器在解析 HTML 的同時平行下載，省序列等待。
+       canvaskit.wasm 是 ~1.5 MB 的大檔，越早 fetch 越好。 -->
+  <link rel="preload" href="flutter_bootstrap.js" as="script">
+  <link rel="preload" href="canvaskit/canvaskit.wasm" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="icons/Icon-512.png" as="image">
+
   <style>
-    /* 載入期間覆蓋整個畫面的 spinner overlay。
+    /* 載入期間覆蓋整個畫面的 overlay：logo + 進度條 + 文字。
        Flutter 主程式 + CanvasKit wasm 加起來在行動網路可能要數秒，
-       這層提供視覺回饋，避免使用者以為畫面壞掉。
-       Flutter 第一次繪製完成會 dispatch `flutter-first-frame` event、
-       下方 script 監聽到後加上 .loaded 觸發淡出 + remove。 */
+       這層提供視覺回饋、且分階段推進進度條，讓使用者看到「實際在進展」
+       而非單純轉圈。
+       - 33%：entrypoint 下載完（flutter_bootstrap.js 內 onEntrypointLoaded）
+       - 66%：engine 初始化完
+       - 90%：runApp 已呼叫
+       - 100%：flutter-first-frame + flutter-fonts-ready 都到 → 淡出 + remove */
     html, body { margin: 0; padding: 0; height: 100%; }
     body {
       background: linear-gradient(135deg, #ff8a65, #ffd54f);
@@ -82,13 +91,12 @@
       opacity: 0;
       pointer-events: none;
     }
-    #loading .spinner {
-      width: 64px;
-      height: 64px;
-      border: 6px solid rgba(255, 255, 255, 0.35);
-      border-top-color: #ffffff;
-      border-radius: 50%;
-      animation: spin 0.9s linear infinite;
+    #loading .logo {
+      width: 128px;
+      height: 128px;
+      border-radius: 28px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      animation: float 2.4s ease-in-out infinite;
     }
     #loading .label {
       color: #ffffff;
@@ -98,8 +106,23 @@
       font-weight: 600;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    #loading .bar {
+      width: 200px;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    #loading .bar-fill {
+      width: 0%;
+      height: 100%;
+      background: #ffffff;
+      border-radius: 4px;
+      transition: width 300ms ease-out;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-8px); }
     }
 
     /* In-app browser 提示遮罩。預設 display:none，JS 偵測命中時改 display:flex。 */
@@ -131,18 +154,35 @@
 </head>
 <body>
   <div id="loading">
-    <div class="spinner"></div>
+    <img class="logo" src="icons/Icon-512.png" alt="">
     <div class="label">載入中…</div>
+    <div class="bar"><div class="bar-fill" id="loading-bar"></div></div>
   </div>
 
   <script>
-    // 等到「Flutter 第一幀」+「字型實際完成渲染」兩件事都發生才隱藏 spinner。
+    // 進度條由 flutter_bootstrap.js 三段事件推進（33 / 66 / 90），
+    // 最後 100% 由 flutter-first-frame 觸發。
+    var bar = document.getElementById("loading-bar");
+    function setProgress(v) {
+      if (!bar) return;
+      // 只增不減：避免事件順序意外造成倒退觀感
+      var cur = parseFloat(bar.style.width) || 0;
+      if (v > cur) bar.style.width = v + "%";
+    }
+    window.addEventListener("flutter-loading-progress", function (e) {
+      setProgress((e.detail && e.detail.value) || 0);
+    });
+
+    // 等到「Flutter 第一幀」+「字型實際完成渲染」兩件事都發生才隱藏 overlay。
     // 注意：不能用 document.fonts.ready —— 某些系統字型在實際 glyph 解碼前就
     // 提早 resolve，導致 TextPainter / RenderBox 量到的中文字寬仍是 tofu 寬度。
     // 改由 Flutter 端 probe widget 量到「合理寬度」之後 dispatch
-    // `flutter-fonts-ready` 自訂事件，這層才把 spinner 撤掉。
+    // `flutter-fonts-ready` 自訂事件，這層才把 overlay 撤掉。
     var firstFrame = new Promise(function (resolve) {
-      window.addEventListener("flutter-first-frame", resolve, { once: true });
+      window.addEventListener("flutter-first-frame", function () {
+        setProgress(100);
+        resolve();
+      }, { once: true });
     });
     var fontsReady = new Promise(function (resolve) {
       window.addEventListener("flutter-fonts-ready", resolve, { once: true });
