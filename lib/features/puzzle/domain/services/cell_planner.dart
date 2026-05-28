@@ -62,7 +62,9 @@ abstract class CellPlanner {
 	const CellPlanner();
 
 	/// 在 [innerBounds] 內規劃 [pieceCount] 個 cell。
-	CellLayout plan({
+	///
+	/// 非同步以便大 n 場景（n=300）切割內部插入 yield、避免阻塞 UI。
+	Future<CellLayout> plan({
 		required int pieceCount,
 		required Rect innerBounds,
 		required int seed,
@@ -82,11 +84,11 @@ class GridCellPlanner extends CellPlanner {
 	static const double _epsilon = 1e-3;
 
 	@override
-	CellLayout plan({
+	Future<CellLayout> plan({
 		required int pieceCount,
 		required Rect innerBounds,
 		required int seed,
-	}) {
+	}) async {
 		final GridLayoutSpec spec = GridPlanner.plan(pieceCount, seed);
 		// 先把每個 cell 換算成矩形 4 頂點
 		final List<List<Offset>> rawCells = <List<Offset>>[];
@@ -169,7 +171,7 @@ class GridCellPlanner extends CellPlanner {
 /// 等同」由 segment 系統自然處理。
 class VoronoiCellPlanner extends CellPlanner {
 	const VoronoiCellPlanner({
-		this.lloydIterations = 10,
+		this.lloydIterations = 30,
 		this.oversampleRatio = 1.5,
 	});
 
@@ -187,24 +189,24 @@ class VoronoiCellPlanner extends CellPlanner {
 	static const double _epsilon = 0.5;
 
 	@override
-	CellLayout plan({
+	Future<CellLayout> plan({
 		required int pieceCount,
 		required Rect innerBounds,
 		required int seed,
-	}) {
+	}) async {
 		final Random random = Random(seed);
 		// 過取樣：先生 ceil(pieceCount * oversampleRatio) 個 cell。
 		// 若 oversampleRatio = 1.0 或 pieceCount <= 1，等同直接切（不合併）。
 		final int rawCount = (pieceCount * oversampleRatio).ceil();
 		final int initialCount = rawCount > pieceCount ? rawCount : pieceCount;
 
-		final List<Offset> points = VoronoiBuilder.generatePoissonLikePoints(
+		final List<Offset> points = await VoronoiBuilder.generatePoissonLikePoints(
 			bounds: innerBounds,
 			count: initialCount,
 			random: random,
 			lloydIterations: lloydIterations,
 		);
-		final List<VoronoiCell> vCells = VoronoiBuilder.computeVoronoi(
+		final List<VoronoiCell> vCells = await VoronoiBuilder.computeVoronoi(
 			points: points,
 			bounds: innerBounds,
 		);

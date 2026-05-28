@@ -8,9 +8,9 @@ const Rect kBounds = Rect.fromLTWH(0, 0, 800, 600);
 
 void main() {
 	group("VoronoiBuilder", () {
-		test("生成 6 點、計算 Voronoi 後得到 6 cells", () {
+		test("生成 6 點、計算 Voronoi 後得到 6 cells", () async {
 			final Random random = Random(42);
-			final List<Offset> points = VoronoiBuilder.generatePoissonLikePoints(
+			final List<Offset> points = await VoronoiBuilder.generatePoissonLikePoints(
 				bounds: kBounds,
 				count: 6,
 				random: random,
@@ -18,7 +18,7 @@ void main() {
 			);
 			expect(points.length, 6);
 
-			final List<VoronoiCell> cells = VoronoiBuilder.computeVoronoi(
+			final List<VoronoiCell> cells = await VoronoiBuilder.computeVoronoi(
 				points: points,
 				bounds: kBounds,
 			);
@@ -29,15 +29,15 @@ void main() {
 			}
 		});
 
-		test("Voronoi cells 面積總和 ≈ bounds 面積", () {
+		test("Voronoi cells 面積總和 ≈ bounds 面積", () async {
 			final Random random = Random(7);
 			for (int n = 4; n <= 10; n++) {
-				final List<Offset> points = VoronoiBuilder.generatePoissonLikePoints(
+				final List<Offset> points = await VoronoiBuilder.generatePoissonLikePoints(
 					bounds: kBounds,
 					count: n,
 					random: random,
 				);
-				final List<VoronoiCell> cells = VoronoiBuilder.computeVoronoi(
+				final List<VoronoiCell> cells = await VoronoiBuilder.computeVoronoi(
 					points: points,
 					bounds: kBounds,
 				);
@@ -51,14 +51,14 @@ void main() {
 			}
 		});
 
-		test("每個 cell 都在 bounds 內", () {
+		test("每個 cell 都在 bounds 內", () async {
 			final Random random = Random(123);
-			final List<Offset> points = VoronoiBuilder.generatePoissonLikePoints(
+			final List<Offset> points = await VoronoiBuilder.generatePoissonLikePoints(
 				bounds: kBounds,
 				count: 8,
 				random: random,
 			);
-			final List<VoronoiCell> cells = VoronoiBuilder.computeVoronoi(
+			final List<VoronoiCell> cells = await VoronoiBuilder.computeVoronoi(
 				points: points,
 				bounds: kBounds,
 			);
@@ -72,15 +72,15 @@ void main() {
 			}
 		});
 
-		test("Lloyd 鬆弛後相鄰種子點距離方差降低（分佈更均勻）", () {
+		test("Lloyd 鬆弛後相鄰種子點距離方差降低（分佈更均勻）", () async {
 			final Random random = Random(2026);
-			final List<Offset> rawPoints = VoronoiBuilder.generatePoissonLikePoints(
+			final List<Offset> rawPoints = await VoronoiBuilder.generatePoissonLikePoints(
 				bounds: kBounds,
 				count: 10,
 				random: random,
 				lloydIterations: 0,
 			);
-			final List<Offset> smoothPoints = VoronoiBuilder.generatePoissonLikePoints(
+			final List<Offset> smoothPoints = await VoronoiBuilder.generatePoissonLikePoints(
 				bounds: kBounds,
 				count: 10,
 				random: Random(2026),

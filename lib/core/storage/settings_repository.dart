@@ -21,6 +21,7 @@ class SettingsRepository {
 	static const String _kScreenLockEnabled = "screenLockEnabled";
 	static const String _kAudioEnabled = "audioEnabled";
 	static const String _kTtsEnabled = "ttsEnabled";
+	static const String _kBigKidMode = "bigKidMode";
 
 	/// 各畫面教學流程「最後看過的版本」存檔。
 	/// key 形如 "tutorialVersion.home"、"tutorialVersion.setup"。
@@ -45,6 +46,14 @@ class SettingsRepository {
 			(_box.get(_kScreenLockEnabled) as bool?) ?? false;
 	bool get audioEnabled => (_box.get(_kAudioEnabled) as bool?) ?? true;
 	bool get ttsEnabled => (_box.get(_kTtsEnabled) as bool?) ?? true;
+
+	/// 「大朋友模式」開關。
+	///
+	/// 啟用時：
+	/// - 拼圖片數範圍改成 20~300（以 10 為遞增單位），適合年紀較大的孩子。
+	/// - 拼圖塊邊框變細一半，減少視覺干擾。
+	/// - 所有需要「長按」的按鈕（齒輪、X 關閉）改成輕觸即可。
+	bool get bigKidMode => (_box.get(_kBigKidMode) as bool?) ?? false;
 
 	/// 啟用的切割模式集合。允許多選；遊戲每關隨機從中抽一個。
 	///
@@ -117,6 +126,14 @@ class SettingsRepository {
 			await _box.put(_kTtsEnabled, value);
 		} catch (e) {
 			debugPrint("SettingsRepository.setTtsEnabled failed: $e");
+		}
+	}
+
+	Future<void> setBigKidMode(bool value) async {
+		try {
+			await _box.put(_kBigKidMode, value);
+		} catch (e) {
+			debugPrint("SettingsRepository.setBigKidMode failed: $e");
 		}
 	}
 

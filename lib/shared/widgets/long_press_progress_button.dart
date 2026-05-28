@@ -22,7 +22,8 @@ class LongPressProgressButton extends StatefulWidget {
 		this.touchSlop = 30.0,
 	});
 
-	/// 必須按多久才觸發 [onComplete]。
+	/// 必須按多久才觸發 [onComplete]。傳 0 或負值代表「即點即觸發」，
+	/// 不畫進度環、tap 立刻呼叫 [onComplete]（用於「大朋友模式」）。
 	final int seconds;
 
 	/// 達到 [seconds] 秒後觸發的 callback。
@@ -57,13 +58,14 @@ class _LongPressProgressButtonState extends State<LongPressProgressButton>
 	@override
 	void initState() {
 		super.initState();
+		// AnimationController duration 必須 > 0；tap-only 模式下不會用到動畫，
+		// 但物件仍要建（避免 dispose / setState 分支處理），給個非 0 預設。
+		final int sec = widget.seconds > 0 ? widget.seconds : 1;
 		_progressController = AnimationController(
 			vsync: this,
-			duration: Duration(seconds: widget.seconds),
+			duration: Duration(seconds: sec),
 			// reverse 用 1/3 時間：放開時快速縮回，不會等很久才消失。
-			reverseDuration: Duration(
-				milliseconds: widget.seconds * 1000 ~/ 3,
-			),
+			reverseDuration: Duration(milliseconds: sec * 1000 ~/ 3),
 		);
 	}
 
@@ -71,9 +73,10 @@ class _LongPressProgressButtonState extends State<LongPressProgressButton>
 	void didUpdateWidget(covariant LongPressProgressButton oldWidget) {
 		super.didUpdateWidget(oldWidget);
 		if (oldWidget.seconds != widget.seconds) {
-			_progressController.duration = Duration(seconds: widget.seconds);
+			final int sec = widget.seconds > 0 ? widget.seconds : 1;
+			_progressController.duration = Duration(seconds: sec);
 			_progressController.reverseDuration = Duration(
-				milliseconds: widget.seconds * 1000 ~/ 3,
+				milliseconds: sec * 1000 ~/ 3,
 			);
 		}
 	}
@@ -103,6 +106,19 @@ class _LongPressProgressButtonState extends State<LongPressProgressButton>
 	Widget build(BuildContext context) {
 		final Color color = widget.progressColor ??
 				Colors.white.withValues(alpha: 0.8);
+		final bool tapOnly = widget.seconds <= 0;
+		// tap-only 模式：不畫進度環、tap 立刻觸發。
+		if (tapOnly) {
+			return GestureDetector(
+				behavior: HitTestBehavior.opaque,
+				onTap: widget.onComplete,
+				child: SizedBox(
+					width: widget.size,
+					height: widget.size,
+					child: Center(child: widget.child),
+				),
+			);
+		}
 		// 用 RawGestureDetector 自訂 touch slop：預設 18 px 對幼兒長按時手指微移
 		// 會被視為「取消」中斷進度。
 		return RawGestureDetector(

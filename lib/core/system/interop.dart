@@ -41,3 +41,9 @@ String? pwaInstallHint() => pwaInstallHintImpl();
 /// 只在 web 有意義；其他平台 / 缺參數 / 解析失敗一律 null。
 /// 用法：`?n=5&seed=1250263700` → 直接跳進拼圖頁用該參數 + voronoi 切割。
 ({int n, int seed})? readDebugLevelQuery() => readDebugLevelQueryImpl();
+
+/// 在新分頁 / 系統瀏覽器開啟外部 URL（給「請作者喝咖啡」等外連用）。
+///
+/// Web 走 `window.open` + noopener；其他平台目前 no-op（之後若 Android 要支援
+/// 再導入 url_launcher）。
+void openExternalUrl(String url) => openExternalUrlImpl(url);

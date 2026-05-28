@@ -153,6 +153,13 @@ extension type _NavStandalone(JSObject _) implements JSObject {
 	}
 }
 
+/// 在新分頁開啟外部 URL（給「請作者喝咖啡」等外連按鈕用）。
+///
+/// `noopener` 確保新分頁無法回頭操作 opener、`noreferrer` 不送 Referer。
+void openExternalUrlImpl(String url) {
+	web.window.open(url, "_blank", "noopener,noreferrer");
+}
+
 /// 偵測 Safari（含 iOS Safari）；排除 Chrome / Edge / Firefox（UA 也含 "Safari"）。
 bool _isSafari() {
 	final String ua = web.window.navigator.userAgent;

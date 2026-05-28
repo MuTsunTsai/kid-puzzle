@@ -70,6 +70,64 @@ class BevelPainter {
 		);
 	}
 
+	/// 軸對齊矩形專用的快速 bevel / groove。
+	///
+	/// 與 [drawInnerBevel] / [drawInnerGroove] 的視覺一致（同樣靠「邊外法線
+	/// 與光源夾角」決定顏色），但因矩形每條邊法線為常數、不需沿 path 採樣
+	/// 上千段 drawLine，直接每邊畫一條 drawLine 即可。對相框（外圈 + 內圈）
+	/// 這種大周長矩形，從 ~300ms 降到 < 5ms。
+	///
+	/// [style] = groove 時光源在左上（外圈用，凹槽風格）；bevel 時光源在右下
+	/// （內圈用，凸起風格）。呼叫前 canvas 必須先 clipPath（與原版一致）。
+	static void drawAxisAlignedRectShade(
+		Canvas canvas,
+		Rect rect, {
+		required BevelStyle style,
+		double strokeWidth = defaultStrokeWidth,
+		double highlightAlpha = defaultHighlightAlpha,
+		double shadowAlpha = defaultShadowAlpha,
+	}) {
+		// 光源方向：groove(外圈) 用左上、bevel(內圈) 用右下。與 _drawShadedAlongPath
+		// 內部設定保持一致。
+		final Offset light = style == BevelStyle.groove
+				? _normalize(const Offset(-1, -1))
+				: _normalize(const Offset(1, 1));
+
+		// 四條邊的外法線（順時針 path、切線旋轉 -90° = 外法線）。
+		const Offset nTop = Offset(0, -1);
+		const Offset nRight = Offset(1, 0);
+		const Offset nBottom = Offset(0, 1);
+		const Offset nLeft = Offset(-1, 0);
+
+		final Paint paint = Paint()
+			..style = PaintingStyle.stroke
+			..strokeWidth = strokeWidth
+			..strokeCap = StrokeCap.round
+			..strokeJoin = StrokeJoin.round;
+
+		void edge(Offset a, Offset b, Offset normal) {
+			final double dot = (normal.dx * light.dx + normal.dy * light.dy)
+					.clamp(-1.0, 1.0);
+			final Color? c = _colorForDot(
+				dot,
+				highlightAlpha: highlightAlpha,
+				shadowAlpha: shadowAlpha,
+			);
+			if (c == null) return;
+			paint.color = c;
+			canvas.drawLine(a, b, paint);
+		}
+
+		final Offset tl = rect.topLeft;
+		final Offset tr = rect.topRight;
+		final Offset br = rect.bottomRight;
+		final Offset bl = rect.bottomLeft;
+		edge(tl, tr, nTop);
+		edge(tr, br, nRight);
+		edge(br, bl, nBottom);
+		edge(bl, tl, nLeft);
+	}
+
 	/// 沿 [path] 採樣、依「外法線與 [lightDirection] 的點積」決定每段顏色。
 	///
 	/// 點積 = cos(夾角)：

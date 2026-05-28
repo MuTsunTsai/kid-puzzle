@@ -40,6 +40,7 @@ List<Route<dynamic>> _buildInitialRoutes() {
 						cutModes: <CutMode>{CutMode.voronoi},
 						rotationEnabled: false,
 						screenLockEnabled: false,
+						bigKidMode: false,
 					),
 				),
 				builder: AppRouter.routes[AppRoutes.puzzle]!,

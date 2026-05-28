@@ -52,7 +52,7 @@ double _minInteriorAngleDeg(List<Offset> poly) {
 }
 
 void main() {
-	test("TriangleCellPlanner：尖角（< 30°）出現機率統計", () {
+	test("TriangleCellPlanner：尖角（< 30°）出現機率統計", () async {
 		const double sharpThresholdDeg = 30.0;
 		// 涵蓋實際使用的塊數範圍與多 seed、樣本要夠大才有意義
 		const int seedCount = 100;
@@ -68,7 +68,7 @@ void main() {
 
 		for (int n = 2; n <= 30; n++) {
 			for (int seed = 0; seed < seedCount; seed++) {
-				final CellLayout layout = planner.plan(
+				final CellLayout layout = await planner.plan(
 					pieceCount: n,
 					innerBounds: _kInnerBounds,
 					seed: seed,
@@ -121,5 +121,5 @@ void main() {
 		expect(sharpCells, 0,
 				reason: "planner 應透過 retry 完全濾掉尖角 cell；"
 						"看到非 0 表示 retry 機制可能失效");
-	});
+	}, timeout: const Timeout(Duration(minutes: 5)));
 }

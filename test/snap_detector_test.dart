@@ -17,8 +17,8 @@ final Rect kInnerBounds = Rect.fromLTWH(
 	kBoardSize.height - 2 * kPadding,
 );
 
-PuzzleLayout _makeLayout({int pieceCount = 4, int seed = 7}) {
-	final CellLayout cellLayout = const GridCellPlanner().plan(
+Future<PuzzleLayout> _makeLayout({int pieceCount = 4, int seed = 7}) async {
+	final CellLayout cellLayout = await const GridCellPlanner().plan(
 		pieceCount: pieceCount,
 		innerBounds: kInnerBounds,
 		seed: seed,
@@ -44,8 +44,8 @@ void _scatter(PuzzleLayout layout) {
 
 void main() {
 	group("SnapDetector", () {
-		test("兩片相對位置正確時應融合", () {
-			final PuzzleLayout layout = _makeLayout();
+		test("兩片相對位置正確時應融合", () async {
+			final PuzzleLayout layout = await _makeLayout();
 			_scatter(layout);
 
 			final PuzzlePiece a = layout.pieces[0];
@@ -72,8 +72,8 @@ void main() {
 			expect((b.currentPosition - expectedB).distance, lessThan(1e-6));
 		});
 
-		test("相對位置誤差大於容差時不融合", () {
-			final PuzzleLayout layout = _makeLayout();
+		test("相對位置誤差大於容差時不融合", () async {
+			final PuzzleLayout layout = await _makeLayout();
 			_scatter(layout);
 
 			final PuzzlePiece a = layout.pieces[0];
@@ -96,8 +96,8 @@ void main() {
 			expect(a.groupId == b.groupId, isFalse);
 		});
 
-		test("放在正確位置（vs board）時整群鎖定", () {
-			final PuzzleLayout layout = _makeLayout();
+		test("放在正確位置（vs board）時整群鎖定", () async {
+			final PuzzleLayout layout = await _makeLayout();
 			_scatter(layout);
 
 			final PuzzlePiece a = layout.pieces[0];
@@ -118,8 +118,8 @@ void main() {
 			);
 		});
 
-		test("融合與鎖定條件同時滿足時、只觸發融合（拼片 snap 優先）", () {
-			final PuzzleLayout layout = _makeLayout();
+		test("融合與鎖定條件同時滿足時、只觸發融合（拼片 snap 優先）", () async {
+			final PuzzleLayout layout = await _makeLayout();
 			_scatter(layout);
 
 			final PuzzlePiece a = layout.pieces[0];
@@ -156,8 +156,8 @@ void main() {
 			expect(b.locked, isTrue);
 		});
 
-		test("已 locked 的 piece 不會被當作合併對象", () {
-			final PuzzleLayout layout = _makeLayout();
+		test("已 locked 的 piece 不會被當作合併對象", () async {
+			final PuzzleLayout layout = await _makeLayout();
 			_scatter(layout);
 
 			final PuzzlePiece a = layout.pieces[0];
@@ -184,10 +184,10 @@ void main() {
 			expect(result.locked, isTrue);
 		});
 
-		test("不相鄰的兩片即使相對位置正確也不會融合", () {
+		test("不相鄰的兩片即使相對位置正確也不會融合", () async {
 			// 4 塊 2x2：piece 0 = 左上, piece 3 = 右下，這兩片不共享邊（對角）。
 			// 把 piece 3 放到「相對 piece 0 的正確相對位置」，融合應該不觸發。
-			final PuzzleLayout layout = _makeLayout(pieceCount: 4, seed: 0);
+			final PuzzleLayout layout = await _makeLayout(pieceCount: 4, seed: 0);
 			_scatter(layout);
 
 			final PuzzlePiece a = layout.pieces[0];
@@ -213,10 +213,10 @@ void main() {
 			expect(a.groupId == nonNeighbor.groupId, isFalse);
 		});
 
-		test("共享邊無耳朵的鄰居不會融合", () {
+		test("共享邊無耳朵的鄰居不會融合", () async {
 			// 模擬「相鄰但共享邊是 flat / forceFlat」的情境：
 			// 直接從拼塊的 tabNeighborIds 移掉對方。
-			final PuzzleLayout layout = _makeLayout();
+			final PuzzleLayout layout = await _makeLayout();
 			_scatter(layout);
 
 			final PuzzlePiece a = layout.pieces[0];
@@ -242,8 +242,8 @@ void main() {
 			expect(a.groupId == b.groupId, isFalse);
 		});
 
-		test("合併取較小的 groupId", () {
-			final PuzzleLayout layout = _makeLayout();
+		test("合併取較小的 groupId", () async {
+			final PuzzleLayout layout = await _makeLayout();
 			_scatter(layout);
 
 			final PuzzlePiece a = layout.pieces[0];

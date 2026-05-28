@@ -9,3 +9,5 @@ void installNoHistoryUrlStrategyImpl() {}
 String? pwaInstallHintImpl() => null;
 
 ({int n, int seed})? readDebugLevelQueryImpl() => null;
+
+void openExternalUrlImpl(String url) {}

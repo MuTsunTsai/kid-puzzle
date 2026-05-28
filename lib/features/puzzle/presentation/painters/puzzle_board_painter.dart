@@ -208,10 +208,13 @@ class PuzzleBoardPainter extends CustomPainter {
 		canvas.save();
 		canvas.clipPath(ringPath);
 
-		// 外圈邊：凹槽風格
-		BevelPainter.drawInnerGroove(canvas, Path()..addRect(localBoard));
-		// 內圈邊：凸起風格
-		BevelPainter.drawInnerBevel(canvas, Path()..addRect(innerLocal));
+		// 外圈邊：凹槽風格 / 內圈邊：凸起風格。
+		// 兩者都是 axis-aligned 矩形 → 用特化函式（4 條 drawLine）取代沿路徑採樣
+		// 數千段 drawLine 的通用版本，避免大盤面時烤 frame bitmap 阻塞 ~300ms。
+		BevelPainter.drawAxisAlignedRectShade(
+			canvas, localBoard, style: BevelStyle.groove);
+		BevelPainter.drawAxisAlignedRectShade(
+			canvas, innerLocal, style: BevelStyle.bevel);
 
 		canvas.restore();
 
@@ -304,7 +307,8 @@ class PuzzleBoardPainter extends CustomPainter {
 		// 邊框（向量、相鄰 piece 共享邊上完美重疊）
 		final Paint border = Paint()
 			..style = PaintingStyle.stroke
-			..strokeWidth = PuzzleDimens.pieceBorderWidth
+			..strokeWidth = PuzzleDimens.pieceBorderWidth *
+					(controller.bigKidMode ? 0.5 : 1.0)
 			..strokeJoin = StrokeJoin.round
 			..color = AppColors.pieceBorder.withValues(
 				alpha: AppColors.pieceBorder.a * op,

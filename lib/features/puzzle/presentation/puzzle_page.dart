@@ -2,6 +2,7 @@ import "dart:async";
 import "dart:math";
 import "dart:ui" as ui;
 
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:provider/provider.dart";
@@ -52,6 +53,19 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	bool _completed = false;
 	bool _initialized = false;
 
+	/// 圖載完但切割還沒好的「過渡圖」：用來顯示未切割的完整大圖。
+	///
+	/// 流程：
+	///   ┌ spinner ┐  ┌── 顯示 _pendingImage ──┐ ┌── 顯示 PuzzleCanvas ───┐
+	///   │ 載圖    │  │ plan / cut / prebake / │ │ reveal 動畫 + scatter │
+	///   │         │  │ scatter 並行計算       │ │                       │
+	///   └─────────┘  └────────────────────────┘ └───────────────────────┘
+	///
+	/// _imageShownAt：圖開始顯示的時刻（給 200ms 最低 hold 用、由 canvas 端
+	/// 算 `now - imageShownAt`、若還沒到 200ms 就延後啟動 reveal 動畫）。
+	_LoadedImage? _pendingImage;
+	DateTime? _imageShownAt;
+
 	final Random _random = Random();
 
 	// 從 PuzzleArguments 帶入
@@ -61,6 +75,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	Set<CutMode> _cutModes = <CutMode>{CutMode.grid, CutMode.voronoi};
 	bool _rotationEnabled = false;
 	bool _screenLockEnabled = false;
+	bool _bigKidMode = false;
 
 	// 當前關卡狀態
 	int _seed = 0;
@@ -200,6 +215,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 			}
 			_rotationEnabled = args.rotationEnabled;
 			_screenLockEnabled = args.screenLockEnabled;
+			_bigKidMode = args.bigKidMode;
 		}
 		// 等第一個 layout 完成後再產 controller（需要實際的畫面尺寸）
 		WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
@@ -339,6 +355,7 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		if (_puzzleAssets.isEmpty) return;
 		// 先在 await 之前把要的東西從 context 取出來
 		final Size size = MediaQuery.of(context).size;
+		final double dpr = MediaQuery.devicePixelRatioOf(context);
 		final AudioService audio = context.read<AudioService>();
 		final VoiceService voice = context.read<VoiceService>();
 		final GalleryRepository gallery = context.read<GalleryRepository>();
@@ -350,25 +367,55 @@ class _PuzzlePageState extends State<PuzzlePage> {
 				_loadAssetImage(assetPath, gallery);
 		final _LoadedImage loaded = await future;
 		diag("_resetController image loaded ${loaded.size}");
+		if (!mounted) {
+			loaded.image.dispose();
+			return;
+		}
 
+		// 步驟 1：圖一拿到就立刻顯示完整大圖、把舊 controller 拆掉。
+		// 這時還沒有 _controller、build 會走 _pendingImage 分支。
+		setState(() {
+			_controller?.dispose();
+			_controller = null;
+			_pendingImage = loaded;
+			_imageShownAt = DateTime.now();
+			_completed = false;
+		});
+
+		// 步驟 2：plan / cut（內部已 async + yield）
 		final PuzzleStageLayout stage = PuzzleStageLayout.forSize(size);
 		diag("_resetController calling newLevel");
-		final PuzzleController c = PuzzleController.newLevel(
+		final PuzzleController c = await PuzzleController.newLevel(
 			stageLayout: stage,
 			boardImage: loaded.image,
 			boardImageSize: loaded.size,
 			pieceCount: _pieceCount,
 			cutMode: _cutMode,
 			seed: _seed,
+			bigKidMode: _bigKidMode,
 		);
 		diag("_resetController newLevel done");
-		// 旋轉設定要在 scatter 之前套，否則初始角度不會被灑進去
+		if (!mounted) {
+			loaded.image.dispose();
+			c.dispose();
+			return;
+		}
 		c.rotationEnabled = _rotationEnabled;
 		c.rotationStepDeg = _cutMode == CutMode.grid
 				? PuzzleDimens.rotationStepGridDeg
 				: PuzzleDimens.rotationStepVoronoiDeg;
-		// 一開始全部散落到右側
-		c.scatterPiecesToRight(seed: _seed + 1);
+		c.bigKidMode = _bigKidMode;
+
+		// 步驟 3：prebake bitmap 快取 + 算散落位置；並行（兩者都非同步、互不依賴）。
+		await Future.wait<void>(<Future<void>>[
+			c.prebakePieceBitmaps(devicePixelRatio: dpr),
+			c.scatterPiecesToRight(seed: _seed + 1),
+		]);
+		if (!mounted) {
+			loaded.image.dispose();
+			c.dispose();
+			return;
+		}
 
 		// 接音效 / TTS（audio/tts 已在 await 之前取出）
 		c.onPickup = () => audio.play(SfxKind.pickup);
@@ -386,26 +433,19 @@ class _PuzzlePageState extends State<PuzzlePage> {
 			_levelStartTime = null;
 			_handleCompleted();
 		};
-		// 進關卡的語音提示
-		voice.speakLevelStart();
-		// Analytics：標記新關卡開始
 		_levelStartTime = DateTime.now();
 		AnalyticsService.instance.logLevelStart(
 			pieceCount: _pieceCount,
 			cutMode: _cutMode.name,
 		);
 
-		if (!mounted) {
-			diag("_resetController UNMOUNTED before setState");
-			loaded.image.dispose();
-			return;
-		}
+		// 步驟 4：mount canvas、開始進場動畫。語音同時播放（與 reveal 動畫同步啟動）。
 		diag("_resetController setState(swap controller)");
 		setState(() {
-			_controller?.dispose();
 			_controller = c;
-			_completed = false;
+			_pendingImage = null;
 		});
+		voice.speakLevelStart();
 		diag("_resetController EXIT");
 	}
 
@@ -569,7 +609,16 @@ class _PuzzlePageState extends State<PuzzlePage> {
 							child: PuzzleCanvas(
 								controller: _controller!,
 								showCutLineHint: _showHint,
+								imageShownAt: _imageShownAt,
 							),
+						)
+					else if (_pendingImage != null)
+						// 過渡狀態：圖已載入但 controller（plan/cut/prebake/scatter）
+						// 還沒準備好。顯示完整未切割大圖、占用左側 board 區。
+						_PendingBoardImage(
+							image: _pendingImage!,
+							cutMode: _cutMode,
+							pieceCount: _pieceCount,
 						)
 					else
 						const Center(child: CircularProgressIndicator()),
@@ -632,45 +681,22 @@ class _PuzzlePageState extends State<PuzzlePage> {
 					),
 
 					// 右上角返回按鈕：必須長按 [closeLongPressSeconds] 秒才真的關閉（避
-					// 免幼兒誤觸）；拼片靠近時淡出避讓（500ms 由 AnimatedOpacity 處理）。
-					Positioned(
-						top: 12,
-						right: 12,
-						child: _controller == null
-								? const SizedBox.shrink()
-								: ValueListenableBuilder<int>(
-										valueListenable: _controller!.repaintTick,
-										builder: (BuildContext context, _, Widget? unused) {
-											final bool hidden = _shouldHideCloseButton();
-											return AnimatedOpacity(
-												opacity: hidden ? 0.0 : 1.0,
-												duration: const Duration(milliseconds: 500),
-												child: IgnorePointer(
-													ignoring: hidden,
-													child: LongPressProgressButton(
-														seconds: AppDimens.gearLongPressSeconds,
-														onComplete: () =>
-																Navigator.of(context).maybePop(),
-														progressColor: AppColors.primary,
-														child: Container(
-															width: 56,
-															height: 56,
-															decoration: BoxDecoration(
-																shape: BoxShape.circle,
-																color: Colors.white.withValues(alpha: 0.9),
-															),
-															child: const Icon(
-																Icons.close,
-																color: AppColors.primary,
-																size: 28,
-															),
-														),
-													),
-												),
-											);
-										},
-									),
-					),
+					// 免幼兒誤觸）。在過渡狀態（_pendingImage、無 controller）也顯示，
+					// 此時還沒拼片、不需要 hide 邏輯；有 controller 時拼片靠近會淡出避讓。
+					//
+					// shouldHide 是 callback（不是 bool）——避免 page build 時就固定值、
+					// 拼片之後拖開仍卡在 true。每次 controller.repaintTick 觸發
+					// _CloseButton 內 builder rebuild 時重算。
+					if (_controller != null || _pendingImage != null)
+						Positioned(
+							top: 12,
+							right: 12,
+							child: _CloseButton(
+								controller: _controller,
+								bigKidMode: _bigKidMode,
+								shouldHide: _shouldHideCloseButton,
+							),
+						),
 				],
 			);
 				},
@@ -709,6 +735,363 @@ class _LoadedImage {
 	const _LoadedImage(this.image, this.size);
 	final ui.Image image;
 	final ui.Size size;
+}
+
+/// 永不通知變動的 ValueListenable，給 [_CloseButton] 在「過渡狀態（無 controller）」
+/// 時當 placeholder——這樣 widget tree shape 與「有 controller」階段一致、
+/// AnimatedOpacity 不會在階段切換時被丟掉。
+class _NeverNotifier implements ValueListenable<int> {
+	const _NeverNotifier();
+	@override
+	int get value => 0;
+	@override
+	void addListener(VoidCallback listener) {}
+	@override
+	void removeListener(VoidCallback listener) {}
+}
+
+/// 右上角返回按鈕：長按 [AppDimens.gearLongPressSeconds] 秒（或大朋友模式
+/// 下立即觸發）執行 maybePop。
+///
+/// - [controller] 非 null 時用 repaintTick 訂閱、配合 shouldHide 做拼片靠近時
+///   淡出。
+/// - [controller] null（過渡狀態）時不訂閱、固定顯示。
+class _CloseButton extends StatelessWidget {
+	const _CloseButton({
+		required this.controller,
+		required this.bigKidMode,
+		required this.shouldHide,
+	});
+
+	final PuzzleController? controller;
+	final bool bigKidMode;
+	/// callback 而非 bool：每次 ValueListenableBuilder rebuild 都重算，避免
+	/// page build 時固定值、拼片之後拖開仍卡在 true。
+	final ValueGetter<bool> shouldHide;
+
+	Widget _button(BuildContext context, {required bool hidden}) {
+		return AnimatedOpacity(
+			opacity: hidden ? 0.0 : 1.0,
+			duration: const Duration(milliseconds: 500),
+			child: IgnorePointer(
+				ignoring: hidden,
+				child: LongPressProgressButton(
+					seconds: bigKidMode ? 0 : AppDimens.gearLongPressSeconds,
+					onComplete: ClickSound.wrap(
+						context,
+						() => Navigator.of(context).maybePop(),
+					)!,
+					progressColor: AppColors.primary,
+					child: Container(
+						width: 56,
+						height: 56,
+						decoration: BoxDecoration(
+							shape: BoxShape.circle,
+							color: Colors.white.withValues(alpha: 0.9),
+						),
+						child: const Icon(
+							Icons.close,
+							color: AppColors.primary,
+							size: 28,
+						),
+					),
+				),
+			),
+		);
+	}
+
+	@override
+	Widget build(BuildContext context) {
+		// 用「controller 變動時也存活」的單一 widget tree、確保 AnimatedOpacity
+		// 在過渡 → 遊戲階段切換時不被丟掉、能正常淡出而非瞬間消失。
+		final PuzzleController? c = controller;
+		// 過渡狀態（controller == null）：訂閱一個 dummy ValueListenable（永遠
+		// 不會 bump），hidden 固定 false。遊戲階段：訂閱 controller.repaintTick、
+		// hidden 由 shouldHide() 動態決定。
+		final ValueListenable<int> listenable =
+				c?.repaintTick ?? const _NeverNotifier();
+		return ValueListenableBuilder<int>(
+			valueListenable: listenable,
+			builder: (BuildContext context, _, Widget? unused) {
+				final bool hidden = c == null ? false : shouldHide();
+				return _button(context, hidden: hidden);
+			},
+		);
+	}
+}
+
+/// 過渡期顯示：圖載完但 controller 還沒準備好時，用 [PuzzleStageLayout] 算出
+/// 的 boardRect 把完整未切割大圖畫到正確位置；右半填散落區底色。
+///
+/// 上方疊「刀光快速劃過」spinner：每 [_slashIntervalMs] 毫秒生一刀，每刀是
+/// 一段短漸層線在 [_slashDurationMs] 毫秒內以等速沿其角度方向掠過 board，
+/// 視覺上像「快速切割」。中心點對 boardRect 中心加 jitter（範圍 ±50% 短邊）。
+class _PendingBoardImage extends StatefulWidget {
+	const _PendingBoardImage({
+		required this.image,
+		required this.cutMode,
+		required this.pieceCount,
+	});
+
+	final _LoadedImage image;
+
+	/// 切割模式：[CutMode.grid] 時刀光角度只取垂直 / 水平；[CutMode.voronoi]
+	/// 時任意角度 0~π。
+	final CutMode cutMode;
+
+	/// 該關片數。低於 [_pendingAnimationsMinPieces] 時切割很快、不顯示刀光與
+	/// 中央 spinner（純大圖即可），避免短暫閃爍動畫。
+	final int pieceCount;
+
+	@override
+	State<_PendingBoardImage> createState() => _PendingBoardImageState();
+}
+
+class _PendingBoardImageState extends State<_PendingBoardImage>
+		with SingleTickerProviderStateMixin {
+	/// 每隔多久觸發一刀。
+	static const int _slashIntervalMs = 700;
+	/// 單刀掠過時長。
+	static const int _slashDurationMs = 300;
+	/// 漸層線本身長度相對 boardRect 短邊的比例。
+	static const double _slashLengthRatio = 0.4;
+	/// 刀光中心點對 boardRect 中心的最大 jitter（相對短邊比例）。
+	static const double _centerJitterRatio = 0.25;
+	/// 片數 < 此值就不顯示刀光與中央 spinner（切割很快、動畫只會閃一下）。
+	static const int _pendingAnimationsMinPieces = 50;
+
+	late final AnimationController _controller;
+	final Random _random = Random();
+	final List<_Slash> _slashes = <_Slash>[];
+	Timer? _spawnTimer;
+	int _nextId = 0;
+
+	bool get _animationsEnabled =>
+			widget.pieceCount >= _pendingAnimationsMinPieces;
+
+	@override
+	void initState() {
+		super.initState();
+		// 連續 ticker：讓 painter 每幀 rebuild、推進所有 active slash 的進度。
+		_controller = AnimationController(
+			vsync: this,
+			duration: const Duration(milliseconds: 1000),
+		);
+		// 低片數時不啟動動畫（純大圖、無 spinner、無刀光）。
+		if (_animationsEnabled) {
+			_controller.repeat();
+			_spawnTimer = Timer.periodic(
+				const Duration(milliseconds: _slashIntervalMs),
+				(_) => _spawn(),
+			);
+			// 首刀立即出（不等 _slashIntervalMs）
+			_spawn();
+		}
+	}
+
+	void _spawn() {
+		if (!mounted) return;
+		// grid 模式：刀光只能垂直或水平。
+		final double angle;
+		if (widget.cutMode == CutMode.grid) {
+			angle = _random.nextBool() ? 0.0 : pi / 2;
+		} else {
+			angle = _random.nextDouble() * pi;
+		}
+		setState(() {
+			_slashes.add(_Slash(
+				id: _nextId++,
+				angleRad: angle,
+				jitterFracX: _random.nextDouble() * 2 - 1,
+				jitterFracY: _random.nextDouble() * 2 - 1,
+				startedAt: DateTime.now(),
+			));
+			// 清掉已超過時長的
+			final DateTime now = DateTime.now();
+			_slashes.removeWhere((_Slash s) =>
+					now.difference(s.startedAt).inMilliseconds > _slashDurationMs);
+		});
+	}
+
+	@override
+	void dispose() {
+		_spawnTimer?.cancel();
+		_controller.dispose();
+		super.dispose();
+	}
+
+	@override
+	Widget build(BuildContext context) {
+		return LayoutBuilder(
+			builder: (BuildContext context, BoxConstraints constraints) {
+				final Size totalSize =
+						Size(constraints.maxWidth, constraints.maxHeight);
+				final PuzzleStageLayout stage =
+						PuzzleStageLayout.forSize(totalSize);
+				return Stack(
+					children: <Widget>[
+						// 圖 + 散落區底色 + （若啟用）刀光
+						Positioned.fill(
+							child: AnimatedBuilder(
+								animation: _controller,
+								builder: (BuildContext context, _) {
+									return CustomPaint(
+										size: totalSize,
+										painter: _PendingBoardImagePainter(
+											image: widget.image.image,
+											imageSize: widget.image.size,
+											boardRect: stage.boardRect,
+											scatterRect: stage.scatterRect,
+											slashes: _animationsEnabled ? _slashes : const <_Slash>[],
+											now: DateTime.now(),
+											slashDurationMs: _slashDurationMs,
+											slashLengthRatio: _slashLengthRatio,
+											centerJitterRatio: _centerJitterRatio,
+										),
+									);
+								},
+							),
+						),
+						// 大圖中央 spinner：只在啟用動畫時出現（高片數 = 切割慢、才需要提示）。
+						if (_animationsEnabled)
+							Positioned.fromRect(
+								rect: stage.boardRect,
+								child: const Center(
+									child: SizedBox(
+										width: 48,
+										height: 48,
+										child: CircularProgressIndicator(
+											strokeWidth: 4,
+											valueColor: AlwaysStoppedAnimation<Color>(
+												Colors.white,
+											),
+										),
+									),
+								),
+							),
+					],
+				);
+			},
+		);
+	}
+
+}
+
+/// 單一刀光描述：
+/// - [angleRad]：行進方向（弧度、0~π）
+/// - [jitterFracX / Y]：中心 jitter 在 [-1, 1]，乘上 [_centerJitterRatio] × 短邊
+/// - [startedAt]：起始時刻；painter 用 `now - startedAt` 算 0..1 進度
+class _Slash {
+	const _Slash({
+		required this.id,
+		required this.angleRad,
+		required this.jitterFracX,
+		required this.jitterFracY,
+		required this.startedAt,
+	});
+	final int id;
+	final double angleRad;
+	final double jitterFracX;
+	final double jitterFracY;
+	final DateTime startedAt;
+}
+
+class _PendingBoardImagePainter extends CustomPainter {
+	_PendingBoardImagePainter({
+		required this.image,
+		required this.imageSize,
+		required this.boardRect,
+		required this.scatterRect,
+		required this.slashes,
+		required this.now,
+		required this.slashDurationMs,
+		required this.slashLengthRatio,
+		required this.centerJitterRatio,
+	});
+
+	final ui.Image image;
+	final ui.Size imageSize;
+	final ui.Rect boardRect;
+	final ui.Rect scatterRect;
+	final List<_Slash> slashes;
+	final DateTime now;
+	final int slashDurationMs;
+	final double slashLengthRatio;
+	final double centerJitterRatio;
+
+	@override
+	void paint(Canvas canvas, Size size) {
+		// 1. 盤底色襯
+		final Paint boardBg = Paint()..color = AppColors.boardBackground;
+		canvas.drawRect(Offset.zero & size, boardBg);
+		// 2. 散落區底色（與最終 PuzzlePiecesPainter 一致）
+		final Paint scatterBg = Paint()..color = AppColors.pieceArea;
+		canvas.drawRect(scatterRect, scatterBg);
+		// 3. 整張圖鋪到 boardRect
+		canvas.drawImageRect(
+			image,
+			Rect.fromLTWH(0, 0, imageSize.width, imageSize.height),
+			boardRect,
+			Paint()..filterQuality = FilterQuality.medium,
+		);
+		// 4. 刀光
+		_paintSlashes(canvas);
+	}
+
+	void _paintSlashes(Canvas canvas) {
+		if (slashes.isEmpty) return;
+		final Offset boardCenter = boardRect.center;
+		final double shortSide =
+				boardRect.shortestSide;
+		final double maxJitter = shortSide * centerJitterRatio;
+		final double slashLength = shortSide * slashLengthRatio;
+		// 刀光從 board 邊外進入、掠到對側邊外消失。行進總距離 = 對角線長 + 一點
+		// buffer，確保完全切過 board；progress 0 起點在 board 外、progress 1
+		// 終點在 board 外。
+		final double travelDistance =
+				sqrt(boardRect.width * boardRect.width +
+						boardRect.height * boardRect.height) +
+				slashLength;
+
+		canvas.save();
+		canvas.clipRect(boardRect);
+		for (final _Slash s in slashes) {
+			final double t =
+					now.difference(s.startedAt).inMilliseconds / slashDurationMs;
+			if (t < 0 || t > 1) continue;
+			// 中心點：board 中心 + jitter
+			final Offset center = boardCenter +
+					Offset(s.jitterFracX * maxJitter, s.jitterFracY * maxJitter);
+			// 方向向量（沿刀光行進方向）
+			final double dirX = cos(s.angleRad);
+			final double dirY = sin(s.angleRad);
+			// 此時段內、刀光「中心」沿方向位移：從 -travelDistance/2 → +travelDistance/2
+			final double offset = (t - 0.5) * travelDistance;
+			final Offset segCenter =
+					center + Offset(dirX * offset, dirY * offset);
+			// 短漸層線兩端
+			final Offset a = segCenter - Offset(dirX, dirY) * (slashLength / 2);
+			final Offset b = segCenter + Offset(dirX, dirY) * (slashLength / 2);
+			final Paint paint = Paint()
+				..strokeWidth = 4
+				..strokeCap = StrokeCap.round
+				..shader = ui.Gradient.linear(
+					a,
+					b,
+					<Color>[
+						Colors.white.withValues(alpha: 0.0),
+						Colors.white.withValues(alpha: 0.95),
+						Colors.white.withValues(alpha: 0.0),
+					],
+					<double>[0.0, 0.5, 1.0],
+				);
+			canvas.drawLine(a, b, paint);
+		}
+		canvas.restore();
+	}
+
+	@override
+	bool shouldRepaint(covariant _PendingBoardImagePainter oldDelegate) => true;
 }
 
 /// 載入一張圖（assets 路徑或 `imageId:<uuid>` token 都支援），解成 ui.Image。

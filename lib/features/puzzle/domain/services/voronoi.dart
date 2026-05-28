@@ -31,12 +31,12 @@ class VoronoiBuilder {
 	///
 	/// 完全隨機取 [count] 個點，再執行 [lloydIterations] 次 Lloyd 鬆弛使分佈
 	/// 均勻 — 經實測，Lloyd 單獨足以讓分佈逼近 Poisson disk，不再需要網格 + 抖動。
-	static List<Offset> generatePoissonLikePoints({
+	static Future<List<Offset>> generatePoissonLikePoints({
 		required Rect bounds,
 		required int count,
 		required Random random,
 		int lloydIterations = 2,
-	}) {
+	}) async {
 		List<Offset> points = <Offset>[
 			for (int i = 0; i < count; i++)
 				Offset(
@@ -45,9 +45,12 @@ class VoronoiBuilder {
 				),
 		];
 
-		// Lloyd 鬆弛：把每個 cell 的種子點移到該 cell 重心
+		// Lloyd 鬆弛：把每個 cell 的種子點移到該 cell 重心。
+		// 每輪結束後 yield 一次、讓 UI 趁機畫一個 frame；computeVoronoi 內部
+		// 也會在 Delaunay 後 yield。
 		for (int iter = 0; iter < lloydIterations; iter++) {
-			final List<VoronoiCell> cells = computeVoronoi(points: points, bounds: bounds);
+			if (iter > 0) await Future<void>.delayed(Duration.zero);
+			final List<VoronoiCell> cells = await computeVoronoi(points: points, bounds: bounds);
 			points = cells.map((VoronoiCell c) => _polygonCentroid(c.polygon)).toList();
 		}
 
@@ -77,10 +80,13 @@ class VoronoiBuilder {
 	/// 對給定的種子點集合計算 Voronoi diagram，並裁剪到 [bounds]。
 	///
 	/// 回傳每個種子點對應的 [VoronoiCell]。
-	static List<VoronoiCell> computeVoronoi({
+	///
+	/// 非同步：在 Delaunay 後 yield 一次，把昂貴的兩段（Delaunay 三角化、cell
+	/// 組裝迴圈）切到不同 frame、不阻塞 UI 太久。
+	static Future<List<VoronoiCell>> computeVoronoi({
 		required List<Offset> points,
 		required Rect bounds,
-	}) {
+	}) async {
 		// 步驟：
 		// 1. 對 points 做 Delaunay triangulation
 		// 2. 每個三角形的外接圓圓心 = Voronoi vertex
@@ -98,6 +104,9 @@ class VoronoiBuilder {
 		];
 
 		final List<_Triangle> triangles = _delaunay(all);
+		// Delaunay 後 yield 一次：把昂貴的兩段（Delaunay 三角化、cell 組裝）
+		// 切到不同 frame，避免大 n 時阻塞 UI 太久。
+		await Future<void>.delayed(Duration.zero);
 
 		// 對每個原始種子點，收集圍繞它的三角形
 		final List<VoronoiCell> cells = <VoronoiCell>[];

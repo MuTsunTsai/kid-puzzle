@@ -82,10 +82,10 @@ bool _segmentsCross(Offset p1, Offset p2, Offset p3, Offset p4) {
 
 void main() {
 	group("VoronoiCellPlanner 合併演算法", () {
-		test("產出的 cell 數量 ≤ pieceCount", () {
+		test("產出的 cell 數量 ≤ pieceCount", () async {
 			for (int n = 4; n <= 16; n += 2) {
 				for (int seed = 0; seed < 10; seed++) {
-					final CellLayout cl = const VoronoiCellPlanner().plan(
+					final CellLayout cl = await const VoronoiCellPlanner().plan(
 						pieceCount: n,
 						innerBounds: _kInnerBounds,
 						seed: seed,
@@ -98,12 +98,12 @@ void main() {
 			}
 		});
 
-		test("所有 cell 兩兩不重疊（最關鍵的不變式）", () {
+		test("所有 cell 兩兩不重疊（最關鍵的不變式）", () async {
 			// 這條測試直接撞 bug：合併演算法若漏保留共享邊端點、其他 cell 與
 			// 合併 polygon 會在該頂點附近重疊。
 			for (int n = 4; n <= 16; n += 2) {
 				for (int seed = 0; seed < 15; seed++) {
-					final CellLayout cl = const VoronoiCellPlanner().plan(
+					final CellLayout cl = await const VoronoiCellPlanner().plan(
 						pieceCount: n,
 						innerBounds: _kInnerBounds,
 						seed: seed,
@@ -123,10 +123,10 @@ void main() {
 			}
 		});
 
-		test("所有 cell 都非自交（合併後 polygon 是 simple polygon）", () {
+		test("所有 cell 都非自交（合併後 polygon 是 simple polygon）", () async {
 			for (int n = 4; n <= 16; n += 2) {
 				for (int seed = 0; seed < 10; seed++) {
-					final CellLayout cl = const VoronoiCellPlanner().plan(
+					final CellLayout cl = await const VoronoiCellPlanner().plan(
 						pieceCount: n,
 						innerBounds: _kInnerBounds,
 						seed: seed,
@@ -140,10 +140,10 @@ void main() {
 			}
 		});
 
-		test("所有 cell 維持 CCW（signed area > 0）— 合併不該翻轉方向", () {
+		test("所有 cell 維持 CCW（signed area > 0）— 合併不該翻轉方向", () async {
 			for (int n = 4; n <= 16; n += 2) {
 				for (int seed = 0; seed < 10; seed++) {
-					final CellLayout cl = const VoronoiCellPlanner().plan(
+					final CellLayout cl = await const VoronoiCellPlanner().plan(
 						pieceCount: n,
 						innerBounds: _kInnerBounds,
 						seed: seed,
@@ -162,11 +162,11 @@ void main() {
 			}
 		});
 
-		test("所有 cell 面積總和 ≈ innerBounds 面積（不漏不重）", () {
+		test("所有 cell 面積總和 ≈ innerBounds 面積（不漏不重）", () async {
 			final double innerArea = _kInnerBounds.width * _kInnerBounds.height;
 			for (int n = 4; n <= 16; n += 2) {
 				for (int seed = 0; seed < 10; seed++) {
-					final CellLayout cl = const VoronoiCellPlanner().plan(
+					final CellLayout cl = await const VoronoiCellPlanner().plan(
 						pieceCount: n,
 						innerBounds: _kInnerBounds,
 						seed: seed,
@@ -182,12 +182,12 @@ void main() {
 			}
 		});
 
-		test("共享邊：相鄰 cell 的共享邊應該完美對齊（端點對相等）", () {
+		test("共享邊：相鄰 cell 的共享邊應該完美對齊（端點對相等）", () async {
 			// 此檢查捕捉「一條邊被某 cell 切成兩段、另一 cell 是一段」的 bug —
 			// 即原本造成重疊的 root cause。
 			for (int n = 4; n <= 16; n += 4) {
 				for (int seed = 0; seed < 8; seed++) {
-					final CellLayout cl = const VoronoiCellPlanner().plan(
+					final CellLayout cl = await const VoronoiCellPlanner().plan(
 						pieceCount: n,
 						innerBounds: _kInnerBounds,
 						seed: seed,
@@ -215,11 +215,11 @@ void main() {
 	});
 
 	group("VoronoiCellPlanner with oversampleRatio = 1.0（不合併）", () {
-		test("oversampleRatio=1.0 時直接輸出 N 個 cell、不做合併", () {
+		test("oversampleRatio=1.0 時直接輸出 N 個 cell、不做合併", () async {
 			for (int n = 4; n <= 16; n += 2) {
 				for (int seed = 0; seed < 5; seed++) {
 					final CellLayout cl =
-							const VoronoiCellPlanner(oversampleRatio: 1.0).plan(
+							await const VoronoiCellPlanner(oversampleRatio: 1.0).plan(
 						pieceCount: n,
 						innerBounds: _kInnerBounds,
 						seed: seed,

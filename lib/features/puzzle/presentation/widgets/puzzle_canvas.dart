@@ -21,10 +21,16 @@ class PuzzleCanvas extends StatefulWidget {
 		super.key,
 		required this.controller,
 		this.showCutLineHint = true,
+		this.imageShownAt,
 	});
 
 	final PuzzleController controller;
 	final bool showCutLineHint;
+
+	/// 「未切割大圖開始顯示」的時刻。Canvas mount 後會比對 `now - imageShownAt`：
+	/// 若小於 200ms 就先 hold 補滿 200ms 再啟動進場動畫；否則立刻啟動。
+	/// null 表示不做 hold（行為與舊版相同）。
+	final DateTime? imageShownAt;
 
 	@override
 	State<PuzzleCanvas> createState() => _PuzzleCanvasState();
@@ -67,10 +73,11 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 			vsync: this,
 			duration: const Duration(milliseconds: 220),
 		);
-		// 進場動畫總長：200ms hold + 500ms reveal + 1000ms scatter = 1700ms
+		// 進場動畫總長：500ms reveal + 1000ms scatter = 1500ms。
+		// 200ms 最低 hold 由 page 端管（呼叫 _scheduleIntro 時計算 wait time）。
 		_intro = AnimationController(
 			vsync: this,
-			duration: const Duration(milliseconds: 1700),
+			duration: const Duration(milliseconds: 1500),
 		);
 		// 完成淡出：拼塊細節 1 → 0 在 500ms 內完成
 		_outro = AnimationController(
@@ -80,10 +87,30 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 		_rotationTicker = createTicker(_onRotationTick);
 		widget.controller.lockBump.addListener(_onLockBump);
 		widget.controller.completedListenable.addListener(_onCompletedChange);
-		// 進場動畫：稍微延遲讓第一幀繪製先完成
+		// 進場動畫：等到「圖顯示滿 200ms」才啟動 reveal 動畫。
 		WidgetsBinding.instance.addPostFrameCallback((_) {
-			if (mounted) _intro.forward(from: 0);
+			if (mounted) _scheduleIntro();
 		});
+	}
+
+	/// 計算「離 imageShownAt 滿 200ms」還要多久；到時間就 forward _intro。
+	void _scheduleIntro() {
+		const Duration hold = Duration(milliseconds: 200);
+		final DateTime? shown = widget.imageShownAt;
+		final Duration wait;
+		if (shown == null) {
+			wait = Duration.zero;
+		} else {
+			final Duration elapsed = DateTime.now().difference(shown);
+			wait = elapsed >= hold ? Duration.zero : hold - elapsed;
+		}
+		if (wait == Duration.zero) {
+			_intro.forward(from: 0);
+		} else {
+			Future<void>.delayed(wait, () {
+				if (mounted) _intro.forward(from: 0);
+			});
+		}
 	}
 
 	/// 啟動旋轉動畫 ticker（若尚未跑）。Tick 函式自己會在沒有未達標群組時 stop。
@@ -157,7 +184,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 			oldWidget.controller.completedListenable.removeListener(_onCompletedChange);
 			widget.controller.lockBump.addListener(_onLockBump);
 			widget.controller.completedListenable.addListener(_onCompletedChange);
-			_intro.forward(from: 0);
+			_scheduleIntro();
 			_outro.reset();
 		}
 	}
@@ -421,9 +448,9 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 							animation: Listenable.merge(<Listenable>[_intro, _outro]),
 							builder: (BuildContext context, _) {
 								final double t = _intro.value.clamp(0.0, 1.0);
-								// reveal 階段：200ms~700ms（佔總時長 200/1700 ~ 700/1700）
+								// reveal 階段：0~500ms（佔總時長 0 ~ 500/1500）
 								final double reveal = Curves.easeOut.transform(
-									_stageProgress(t, 200 / 1700, 700 / 1700),
+									_stageProgress(t, 0, 500 / 1500),
 								);
 								final double outroFade = Curves.easeIn.transform(_outro.value);
 								final double details = reveal * (1.0 - outroFade);
@@ -450,11 +477,11 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 							builder: (BuildContext context, _) {
 								final double t = _intro.value.clamp(0.0, 1.0);
 								final double reveal = Curves.easeOut.transform(
-									_stageProgress(t, 200 / 1700, 700 / 1700),
+									_stageProgress(t, 0, 500 / 1500),
 								);
-								// scatter 階段：700ms~1700ms（佔總時長 700/1700 ~ 1.00）
+								// scatter 階段：500ms~1500ms（佔總時長 500/1500 ~ 1.00）
 								final double scatter = Curves.easeOutCubic.transform(
-									_stageProgress(t, 700 / 1700, 1.0),
+									_stageProgress(t, 500 / 1500, 1.0),
 								);
 								final double outroFade = Curves.easeIn.transform(_outro.value);
 								return CustomPaint(

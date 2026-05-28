@@ -25,20 +25,26 @@ class GalleryPage extends StatelessWidget {
 				backgroundColor: AppColors.primary,
 				foregroundColor: Colors.white,
 			),
-			body: Consumer<GalleryRepository>(
-				builder: (BuildContext context, GalleryRepository repo, _) {
-					final List<GallerySet> sets = repo.sets;
-					return ListView.separated(
-						padding: const EdgeInsets.symmetric(vertical: 8),
-						itemCount: sets.length,
-						separatorBuilder: (BuildContext _, int _) =>
-							const Divider(height: 1),
-						itemBuilder: (BuildContext ctx, int i) {
-							final GallerySet s = sets[i];
-							return _GallerySetTile(set: s);
+			body: Center(
+				// 與 ParentHomePage 一致：限制內容寬度避免橫向過寬、視覺配對失焦。
+				child: ConstrainedBox(
+					constraints: const BoxConstraints(maxWidth: 480),
+					child: Consumer<GalleryRepository>(
+						builder: (BuildContext context, GalleryRepository repo, _) {
+							final List<GallerySet> sets = repo.sets;
+							return ListView.separated(
+								padding: const EdgeInsets.symmetric(vertical: 8),
+								itemCount: sets.length,
+								separatorBuilder: (BuildContext _, int _) =>
+									const Divider(height: 1),
+								itemBuilder: (BuildContext ctx, int i) {
+									final GallerySet s = sets[i];
+									return _GallerySetTile(set: s);
+								},
+							);
 						},
-					);
-				},
+					),
+				),
 			),
 			floatingActionButton: FloatingActionButton.extended(
 				onPressed: ClickSound.wrap(context, () => _onCreate(context)),

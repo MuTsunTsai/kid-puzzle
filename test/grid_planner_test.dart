@@ -57,9 +57,9 @@ void main() {
 			}
 		});
 
-		test("塊數超出 2~30 拋 ArgumentError", () {
+		test("塊數超出 2~300 拋 ArgumentError", () {
 			expect(() => GridPlanner.plan(1, 0), throwsArgumentError);
-			expect(() => GridPlanner.plan(31, 0), throwsArgumentError);
+			expect(() => GridPlanner.plan(301, 0), throwsArgumentError);
 			expect(() => GridPlanner.plan(0, 0), throwsArgumentError);
 		});
 

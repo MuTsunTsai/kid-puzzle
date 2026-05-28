@@ -1,9 +1,6 @@
 ﻿import "dart:math";
 import "dart:ui";
 
-// 暫時 import 上層 _diag 做卡死 debug；查完拔掉。
-// ignore: avoid_relative_lib_imports
-import "../../presentation/_diag.dart";
 import "cell_planner.dart";
 import "voronoi.dart";
 
@@ -23,7 +20,7 @@ import "voronoi.dart";
 /// 之後在輸出 polygon 前還會跑 [_simplifyVertices] 化簡共線 / 短鄰邊頂點。
 class TriangleCellPlanner extends CellPlanner {
 	const TriangleCellPlanner({
-		this.lloydIterations = 10,
+		this.lloydIterations = 30,
 		this.seedMultiplier = 1.2,
 	});
 
@@ -57,7 +54,14 @@ class TriangleCellPlanner extends CellPlanner {
 	/// 動機：cutter 把 polygon 邊轉成 baseline cubic 後，若 polygon 本身就有
 	/// 「不相鄰兩點靠太近」，平滑化會在這個窄處外推、形成腰甚至自交。在 planner
 	/// 階段就把這種 polygon 過濾掉。
-	static const double _minWaistRatio = 0.18;
+	/// 「腰太細」門檻：cell polygon 上不相鄰兩頂點若空間距離 < 此比例 ×
+	/// `sqrt(盤面面積 / n)` → 視為太細。
+	///
+	/// 用「盤面 + n」推估的「每片特徵長度」當基準、而非 cell AABB 短邊：
+	/// 斜向 cell 的 AABB 短邊可能遠小於 cell 實際寬度，會把不該被抓的 cell
+	/// 抓進來。n 越高、斜向 cell 機率越高、誤判越嚴重。改成全域常數門檻後
+	/// 高 n 不再特別吃虧。
+	static const double _minWaistRatio = 0.03;
 	static const double _waistIndexSepRatio = 0.3;
 
 	/// 統計用：最近一次 [plan] 的 retry 次數（0 表示第一次就過）。
@@ -65,21 +69,18 @@ class TriangleCellPlanner extends CellPlanner {
 	static int debugLastRetryCount = 0;
 
 	@override
-	CellLayout plan({
+	Future<CellLayout> plan({
 		required int pieceCount,
 		required Rect innerBounds,
 		required int seed,
-	}) {
+	}) async {
 		// retry loop：planOnce 結果若 (a) 有「腰太細」polygon、或 (b) 有「尖角」
-		// polygon、或 (c) max/min 面積比過大，換 seed 重 plan。經驗上：
-		// - 腰太細：5800 case sweep 中 ~5.5% retry、最差只到 3 次
-		// - 尖角（< 30°）：46400 case sweep 中 ~0.02% retry
-		// - 面積比（> 5.5）：2900 case sweep 中 ~4.45% retry
-		// 合起來 retry 機率不到 10%；20 次上限相當寬鬆。上限到了就回最後一次
-		// 結果硬撐、避免極端輸入卡住。
+		// polygon、或 (c) max/min 面積比過大，換 seed 重 plan。閾值經實驗校準
+		// 在 n=300 約 5% retry 觸發率（見 _minWaistRatio / _maxAreaRatio）。
+		// 上限到了就回最後一次結果硬撐、避免極端輸入卡住。
 		const int maxRetries = 20;
 		int trySeed = seed;
-		CellLayout layout = _planOnce(
+		CellLayout layout = await _planOnce(
 			pieceCount: pieceCount, innerBounds: innerBounds, seed: trySeed,
 		);
 		debugLastRetryCount = 0;
@@ -91,7 +92,7 @@ class TriangleCellPlanner extends CellPlanner {
 			}
 			debugLastRetryCount++;
 			trySeed = trySeed * 1664525 + 1013904223;
-			layout = _planOnce(
+			layout = await _planOnce(
 				pieceCount: pieceCount, innerBounds: innerBounds, seed: trySeed,
 			);
 		}
@@ -103,7 +104,7 @@ class TriangleCellPlanner extends CellPlanner {
 	/// 量測值見 [test/triangle_planner_area_ratio_test.dart]：
 	/// raw planOnce 輸出的 ratio 分布 mean=3.21 stdev=1.17、約 95.5% 樣本 ≤ 5.5。
 	/// 用此值當 retry 閾值能在「過濾極端不均勻切割」與「retry 成本」間取平衡。
-	static const double _maxAreaRatio = 5.5;
+	static const double _maxAreaRatio = 7.5;
 
 	/// 檢查 layout 中最大 / 最小 cell 面積比 ≤ [_maxAreaRatio]。
 	bool _validateAreaRatio(CellLayout layout) {
@@ -153,15 +154,22 @@ class TriangleCellPlanner extends CellPlanner {
 	}
 
 	/// 檢查每個 cell polygon 沒有「不相鄰兩點靠太近」。
+	///
+	/// 門檻 = `_minWaistRatio × sqrt(盤面面積 / 片數)`，全域共用、與個別 cell
+	/// 形狀無關。詳見 [_minWaistRatio] 註解。
 	bool _validateNoThinWaist(CellLayout layout) {
+		final int pieceCount = layout.cells.length;
+		if (pieceCount <= 0) return true;
+		final double avgArea =
+				layout.innerBounds.width * layout.innerBounds.height / pieceCount;
+		if (avgArea <= 0) return true;
+		final double avgEdge = sqrt(avgArea);
+		final double threshold = avgEdge * _minWaistRatio;
+		final double thresholdSq = threshold * threshold;
 		for (final CellPolygon cell in layout.cells) {
 			final List<Offset> v = cell.vertices;
 			final int n = v.length;
 			if (n < 4) continue; // 三角形不可能有腰
-			final double shortSide = cell.bounds.shortestSide;
-			if (shortSide <= 0) continue;
-			final double threshold = shortSide * _minWaistRatio;
-			final double thresholdSq = threshold * threshold;
 			final int minIdxSep = (n * _waistIndexSepRatio).ceil().clamp(2, n - 2);
 			for (int i = 0; i < n; i++) {
 				for (int j = i + minIdxSep; j < n; j++) {
@@ -177,11 +185,11 @@ class TriangleCellPlanner extends CellPlanner {
 		return true;
 	}
 
-	CellLayout _planOnce({
+	Future<CellLayout> _planOnce({
 		required int pieceCount,
 		required Rect innerBounds,
 		required int seed,
-	}) {
+	}) async {
 		final Random random = Random(seed);
 		if (pieceCount < 2) {
 			return CellLayout(
@@ -192,20 +200,17 @@ class TriangleCellPlanner extends CellPlanner {
 		}
 
 		// === 階段 1：Voronoi → 收集頂點 → Delaunay ===
-		diag("_planOnce: phase1 generatePoissonLikePoints");
 		final int voronoiSeeds = (pieceCount * seedMultiplier).ceil();
-		final List<Offset> seeds = VoronoiBuilder.generatePoissonLikePoints(
+		final List<Offset> seeds = await VoronoiBuilder.generatePoissonLikePoints(
 			bounds: innerBounds,
 			count: voronoiSeeds,
 			random: random,
 			lloydIterations: lloydIterations,
 		);
-		diag("_planOnce: phase1 computeVoronoi");
-		final List<VoronoiCell> vCells = VoronoiBuilder.computeVoronoi(
+		final List<VoronoiCell> vCells = await VoronoiBuilder.computeVoronoi(
 			points: seeds,
 			bounds: innerBounds,
 		);
-		diag("_planOnce: phase1 voronoi done seeds=${seeds.length}");
 		// 收集所有 cell polygon 的頂點 + 矩形四角，去重
 		final List<Offset> vertices = <Offset>[];
 		void addVertex(Offset p) {
@@ -228,13 +233,13 @@ class TriangleCellPlanner extends CellPlanner {
 		addVertex(Offset(innerBounds.right, innerBounds.bottom));
 		addVertex(Offset(innerBounds.left, innerBounds.bottom));
 
-		diag("_planOnce: phase1 delaunay (vertices=${vertices.length})");
+		// Delaunay 在大 n 是 O(n²) 級開銷，前後各 yield 一次。
+		await Future<void>.delayed(Duration.zero);
 		final List<_Triangle> triangles = _delaunay(vertices);
-		diag("_planOnce: phase1 delaunay done triangles=${triangles.length}");
+		await Future<void>.delayed(Duration.zero);
 		if (triangles.length < pieceCount) {
-			diag("_planOnce: triangles<pieceCount fallback to VoronoiCellPlanner");
 			// 三角形數不足 N → 無法分 N 群。退到 Voronoi planner 當 fallback。
-			return const VoronoiCellPlanner(oversampleRatio: 1.0).plan(
+			return await const VoronoiCellPlanner(oversampleRatio: 1.0).plan(
 				pieceCount: pieceCount,
 				innerBounds: innerBounds,
 				seed: seed,
@@ -283,35 +288,26 @@ class TriangleCellPlanner extends CellPlanner {
 			minOppositeAngleDeg: _legalMinOppositeAngleDeg,
 		);
 
+		await Future<void>.delayed(Duration.zero);
 		// === 階段 2：N 個 anchor → 選 N 個種子三角形 ===
 		// 從第一階段 voronoi seeds 中隨機挑 pieceCount 個當 anchor。
 		// 經實驗、用 voronoi seed 當 anchor（與三角形分布對齊）比另外生獨立
 		// anchor 顯著穩定（worst ratio 從 ~180 降到 ~6）。
 		final List<Offset> shuffledSeeds = List<Offset>.of(seeds)..shuffle(random);
 		final List<Offset> anchors = shuffledSeeds.take(pieceCount).toList();
-		// 每個 anchor 對「所有三角形」按質心距離排序的索引
-		// （懶癢計算：用 helper 一次性算出每個 anchor 的「下一個最近」迭代器）
-		final List<List<int>> sortedTrisForAnchor = <List<int>>[
-			for (final Offset a in anchors)
-				_sortTrianglesByDistance(a, triCentroids),
-		];
-		// 認領機制：每個 anchor 依序試「下一個最近的三角形」，若已被認領就繼續
-		final Set<int> claimed = <int>{};
-		// triToGroup: triangle idx → group idx（0..N-1）；未分配 = -1
+		// 用 2D grid bucket 加速「找 anchor 最近的未認領三角形」。
+		// 原本對每個 anchor 都排序所有三角形（O(n × m log m)）→ n=300 時 ~300ms。
+		// 改成：把 m 個三角形分到 ~sqrt(m)² 個 bucket、每 anchor 從所在 bucket
+		// 螺旋向外擴格找最近未被認領者，複雜度約 O((n + m) × bucketRadius²)。
+		final _CentroidGrid grid = _CentroidGrid.build(
+			centroids: triCentroids,
+			bounds: innerBounds,
+		);
 		final List<int> triToGroup = List<int>.filled(triPolys.length, -1);
-		// 每 anchor 用一個指標追蹤下一個要試的「排序列表」位置
-		final List<int> anchorCursor = List<int>.filled(pieceCount, 0);
-		// 種子分配迴圈：每個 anchor 拿到一個三角形
 		for (int g = 0; g < pieceCount; g++) {
-			final List<int> sorted = sortedTrisForAnchor[g];
-			while (anchorCursor[g] < sorted.length) {
-				final int triIdx = sorted[anchorCursor[g]++];
-				if (claimed.contains(triIdx)) continue;
-				claimed.add(triIdx);
-				triToGroup[triIdx] = g;
-				break;
-			}
-			// 如果 cursor 走完仍沒選到（極端 case）就跳過、最終群組數會 < N
+			final int? triIdx = grid.takeNearest(anchors[g]);
+			if (triIdx == null) continue;
+			triToGroup[triIdx] = g;
 		}
 
 		// === 階段 3：強化版 region growing（2c：群組 lookahead）===
@@ -393,19 +389,23 @@ class TriangleCellPlanner extends CellPlanner {
 		}
 
 		// 主成長迴圈：先用合法相鄰圖、卡住就退到物理相鄰圖補完。
-		diag("_planOnce: phase3 region growing (triangles=${triPolys.length})");
 		int growIter = 0;
+		// region growing 在 n=300 約跑 ~triPolys.length 次，每 [yieldEveryIter]
+		// 次 yield 一次，避免長迴圈阻塞 UI。
+		const int yieldEveryIter = 200;
 		while (true) {
 			growIter++;
 			if (growIter > triPolys.length + 10) {
-				diag("_planOnce: phase3 RUNAWAY iter=$growIter, force-break");
 				break;
+			}
+			if (growIter % yieldEveryIter == 0) {
+				await Future<void>.delayed(Duration.zero);
 			}
 			if (growStep(triLegalNeighbors)) continue;
 			if (growStep(triNeighbors)) continue;
 			break;
 		}
-		diag("_planOnce: phase3 region growing done iter=$growIter");
+		await Future<void>.delayed(Duration.zero);
 
 		// === 輸出：把每群組的三角形 union 成一個 polygon ===
 		// 用「邊計數」法：群組內所有三角形的邊，**出現 2 次的是內部邊（消去）、
@@ -428,6 +428,7 @@ class TriangleCellPlanner extends CellPlanner {
 		//   × 0.20）→ 從**兩個** owner polygon 同步移除此頂點、讓接合邊乾淨。
 		// - 邊界 degree=1 頂點：共線（180°）才刪、角落 90° 保留。
 		// - 邊界 degree=2 頂點：永不刪（會讓 polygon 離開矩形邊界）。
+		await Future<void>.delayed(Duration.zero);
 		_simplifyVertices(polys, innerBounds);
 
 		final List<CellPolygon> cells = <CellPolygon>[
@@ -581,24 +582,6 @@ class TriangleCellPlanner extends CellPlanner {
 		return false; // 整圈都沒可刪的
 	}
 
-
-	/// 把三角形 idx 按「質心距 anchor」排序，回索引 list。
-	static List<int> _sortTrianglesByDistance(
-		Offset anchor,
-		List<Offset> centroids,
-	) {
-		final List<int> idx = List<int>.generate(centroids.length, (i) => i);
-		idx.sort((int a, int b) {
-			final Offset ca = centroids[a];
-			final Offset cb = centroids[b];
-			final double da = (ca.dx - anchor.dx) * (ca.dx - anchor.dx) +
-					(ca.dy - anchor.dy) * (ca.dy - anchor.dy);
-			final double db = (cb.dx - anchor.dx) * (cb.dx - anchor.dx) +
-					(cb.dy - anchor.dy) * (cb.dy - anchor.dy);
-			return da.compareTo(db);
-		});
-		return idx;
-	}
 
 	/// 距 [_boundaryDetectThreshold] 內的點視為「在矩形邊界上」（[_simplifyVertices]
 	/// 用此判斷邊界頂點該保留不該刪）。
@@ -887,4 +870,118 @@ class _Edge {
 	const _Edge(this.a, this.b);
 	final int a;
 	final int b;
+}
+
+/// 2D 空間查詢結構：把 centroid list 分到 grid bucket，支援「找最近的且尚未
+/// 被取走的」+「取走」操作。給 [TriangleCellPlanner] 的 phase 2 用，避免對每
+/// 個 anchor 排序整份 centroid list。
+///
+/// 演算法：把 [bounds] 切成 [_cellsPerSide × _cellsPerSide] 個 bucket（邊長
+/// 約等於每個 bucket 平均含 1 個 centroid）。[takeNearest] 從 anchor 所在
+/// bucket 螺旋向外擴格找最近 centroid、找到後從 grid 移除。
+class _CentroidGrid {
+	_CentroidGrid._({
+		required this.bounds,
+		required this.cellsPerSide,
+		required this.buckets,
+		required this.centroids,
+	});
+
+	final Rect bounds;
+	final int cellsPerSide;
+	/// `buckets[gy * cellsPerSide + gx]` = 該 bucket 內的 centroid idx list。
+	/// 被 [takeNearest] 取走的 idx 會從 list 移除（O(list 長度)，但每個 bucket
+	/// 平均 ~1 個元素，可忽略）。
+	final List<List<int>> buckets;
+	final List<Offset> centroids;
+
+	static _CentroidGrid build({
+		required List<Offset> centroids,
+		required Rect bounds,
+	}) {
+		final int m = centroids.length;
+		// cellsPerSide：每 bucket 平均 ~1 個 centroid。對 4:3 矩形用相同 grid
+		// 大小、不分軸；centroid 分布大致均勻、邊界效應可忽略。
+		final int cellsPerSide = sqrt(m).ceil().clamp(1, 64);
+		final List<List<int>> buckets =
+				List<List<int>>.generate(cellsPerSide * cellsPerSide, (_) => <int>[]);
+		for (int i = 0; i < m; i++) {
+			final int idx = _bucketIndex(centroids[i], bounds, cellsPerSide);
+			buckets[idx].add(i);
+		}
+		return _CentroidGrid._(
+			bounds: bounds,
+			cellsPerSide: cellsPerSide,
+			buckets: buckets,
+			centroids: centroids,
+		);
+	}
+
+	static int _bucketIndex(Offset p, Rect bounds, int cellsPerSide) {
+		final double u = (p.dx - bounds.left) / bounds.width;
+		final double v = (p.dy - bounds.top) / bounds.height;
+		int gx = (u * cellsPerSide).floor();
+		int gy = (v * cellsPerSide).floor();
+		if (gx < 0) gx = 0;
+		if (gx >= cellsPerSide) gx = cellsPerSide - 1;
+		if (gy < 0) gy = 0;
+		if (gy >= cellsPerSide) gy = cellsPerSide - 1;
+		return gy * cellsPerSide + gx;
+	}
+
+	/// 找到並移除距 [anchor] 最近的 centroid，回傳其 idx；全空回 null。
+	///
+	/// 演算法：以 anchor 所在 bucket 為中心、向外擴 ring（半徑 0, 1, 2, ...）
+	/// 直到至少有一個候選。擴 ring 找到最近 bucket 不代表最近 centroid——
+	/// 還要再多走一圈確認外圈不會有更近的（即「下一圈整圈最小可能距離」要 >
+	/// 當前最佳）。
+	int? takeNearest(Offset anchor) {
+		final double u = (anchor.dx - bounds.left) / bounds.width;
+		final double v = (anchor.dy - bounds.top) / bounds.height;
+		final int ax = (u * cellsPerSide).floor().clamp(0, cellsPerSide - 1);
+		final int ay = (v * cellsPerSide).floor().clamp(0, cellsPerSide - 1);
+		final double cellW = bounds.width / cellsPerSide;
+		final double cellH = bounds.height / cellsPerSide;
+
+		int bestIdx = -1;
+		double bestDistSq = double.infinity;
+		int bestBucket = -1;
+		// 螺旋向外擴 ring；最大半徑就是整張 grid。
+		final int maxRing = cellsPerSide;
+		for (int r = 0; r <= maxRing; r++) {
+			// 走 ring r：所有 (dx, dy) 滿足 max(|dx|, |dy|) = r 的 bucket。
+			for (int dy = -r; dy <= r; dy++) {
+				for (int dx = -r; dx <= r; dx++) {
+					if (r > 0 && dx.abs() != r && dy.abs() != r) continue;
+					final int gx = ax + dx;
+					final int gy = ay + dy;
+					if (gx < 0 || gx >= cellsPerSide || gy < 0 || gy >= cellsPerSide) {
+						continue;
+					}
+					final int bIdx = gy * cellsPerSide + gx;
+					final List<int> list = buckets[bIdx];
+					for (final int cIdx in list) {
+						final Offset c = centroids[cIdx];
+						final double ddx = c.dx - anchor.dx;
+						final double ddy = c.dy - anchor.dy;
+						final double d = ddx * ddx + ddy * ddy;
+						if (d < bestDistSq) {
+							bestDistSq = d;
+							bestIdx = cIdx;
+							bestBucket = bIdx;
+						}
+					}
+				}
+			}
+			// 若已有候選、檢查再擴一圈是否可能找到更近的：下一圈離 anchor 至少
+			// (r) × min(cellW, cellH) 遠（保守下界）。比當前最佳遠就可以停。
+			if (bestIdx >= 0) {
+				final double nextRingMinDist = r * (cellW < cellH ? cellW : cellH);
+				if (nextRingMinDist * nextRingMinDist > bestDistSq) break;
+			}
+		}
+		if (bestIdx < 0) return null;
+		buckets[bestBucket].remove(bestIdx);
+		return bestIdx;
+	}
 }

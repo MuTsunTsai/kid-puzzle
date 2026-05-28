@@ -78,7 +78,7 @@ enum GridAxis {
 
 /// 給定塊數產出網格規劃。
 ///
-/// 支援 2~25 塊。演算法：
+/// 支援 2~300 塊。演算法：
 /// 1. 找出 `c × r ≤ n` 的所有 (c, r) 組合中、`c/r` 最接近 `4/3` 的一組當基礎網格。
 /// 2. 不足量 `extra = n - c × r` 拿去加切：
 ///    - 若該基礎 c/r > 4/3（偏寬）→ 挑 [extra] 條 row（盡量分散）改成 c+1 等份。
@@ -88,12 +88,12 @@ class GridPlanner {
 	GridPlanner._();
 
 	static const int _minPieces = 2;
-	static const int _maxPieces = 30;
+	static const int _maxPieces = 300;
 	static const double _targetAspect = 4.0 / 3.0;
 
 	/// 規劃網格。
 	///
-	/// [pieceCount] 必須在 2~25 之間，否則拋 [ArgumentError]。
+	/// [pieceCount] 必須在 2~300 之間，否則拋 [ArgumentError]。
 	/// [seed] 用於不規則切法的隨機選擇（同 seed 必產出相同結果）。
 	static GridLayoutSpec plan(int pieceCount, int seed) {
 		if (pieceCount < _minPieces || pieceCount > _maxPieces) {

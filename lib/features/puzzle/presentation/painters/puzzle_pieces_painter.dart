@@ -171,7 +171,8 @@ class PuzzlePiecesPainter extends CustomPainter {
 			final Color borderColor = AppColors.pieceBorder;
 			final Paint border = Paint()
 				..style = PaintingStyle.stroke
-				..strokeWidth = PuzzleDimens.pieceBorderWidth
+				..strokeWidth = PuzzleDimens.pieceBorderWidth *
+						(controller.bigKidMode ? 0.5 : 1.0)
 				..strokeJoin = StrokeJoin.round
 				..color = borderColor.withValues(alpha: borderColor.a * borderOp);
 			canvas.drawPath(p.localPath, border);

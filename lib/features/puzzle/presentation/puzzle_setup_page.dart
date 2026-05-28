@@ -34,6 +34,7 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 	Set<CutMode> _cutModes = <CutMode>{CutMode.grid, CutMode.voronoi};
 	bool _rotation = false;
 	bool _screenLock = false;
+	bool _bigKidMode = false;
 	bool _loadedFromRepo = false;
 
 	// 完整教學流程 key（首次進入或從家長區重設後，依序播放）
@@ -87,8 +88,25 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 	bool get _showScreenLockOption =>
 			!kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-	static const double _absoluteMin = 2;
-	static const double _absoluteMax = 30;
+	// 範圍與步進依「大朋友模式」切換：
+	// - 一般：2 ~ 30，step 1
+	// - 大朋友：20 ~ 300，step 10
+	double get _absoluteMin => _bigKidMode ? 20 : 2;
+	double get _absoluteMax => _bigKidMode ? 300 : 30;
+	int get _rangeStep => _bigKidMode ? 10 : 1;
+	int get _rangeDivisions =>
+			((_absoluteMax - _absoluteMin) / _rangeStep).round();
+
+	/// 把 [v] snap 到 step 倍數、再夾到 [_absoluteMin, _absoluteMax]。
+	int _snapToStep(num v) {
+		final int step = _rangeStep;
+		final int snapped = (v / step).round() * step;
+		final int lo = _absoluteMin.toInt();
+		final int hi = _absoluteMax.toInt();
+		if (snapped < lo) return lo;
+		if (snapped > hi) return hi;
+		return snapped;
+	}
 
 	/// 把目前 UI 狀態寫回 [SettingsRepository]。任何欄位改動都會呼叫此方法、
 	/// 確保使用者就算直接返回也不會丟失調整。Hive 的 put 是 async 但這裡不
@@ -117,12 +135,10 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 		_loadedFromRepo = true;
 		final SettingsRepository repo = context.read<SettingsRepository>();
 		setState(() {
-			_min = repo.minPieces
-					.clamp(_absoluteMin.toInt(), _absoluteMax.toInt())
-					.toDouble();
-			_max = repo.maxPieces
-					.clamp(_absoluteMin.toInt(), _absoluteMax.toInt())
-					.toDouble();
+			// bigKidMode 要先讀，後面的 _snapToStep 與 _absoluteMin/Max 都依賴它。
+			_bigKidMode = repo.bigKidMode;
+			_min = _snapToStep(repo.minPieces).toDouble();
+			_max = _snapToStep(repo.maxPieces).toDouble();
 			if (_min > _max) _max = _min;
 			_showHint = repo.showHint;
 			final Set<CutMode> loaded = repo.cutModes;
@@ -189,6 +205,7 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 														max: _max,
 														absoluteMin: _absoluteMin,
 														absoluteMax: _absoluteMax,
+														divisions: _rangeDivisions,
 														onChanged: (RangeValues v) {
 															setState(() {
 																_min = v.start;
@@ -286,6 +303,7 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 																		cutModes: _cutModes,
 																		rotationEnabled: _rotation,
 																		screenLockEnabled: _screenLock,
+																		bigKidMode: _bigKidMode,
 																	),
 																);
 															}),
@@ -337,6 +355,7 @@ class _PieceRangeRow extends StatelessWidget {
 		required this.max,
 		required this.absoluteMin,
 		required this.absoluteMax,
+		required this.divisions,
 		required this.onChanged,
 	});
 
@@ -344,6 +363,7 @@ class _PieceRangeRow extends StatelessWidget {
 	final double max;
 	final double absoluteMin;
 	final double absoluteMax;
+	final int divisions;
 	final ValueChanged<RangeValues> onChanged;
 
 	@override
@@ -369,7 +389,7 @@ class _PieceRangeRow extends StatelessWidget {
 						child: RangeSlider(
 							min: absoluteMin,
 							max: absoluteMax,
-							divisions: (absoluteMax - absoluteMin).toInt(),
+							divisions: divisions,
 							values: RangeValues(min, max),
 							labels: RangeLabels("$minInt", "$maxInt"),
 							onChanged: onChanged,
@@ -562,6 +582,7 @@ class PuzzleArguments {
 		required this.cutModes,
 		required this.rotationEnabled,
 		required this.screenLockEnabled,
+		required this.bigKidMode,
 	});
 
 	final int minPieces;
@@ -578,6 +599,9 @@ class PuzzleArguments {
 	/// 是否在進入拼圖頁時啟用「鎖定畫面」（Android app pinning）。只有 Android
 	/// 平台會生效；其他平台即使勾選也 no-op。
 	final bool screenLockEnabled;
+
+	/// 是否啟用「大朋友模式」。painter 用此 flag 決定是否減半邊框寬度。
+	final bool bigKidMode;
 }
 
 /// Setup card 內的 checkbox + 文字一行 UI，整行可點。

@@ -12,7 +12,7 @@ import "../domain/services/puzzle_cutter.dart";
 import "../domain/services/snap_detector.dart";
 import "../domain/services/triangle_planner.dart";
 import "../domain/services/voronoi.dart";
-import "_diag.dart";
+import "painters/bevel_painter.dart";
 
 /// 拼圖場景的可繪製區域劃分。
 ///
@@ -114,9 +114,53 @@ class PuzzleController extends ChangeNotifier {
 
 	/// piece bevel bitmap 快取（pieceId → Image）。
 	///
-	/// 第一次繪製時由 painter 用 [BevelPainter.rasterize] 生成、存進此 map。
+	/// 進關卡時由 [prebakePieceBitmaps] 一次烤完、加速進場後第一幀繪製。
+	/// 若呼叫端沒先 prebake，painter 第一次繪製時也會 lazy 生（[putIfAbsent]）。
 	/// 拖曳時直接 drawImage、不再每幀重算光澤。dispose 時釋放。
 	final Map<int, ui.Image> bevelCache = <int, ui.Image>{};
+
+	/// 把所有 piece 的「圖案 + 光影」bitmap 先烤好放進 [bevelCache]。
+	///
+	/// 進場前呼叫一次、避免第一幀繪製時 lazy rasterize 卡幾百毫秒（n=300 時
+	/// 累計可達 1500ms）。每 [_prebakeYieldEvery] 片 yield 一次給 UI thread。
+	///
+	/// [devicePixelRatio] 由呼叫端（widget）從 MediaQuery 取得。
+	Future<void> prebakePieceBitmaps({
+		required double devicePixelRatio,
+	}) async {
+		const int prebakeYieldEvery = 15;
+		int processed = 0;
+		for (final PuzzlePiece p in layout.pieces) {
+			if (bevelCache.containsKey(p.id)) continue;
+			bevelCache[p.id] = BevelPainter.rasterizePieceWithBevel(
+				path: p.localPath,
+				pieceSize: p.sourceRect.size,
+				sourceImage: boardImage,
+				srcRectInImage: _srcRectInImage(p),
+				style: BevelStyle.groove,
+				devicePixelRatio: devicePixelRatio,
+			);
+			processed++;
+			if (processed >= prebakeYieldEvery) {
+				processed = 0;
+				await Future<void>.delayed(Duration.zero);
+			}
+		}
+	}
+
+	/// 把 piece 的 sourceRect（盤上座標）換算到原圖（pixel）座標。
+	ui.Rect _srcRectInImage(PuzzlePiece p) {
+		final ui.Rect boardRect = stageLayout.boardRect;
+		final ui.Size imgSize = boardImageSize;
+		final double scaleX = imgSize.width / boardRect.width;
+		final double scaleY = imgSize.height / boardRect.height;
+		return ui.Rect.fromLTWH(
+			p.sourceRect.left * scaleX,
+			p.sourceRect.top * scaleY,
+			p.sourceRect.width * scaleX,
+			p.sourceRect.height * scaleY,
+		);
+	}
 
 	/// 相框 bevel（padding 環）bitmap 快取。
 	///
@@ -151,6 +195,13 @@ class PuzzleController extends ChangeNotifier {
 
 	/// 旋轉時角度 snap 的 step（度）。grid → 90、voronoi → 45（由外部設定）。
 	double rotationStepDeg = 90.0;
+
+	/// 是否啟用「大朋友模式」（由外部在 newLevel 後設定）。
+	///
+	/// painter 在此 flag = true 時把拼圖塊邊框寬度減半，視覺較細緻、適合
+	/// 較大量片數時不被粗邊框干擾。其餘的「片數範圍 20~300」、「按鈕不需長按」
+	/// 在 controller 範圍外處理（puzzle_setup_page / home_page / puzzle_page）。
+	bool bigKidMode = false;
 
 	/// 每個群組的「目標角度」（整數度，[0, 360) 區間，snap 後的精確值）。
 	///
@@ -717,7 +768,7 @@ class PuzzleController extends ChangeNotifier {
 	/// 切割模式同一套演算法，效果均勻自然）。每片中心位置會在 scatterRect 內
 	/// 被夾擠，確保 sourceRect 完全落在 scatter 區域內 — 若 piece 比 scatter
 	/// 還大就讓它對稱溢出。
-	void scatterPiecesToRight({int seed = 0}) {
+	Future<void> scatterPiecesToRight({int seed = 0}) async {
 		// 換關卡時把所有拖曳 / 旋轉狀態清掉，避免舊 pointer 事件留下殘留 session。
 		_dragSessions.clear();
 		_draggingGroupIds.clear();
@@ -730,7 +781,7 @@ class PuzzleController extends ChangeNotifier {
 		final int n = pieces.length;
 
 		// 與 Voronoi 種子點同一套演算法（完全隨機 + 3 次 Lloyd 鬆弛）。
-		final List<ui.Offset> centers = VoronoiBuilder.generatePoissonLikePoints(
+		final List<ui.Offset> centers = await VoronoiBuilder.generatePoissonLikePoints(
 			bounds: scatter,
 			count: n,
 			random: random,
@@ -970,15 +1021,21 @@ class PuzzleController extends ChangeNotifier {
 	/// - [pieceCount]：4~10。
 	/// - [seed]：用於 cell plan 與切割（同 seed 同關卡）。
 	/// - [cutMode]：切割模式（grid 方格或 voronoi 隨機）。
-	static PuzzleController newLevel({
+	/// 非同步：在 retry loop 的 plan/cut 之間穿插 `await Future.delayed(zero)`
+	/// 讓出 event loop，避免大朋友模式高片數（最多 300）時阻塞 UI。
+	static Future<PuzzleController> newLevel({
 		required PuzzleStageLayout stageLayout,
 		required ui.Image boardImage,
 		required ui.Size boardImageSize,
 		required int pieceCount,
 		required int seed,
 		CutMode cutMode = CutMode.grid,
-	}) {
-		final double boardPadding = stageLayout.boardSize.shortestSide * 0.06;
+		bool bigKidMode = false,
+	}) async {
+		// 大朋友模式下相框寬度減半（0.06 → 0.03）：適合多片切割時不被粗框干擾。
+		final double paddingFactor = bigKidMode ? 0.03 : 0.06;
+		final double boardPadding =
+				stageLayout.boardSize.shortestSide * paddingFactor;
 		final ui.Rect innerBounds = ui.Rect.fromLTWH(
 			boardPadding,
 			boardPadding,
@@ -1001,48 +1058,30 @@ class PuzzleController extends ChangeNotifier {
 		PuzzleLayout layout;
 		int trySeed = seed;
 		const int maxRetries = 20;
-		// 診斷用：總 newLevel 切割耗時、每次 attempt 耗時。
-		// 用來追查網頁版偶發的「過關後當機」— 若超過 500ms 印 warning。
-		final Stopwatch totalSw = Stopwatch()..start();
-		final List<int> attemptMs = <int>[];
-		diag("newLevel: enter retry loop n=$pieceCount cutMode=$cutMode seed=$seed");
 		for (int attempt = 0; ; attempt++) {
-			final Stopwatch attemptSw = Stopwatch()..start();
-			diag("newLevel: attempt=$attempt trySeed=$trySeed → planner.plan");
-			final CellLayout cellLayout = planner.plan(
+			// 每次 attempt 開頭 yield 一次：高片數時兩次重試之間放掉 UI thread、
+			// 同時讓 plan 與 cut 各自佔的 frame budget 分散。
+			await Future<void>.delayed(Duration.zero);
+			final CellLayout cellLayout = await planner.plan(
 				pieceCount: pieceCount,
 				innerBounds: innerBounds,
 				seed: trySeed,
 			);
-			diag("newLevel: attempt=$attempt planner.plan done cells=${cellLayout.cells.length} → cutter");
-			layout = PuzzleCutter.cut(
+			// plan 與 cut 都不便宜，中間再 yield 一次。
+			await Future<void>.delayed(Duration.zero);
+			layout = await PuzzleCutter.cut(
 				boardSize: stageLayout.boardSize,
 				boardPadding: boardPadding,
 				cellLayout: cellLayout,
 				seed: trySeed,
 			);
-			attemptSw.stop();
-			attemptMs.add(attemptSw.elapsedMilliseconds);
-			diag("newLevel: attempt=$attempt cutter done pieces=${layout.pieces.length} elapsed=${attemptSw.elapsedMilliseconds}ms → validate");
 			if (PuzzleCutter.validateLockability(layout)) {
-				diag("newLevel: attempt=$attempt validate PASS, break");
 				break;
 			}
 			if (attempt >= maxRetries) {
-				diag("newLevel: attempt=$attempt hit maxRetries, break");
 				break;
 			}
-			diag("newLevel: attempt=$attempt validate FAIL, retry");
 			trySeed = trySeed * 1664525 + 1013904223; // LCG 衍生下一個 seed
-		}
-		diag("newLevel: exit retry loop");
-		totalSw.stop();
-		if (totalSw.elapsedMilliseconds > 500) {
-			debugPrint(
-				"[puzzle] SLOW newLevel: total=${totalSw.elapsedMilliseconds}ms "
-				"n=$pieceCount cutMode=$cutMode attempts=${attemptMs.length} "
-				"per-attempt=$attemptMs ms",
-			);
 		}
 		// 把 piece 的位置從相對 (0,0) 轉成相對 stage（加 boardOrigin）
 		for (final PuzzlePiece p in layout.pieces) {

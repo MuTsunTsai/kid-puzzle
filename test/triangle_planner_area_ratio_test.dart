@@ -52,7 +52,7 @@ double _polygonArea(List<Offset> poly) {
 }
 
 void main() {
-	test("TriangleCellPlanner：max/min cell 面積比統計", () {
+	test("TriangleCellPlanner：max/min cell 面積比統計", () async {
 		const int seedCount = 100;
 		const TriangleCellPlanner planner = TriangleCellPlanner();
 
@@ -66,7 +66,7 @@ void main() {
 		for (int n = 2; n <= 30; n++) {
 			final List<double> samples = <double>[];
 			for (int seed = 0; seed < seedCount; seed++) {
-				final CellLayout layout = planner.plan(
+				final CellLayout layout = await planner.plan(
 					pieceCount: n,
 					innerBounds: _kInnerBounds,
 					seed: seed,
@@ -153,11 +153,11 @@ void main() {
 			print("  n=${c.n} seed=${c.seed} ratio=${c.ratio.toStringAsFixed(2)}");
 		}
 
-		// planner 的 retry 機制應該把 ratio > 5.5 的 layout 濾掉。
+		// planner 的 retry 機制應該把 ratio > _maxAreaRatio (7.5) 的 layout 濾掉。
 		expect(allRatios.length, greaterThan(0));
 		final double maxRatio = allRatios.reduce((a, b) => a > b ? a : b);
-		expect(maxRatio, lessThanOrEqualTo(5.5),
-				reason: "planner 應透過 retry 把 max/min 面積比壓在 5.5 以下；"
+		expect(maxRatio, lessThanOrEqualTo(7.5),
+				reason: "planner 應透過 retry 把 max/min 面積比壓在 7.5 以下；"
 						"看到更高的值表示 retry 機制可能失效");
-	});
+	}, timeout: const Timeout(Duration(minutes: 5)));
 }

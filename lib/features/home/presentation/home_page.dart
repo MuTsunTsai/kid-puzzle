@@ -142,6 +142,8 @@ class _HomePageState extends State<HomePage> with RouteAware {
 									),
 									child: GearButton(
 										onLongPressComplete: () => _enterParent(context),
+										bigKidMode:
+												context.read<SettingsRepository>().bigKidMode,
 									),
 								),
 							),

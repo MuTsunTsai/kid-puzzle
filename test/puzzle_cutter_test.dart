@@ -61,9 +61,9 @@ bool _segmentsCross(Offset p1, Offset p2, Offset p3, Offset p4) {
 	return t > eps && t < 1 - eps && u > eps && u < 1 - eps;
 }
 
-PuzzleLayout _cutWithGrid(int pieceCount, int seed,
-		{EdgeShape edgeShape = kDefaultEdgeShape}) {
-	final CellLayout cellLayout = const GridCellPlanner().plan(
+Future<PuzzleLayout> _cutWithGrid(int pieceCount, int seed,
+		{EdgeShape edgeShape = kDefaultEdgeShape}) async {
+	final CellLayout cellLayout = await const GridCellPlanner().plan(
 		pieceCount: pieceCount,
 		innerBounds: kInnerBounds,
 		seed: seed,
@@ -79,20 +79,20 @@ PuzzleLayout _cutWithGrid(int pieceCount, int seed,
 
 void main() {
 	group("PuzzleCutter", () {
-		test("2~30 塊各 seed 5 次都能成功切割", () {
+		test("2~30 塊各 seed 5 次都能成功切割", () async {
 			for (int pieceCount = 2; pieceCount <= 30; pieceCount++) {
 				for (int seed = 0; seed < 5; seed++) {
-					final PuzzleLayout layout = _cutWithGrid(pieceCount, seed);
+					final PuzzleLayout layout = await _cutWithGrid(pieceCount, seed);
 					expect(layout.pieces.length, pieceCount,
 							reason: "塊數=$pieceCount, seed=$seed");
 				}
 			}
 		});
 
-		test("所有 polygonAabb 在拼圖盤 inner 區域內、無互相重疊", () {
+		test("所有 polygonAabb 在拼圖盤 inner 區域內、無互相重疊", () async {
 			for (int pieceCount = 2; pieceCount <= 30; pieceCount += 3) {
 				for (int seed = 0; seed < 3; seed++) {
-					final PuzzleLayout layout = _cutWithGrid(pieceCount, seed);
+					final PuzzleLayout layout = await _cutWithGrid(pieceCount, seed);
 					final double innerLeft = kPadding;
 					final double innerTop = kPadding;
 					final double innerRight = kBoardSize.width - kPadding;
@@ -120,10 +120,10 @@ void main() {
 			}
 		});
 
-		test("localPath bounds 不超出 sourceRect（包含 baseline 曲線）", () {
+		test("localPath bounds 不超出 sourceRect（包含 baseline 曲線）", () async {
 			for (int pieceCount = 2; pieceCount <= 30; pieceCount += 3) {
 				for (int seed = 0; seed < 3; seed++) {
-					final PuzzleLayout layout = _cutWithGrid(pieceCount, seed);
+					final PuzzleLayout layout = await _cutWithGrid(pieceCount, seed);
 					for (final PuzzlePiece p in layout.pieces) {
 						final Rect bounds = p.localPath.getBounds();
 						final String r = "n=$pieceCount seed=$seed piece ${p.id}";
@@ -136,10 +136,10 @@ void main() {
 			}
 		});
 
-		test("sourceRect 包含 polygonAabb（基本不變性）", () {
+		test("sourceRect 包含 polygonAabb（基本不變性）", () async {
 			for (int pieceCount = 2; pieceCount <= 30; pieceCount += 3) {
 				for (int seed = 0; seed < 3; seed++) {
-					final PuzzleLayout layout = _cutWithGrid(pieceCount, seed);
+					final PuzzleLayout layout = await _cutWithGrid(pieceCount, seed);
 					for (final PuzzlePiece p in layout.pieces) {
 						expect(p.sourceRect.left, lessThanOrEqualTo(p.polygonAabb.left + 1e-6));
 						expect(p.sourceRect.top, lessThanOrEqualTo(p.polygonAabb.top + 1e-6));
@@ -150,8 +150,8 @@ void main() {
 			}
 		});
 
-		test("localPath 含其 polygonAabb 中心點", () {
-			final PuzzleLayout layout = _cutWithGrid(9, 7);
+		test("localPath 含其 polygonAabb 中心點", () async {
+			final PuzzleLayout layout = await _cutWithGrid(9, 7);
 			for (final PuzzlePiece p in layout.pieces) {
 				// AABB 中心點轉成 localPath 座標（即 - sourceRect.topLeft）
 				final Offset center = p.polygonAabb.center - p.sourceRect.topLeft;
@@ -160,21 +160,21 @@ void main() {
 			}
 		});
 
-		test("自訂 EdgeShape 可改變耳尺寸，PuzzleLayout.tabSize 隨之變動", () {
-			final PuzzleLayout defaultLayout = _cutWithGrid(6, 0);
-			final PuzzleLayout fatLayout = _cutWithGrid(6, 0,
+		test("自訂 EdgeShape 可改變耳尺寸，PuzzleLayout.tabSize 隨之變動", () async {
+			final PuzzleLayout defaultLayout = await _cutWithGrid(6, 0);
+			final PuzzleLayout fatLayout = await _cutWithGrid(6, 0,
 					edgeShape: const ClassicTabShape(tabSizeRatio: 0.4));
 			expect(fatLayout.tabSize, greaterThan(defaultLayout.tabSize));
 		});
 
-		test("誇張大耳朵也不會產生自交（自交修正流程介入）", () {
+		test("誇張大耳朵也不會產生自交（自交修正流程介入）", () async {
 			// 把 tabSizeRatio 拉到 0.6（正常 0.22），不修正必然自交。
 			// AppDimens.maxTabProtrusionRatio 的上限會先壓一次，但對小片來說仍
 			// 可能會穿幫；resolver 必須補上最後一道保險。
 			const ClassicTabShape fat = ClassicTabShape(tabSizeRatio: 0.6);
 			for (int pieceCount = 2; pieceCount <= 30; pieceCount += 3) {
 				for (int seed = 0; seed < 3; seed++) {
-					final PuzzleLayout layout = _cutWithGrid(pieceCount, seed,
+					final PuzzleLayout layout = await _cutWithGrid(pieceCount, seed,
 							edgeShape: fat);
 					for (final PuzzlePiece p in layout.pieces) {
 						expect(_pathHasSelfIntersection(p.localPath), isFalse,
@@ -185,8 +185,8 @@ void main() {
 			}
 		});
 
-		test("4 塊 2x2 每片至少有 2 條 flat 邊（兩條外圈）", () {
-			final PuzzleLayout layout = _cutWithGrid(4, 0);
+		test("4 塊 2x2 每片至少有 2 條 flat 邊（兩條外圈）", () async {
+			final PuzzleLayout layout = await _cutWithGrid(4, 0);
 			for (final PuzzlePiece p in layout.pieces) {
 				final int flatCount =
 						p.edges.where((PuzzleEdge e) => e.type == EdgeType.flat).length;
@@ -195,7 +195,7 @@ void main() {
 			}
 		});
 
-		test("Voronoi 多 seed 切割：塊數正確、localPath 不自交", () {
+		test("Voronoi 多 seed 切割：塊數正確、localPath 不自交", () async {
 			// Voronoi planner 會生 1.5N cell 再隨機合併到 N。
 			// 用多 seed 驗證流程穩定；統計自交率、要求不超過 5%。
 			const int trials = 8;
@@ -204,12 +204,12 @@ void main() {
 			final List<String> failures = <String>[];
 			for (int pieceCount = 4; pieceCount <= 16; pieceCount += 4) {
 				for (int seed = 0; seed < trials; seed++) {
-					final CellLayout cellLayout = const VoronoiCellPlanner().plan(
+					final CellLayout cellLayout = await const VoronoiCellPlanner().plan(
 						pieceCount: pieceCount,
 						innerBounds: kInnerBounds,
 						seed: seed,
 					);
-					final PuzzleLayout layout = PuzzleCutter.cut(
+					final PuzzleLayout layout = await PuzzleCutter.cut(
 						boardSize: kBoardSize,
 						boardPadding: kPadding,
 						cellLayout: cellLayout,
@@ -232,11 +232,11 @@ void main() {
 							"(${(rate * 100).toStringAsFixed(1)}%). cases: $failures");
 		});
 
-		test("validateLockability：每片至少有一條 flat 邊或一個 tab neighbor", () {
+		test("validateLockability：每片至少有一條 flat 邊或一個 tab neighbor", () async {
 			// Grid 切割：無不規則拓樸，理論上每片都應該 pass。
 			for (int pieceCount = 2; pieceCount <= 30; pieceCount++) {
 				for (int seed = 0; seed < 5; seed++) {
-					final PuzzleLayout layout = _cutWithGrid(pieceCount, seed);
+					final PuzzleLayout layout = await _cutWithGrid(pieceCount, seed);
 					expect(
 						PuzzleCutter.validateLockability(layout),
 						isTrue,

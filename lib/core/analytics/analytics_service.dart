@@ -75,4 +75,17 @@ class AnalyticsService {
 				"cut_mode": cutMode,
 				"duration_sec": durationSec,
 			});
+
+	/// 家長頁點下「請作者喝咖啡」項目（外連跳轉前送出）。
+	Future<void> logTipJarOpened() => _log("tip_jar_opened", <String, Object?>{});
+
+	/// 家長頁確認「重新觀看教學」（取消不送）。
+	Future<void> logResetTutorials() =>
+			_log("reset_tutorials", <String, Object?>{});
+
+	/// 切換「大朋友模式」開關。
+	Future<void> logBigKidModeToggled({required bool enabled}) =>
+			_log("big_kid_mode_toggled", <String, Object?>{
+				"enabled": enabled,
+			});
 }

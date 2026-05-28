@@ -17,7 +17,7 @@ final Rect _kInnerBounds = Rect.fromLTWH(
 );
 
 void main() {
-	test("TriangleCellPlanner：retry 次數分布", () {
+	test("TriangleCellPlanner：retry 次數分布", () async {
 		const int seedCount = 200;
 		const TriangleCellPlanner planner = TriangleCellPlanner();
 
@@ -30,7 +30,7 @@ void main() {
 
 		for (int n = 2; n <= 30; n++) {
 			for (int seed = 0; seed < seedCount; seed++) {
-				planner.plan(
+				await planner.plan(
 					pieceCount: n,
 					innerBounds: _kInnerBounds,
 					seed: seed,
@@ -78,5 +78,5 @@ void main() {
 		expect(maxRetry, lessThan(5),
 				reason: "最壞 case retry 次數應 < 5；"
 						"看到更高的值表示某些品質條件難以滿足、planner 演算法可能退化");
-	});
+	}, timeout: const Timeout(Duration(minutes: 5)));
 }

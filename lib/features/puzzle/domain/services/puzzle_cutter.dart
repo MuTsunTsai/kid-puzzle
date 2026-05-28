@@ -20,9 +20,31 @@ class PuzzleCutter {
 	/// 浮點數判等容差（pixel）。
 	static const double _epsilon = 0.5;
 
-	/// 耳朵凸出距離小於此值（pixel）就強制 flat — 此時耳朵已小到視覺辨識不出來，
-	/// 留著反而是雜訊。靠 [EdgeShape.protrusionFromTabSize] 換算後比較。
-	static const double _minVisibleProtrusion = 8.0;
+	/// 「耳朵凸出距離過小就強制 flat」的基準門檻（pixel，對應 n = [_protrusionRefN]
+	/// 片時的門檻）。實際門檻會依片數動態縮放（見 [_minVisibleProtrusionFor]）：
+	/// 片數多 → 每片小 → 耳朵自然短 → 門檻也跟著降低，避免大朋友模式高片數時
+	/// 大部分耳朵被吃掉變成全 flat。
+	static const double _minVisibleProtrusionBase = 40.0;
+
+	/// 動態門檻的「參考片數」：低於此數時門檻不再放大、固定為 base。
+	static const int _protrusionRefN = 6;
+
+	/// 給定片數計算「耳朵過短」門檻。
+	///
+	/// 採 `base × sqrt(refN / n)`：每片邊長大致與 `sqrt(1/n)` 成比例，
+	/// 因此自然 tabSize 也是。例如 n = [_protrusionRefN] → base、
+	/// n = 24 → base × 0.5、n = 300 → base × 0.14。
+	/// 參考盤面短邊（pixel）。`_minVisibleProtrusionBase` 是「在這個盤面尺寸下」
+	/// 的門檻；實際盤面短邊較大 / 較小時、門檻會等比例縮放，讓視覺上的相對大小
+	/// 保持一致（手機小窗下不會把更多耳朵吃掉）。
+	static const double _protrusionRefShortestSide = 600.0;
+
+	static double _minVisibleProtrusionFor(int pieceCount, Size boardSize) {
+		final double scale = boardSize.shortestSide / _protrusionRefShortestSide;
+		final double base = _minVisibleProtrusionBase * scale;
+		if (pieceCount <= _protrusionRefN) return base;
+		return base * sqrt(_protrusionRefN / pieceCount);
+	}
 
 	/// 執行切割。
 	///
@@ -31,13 +53,13 @@ class PuzzleCutter {
 	/// - [cellLayout]：來自 [CellPlanner] 的 cell 規劃（cell 頂點為拼圖盤座標）。
 	/// - [seed]：用於邊類型決策（tabOut / tabIn）的隨機種子。
 	/// - [edgeShape]：拼圖耳形狀。預設為 [kDefaultEdgeShape]。
-	static PuzzleLayout cut({
+	static Future<PuzzleLayout> cut({
 		required Size boardSize,
 		required double boardPadding,
 		required CellLayout cellLayout,
 		required int seed,
 		EdgeShape edgeShape = kDefaultEdgeShape,
-	}) {
+	}) async {
 		final Random random = Random(seed);
 
 		// 1. 對每個 cell 計算 AABB
@@ -53,6 +75,7 @@ class PuzzleCutter {
 			innerBounds: cellLayout.innerBounds,
 			random: random,
 			edgeShape: edgeShape,
+			minProtrusion: _minVisibleProtrusionFor(cells.length, boardSize),
 		);
 
 		// 2.1 同對 polygon 之間只在「最長」的共用邊保留耳朵、其餘 forceFlat。
@@ -93,7 +116,7 @@ class PuzzleCutter {
 		// 對該片所用的「tabSize 最大」兩個 segment 縮 70%；反覆直到全部無自交
 		// 或所有 segment 都已被縮到失效。共享 segment 同時影響兩片，互補性
 		// 在 segment 層級自動保留。
-		_resolveSelfIntersections(
+		await _resolveSelfIntersections(
 			cells: cells,
 			segments: segments,
 			pieceSegmentsList: pieceSegmentsList,
@@ -444,18 +467,26 @@ class PuzzleCutter {
 	/// 或所有 segment 都已縮到 ~0。
 	///
 	/// 共享 segment 的縮減會同時影響另一片，互補性自動保留。
-	static void _resolveSelfIntersections({
+	/// 排程旗標：把同步呼叫者短路成 sync，給 [cut] 的 async 版用 false。
+	static Future<void> _resolveSelfIntersections({
 		required List<CellPolygon> cells,
 		required List<_EdgeSegment> segments,
 		required List<List<_EdgeSegment>> pieceSegmentsList,
 		required List<List<bool>> pieceReversedList,
 		required EdgeShape edgeShape,
-	}) {
+	}) async {
 		const double shrinkFactor = 0.9;
 		const int maxIterations = 200;
+		// 每處理 [yieldEveryCells] 個 cell 就 yield 一次；高片數時即使單個
+		// iter 也可能跑掉一個 frame budget，要在內層中斷。
+		const int yieldEveryCells = 30;
+
 		for (int iter = 0; iter < maxIterations; iter++) {
 			bool anyFixed = false;
 			for (int i = 0; i < cells.length; i++) {
+				if (i > 0 && i % yieldEveryCells == 0) {
+					await Future<void>.delayed(Duration.zero);
+				}
 				final List<_EdgeSegment> pieceSegments = pieceSegmentsList[i];
 				final (int, int)? conflict = _findPieceConflict(
 					cell: cells[i],
@@ -492,6 +523,8 @@ class PuzzleCutter {
 				}
 			}
 			if (!anyFixed) return;
+			// 一輪結束後 yield，讓 UI 趁機畫 1 個 frame。
+			await Future<void>.delayed(Duration.zero);
 		}
 	}
 
@@ -760,6 +793,7 @@ class PuzzleCutter {
 		required Rect innerBounds,
 		required Random random,
 		required EdgeShape edgeShape,
+		required double minProtrusion,
 	}) {
 		// 用「邊端點對的 quantized key」對半邊分組
 		final Map<String, List<({int cellIdx, Offset a, Offset b})>> groups =
@@ -798,10 +832,12 @@ class PuzzleCutter {
 						edgeShape.clampTabSize(naturalTabSize, maxProtrusion);
 
 				// 太短的邊強制 flat（耳朵會小到視覺辨識不出來）：以「實際 tabSize
-				// 換算的凸出距離」< [_minVisibleProtrusion] 為準。tabSize 本身已被
-				// 鄰片短邊上限夾過，再用換算後的凸出距離判斷視覺可見性才合理。
+				// 換算的凸出距離」< minProtrusion 為準。tabSize 本身已被鄰片短邊
+				// 上限夾過，再用換算後的凸出距離判斷視覺可見性才合理。門檻隨片數
+				// 動態縮放（見 [_minVisibleProtrusionFor]），高片數時不會把所有
+				// 自然較短的耳朵都吃掉。
 				final double protrusion = edgeShape.protrusionFromTabSize(tabSize);
-				final bool tooShort = protrusion < _minVisibleProtrusion;
+				final bool tooShort = protrusion < minProtrusion;
 
 				// baseline bulge：[-segLen × max, +segLen × max] 隨機
 				final double maxBulgeRatio = edgeShape is ClassicTabShape

@@ -100,7 +100,21 @@ class ParentStrings {
 
 	static const String resetTutorial = "重新觀看教學";
 	static const String resetTutorialSubtitle = "清除所有教學的「已看過」紀錄";
+	static const String resetTutorialConfirmTitle = "重新觀看教學？";
+	static const String resetTutorialConfirmBody =
+			"將會清除所有教學的「已看過」紀錄，"
+			"下次進入相關畫面時會再次播放。";
+	static const String resetTutorialConfirmOk = "確定重設";
+	static const String resetTutorialConfirmCancel = "取消";
 	static const String resetTutorialDone = "已重設教學，下次進入相關畫面會再次顯示。";
+
+	static const String bigKidMode = "大朋友模式";
+	static const String bigKidModeSubtitle =
+			"片數 20~300、邊框變細、不再需要長按";
+
+	static const String tipJar = "請作者喝咖啡";
+	static const String tipJarSubtitle = "自由打賞～";
+	static const String tipJarUrl = "https://buymeacoffee.com/mutsuntsai";
 }
 
 /// 圖庫管理列表頁。
