@@ -97,7 +97,10 @@ class _NoHistoryHashUrlStrategy extends HashUrlStrategy {
 /// 回傳 PWA「加到主畫面」引導標籤；已 standalone 時回 null。
 ///
 /// 文案不在這裡定義（見 [interop.dart] 的 `pwaInstallHint` 說明）。
+/// 桌機瀏覽器直接回 null：桌機通常不會把網頁「加到主畫面」當作主要使用方式，
+/// 多顯示一條提示反而干擾。
 String? pwaInstallHintImpl() {
+	if (!_isMobileBrowser()) return null;
 	if (_isStandalone()) return null;
 	return _isSafari() ? "safari" : "generic";
 }
