@@ -2,6 +2,7 @@ import "dart:math";
 import "dart:ui" as ui;
 
 import "package:flutter/foundation.dart";
+import "package:flutter/widgets.dart" show Matrix4;
 
 import "../puzzle_dimens.dart";
 import "../domain/models/puzzle_layout.dart";
@@ -17,7 +18,7 @@ import "_diag.dart";
 ///
 /// 拼圖盤（左側）與散落區（右側）以一條垂直分割線為界。
 class PuzzleStageLayout {
-	const PuzzleStageLayout({
+	PuzzleStageLayout({
 		required this.totalSize,
 		required this.boardOrigin,
 		required this.boardSize,
@@ -25,13 +26,17 @@ class PuzzleStageLayout {
 		required this.scatterSize,
 	});
 
-	final ui.Size totalSize;
+	/// 整個拼圖頁面可用區域（視窗 / canvas size）。
+	///
+	/// 視窗尺寸變動時 [PuzzleController.rescaleStage] 會直接覆蓋這個物件的
+	/// 全部欄位（不重建 PuzzleController，以保留遊戲進度）。
+	ui.Size totalSize;
 
-	final ui.Offset boardOrigin;
-	final ui.Size boardSize;
+	ui.Offset boardOrigin;
+	ui.Size boardSize;
 
-	final ui.Offset scatterOrigin;
-	final ui.Size scatterSize;
+	ui.Offset scatterOrigin;
+	ui.Size scatterSize;
 
 	ui.Rect get boardRect => boardOrigin & boardSize;
 	ui.Rect get scatterRect => scatterOrigin & scatterSize;
@@ -777,6 +782,147 @@ class PuzzleController extends ChangeNotifier {
 		_completed = false;
 		_completedNotifier.value = false;
 		bumpRepaint();
+	}
+
+	/// 視窗尺寸變動時呼叫：把整個拼圖場景（盤、padding、所有 piece 幾何、
+	/// piece 當前位置與動畫起點）按比例縮放到新的 [newStage] 尺寸。
+	///
+	/// 保留所有遊戲狀態：鎖定狀態、群組關係、旋轉角度等。鎖定的 piece 用
+	/// 新的「正確位置」覆蓋 currentPosition（必然完美對齊）；未鎖定的 piece
+	/// 以「中心點相對 totalSize 的比例不變」原則重新放置，再夾擠回畫面內。
+	///
+	/// 副作用：清空 bevel / frameBevel bitmap 快取（因為都跟新尺寸不符）。
+	void rescaleStage(PuzzleStageLayout newStage) {
+		final ui.Size oldBoard = stageLayout.boardSize;
+		if (oldBoard.width <= 0 || oldBoard.height <= 0) return;
+		final double sx = newStage.boardSize.width / oldBoard.width;
+		final double sy = newStage.boardSize.height / oldBoard.height;
+		// 微差忽略，避免每幀都白做工。
+		if ((sx - 1.0).abs() < 1e-6 &&
+				(sy - 1.0).abs() < 1e-6 &&
+				stageLayout.totalSize == newStage.totalSize &&
+				stageLayout.boardOrigin == newStage.boardOrigin) {
+			return;
+		}
+		final ui.Size oldTotal = stageLayout.totalSize;
+		final ui.Offset oldBoardOrigin = stageLayout.boardOrigin;
+		final double sScalar = (sx + sy) / 2; // padding / tabSize 走均值
+
+		// 1. 縮放 layout-level 欄位
+		layout.boardSize = newStage.boardSize;
+		layout.boardPadding = layout.boardPadding * sScalar;
+		layout.tabSize = layout.tabSize * sScalar;
+
+		// 2. 縮放每片 piece 的幾何 + 位置
+		final Float64List pathScale = Matrix4.diagonal3Values(sx, sy, 1).storage;
+		for (final PuzzlePiece p in layout.pieces) {
+			final ui.Rect oldSrc = p.sourceRect;
+			p.sourceRect = _scaleRect(oldSrc, sx, sy);
+			p.polygonAabb = _scaleRect(p.polygonAabb, sx, sy);
+			p.localPath = p.localPath.transform(pathScale);
+
+			if (p.locked) {
+				// 鎖定的 piece 必然在「盤上 + sourceRect.topLeft」位置；新的正確
+				// 位置由新 stage 推算（用 mutated layout 內的新 sourceRect.topLeft）。
+				p.currentPosition = ui.Offset(
+					p.sourceRect.left + newStage.boardOrigin.dx,
+					p.sourceRect.top + newStage.boardOrigin.dy,
+				);
+			} else {
+				// 未鎖定 piece：用「中心點相對 totalSize 比例」重映射。
+				final double oldCx = p.currentPosition.dx + oldSrc.width / 2;
+				final double oldCy = p.currentPosition.dy + oldSrc.height / 2;
+				final double ratioX = oldTotal.width > 0 ? oldCx / oldTotal.width : 0;
+				final double ratioY = oldTotal.height > 0 ? oldCy / oldTotal.height : 0;
+				final double newCx = ratioX * newStage.totalSize.width;
+				final double newCy = ratioY * newStage.totalSize.height;
+				p.currentPosition = ui.Offset(
+					newCx - p.sourceRect.width / 2,
+					newCy - p.sourceRect.height / 2,
+				);
+			}
+
+			// 進場 / 飛散動畫起點：若還在進行中、用同樣規則重算（沒有就 null）。
+			final ui.Offset? introStart = p.introStartPosition;
+			if (introStart != null) {
+				// introStart 一般是「盤上正確位置」 = oldBoardOrigin + oldSrc.topLeft。
+				// 直接用新 boardOrigin + 新 sourceRect.topLeft 即可。
+				p.introStartPosition = ui.Offset(
+					p.sourceRect.left + newStage.boardOrigin.dx,
+					p.sourceRect.top + newStage.boardOrigin.dy,
+				);
+			}
+			// 消除未使用警告：oldBoardOrigin 預留給未來 debug 需要時取用。
+			oldBoardOrigin;
+		}
+
+		// 3. 原地更新 stageLayout 內部欄位（保持物件 reference 相同，外部持有
+		//    者不必重新取）。
+		stageLayout.totalSize = newStage.totalSize;
+		stageLayout.boardOrigin = newStage.boardOrigin;
+		stageLayout.boardSize = newStage.boardSize;
+		stageLayout.scatterOrigin = newStage.scatterOrigin;
+		stageLayout.scatterSize = newStage.scatterSize;
+
+		// 4. 清空與舊尺寸綁定的 bitmap 快取
+		for (final ui.Image img in bevelCache.values) {
+			img.dispose();
+		}
+		bevelCache.clear();
+		frameBevelCache?.dispose();
+		frameBevelCache = null;
+
+		// 5. 把溢出畫面的未鎖定 piece 夾擠回允許範圍內
+		_clampPiecesIntoStage();
+
+		bumpRepaint();
+	}
+
+	static ui.Rect _scaleRect(ui.Rect r, double sx, double sy) {
+		return ui.Rect.fromLTRB(
+			r.left * sx,
+			r.top * sy,
+			r.right * sx,
+			r.bottom * sy,
+		);
+	}
+
+	/// 把所有未鎖定 piece 的中心點夾擠到「畫面內 + 距邊 inset」的允許範圍。
+	///
+	/// 規則同 [_clampGroupDelta]：每片中心離畫面邊緣至少 [_dragBoundsInsetPx]。
+	/// 同一群組的成員會以「群組要被推多少」為單位整體平移、保留相對位置。
+	void _clampPiecesIntoStage() {
+		final ui.Size size = stageLayout.totalSize;
+		final double minX = _dragBoundsInsetPx;
+		final double maxX = size.width - _dragBoundsInsetPx;
+		final double minY = _dragBoundsInsetPx;
+		final double maxY = size.height - _dragBoundsInsetPx;
+		// 群組 → 需要平移的量（取所有成員「最大正向不足」與「最大負向不足」）
+		final Map<int, ui.Offset> groupDelta = <int, ui.Offset>{};
+		for (final PuzzlePiece p in layout.pieces) {
+			if (p.locked) continue;
+			final double cx = p.currentPosition.dx + p.sourceRect.width / 2;
+			final double cy = p.currentPosition.dy + p.sourceRect.height / 2;
+			double dx = 0;
+			double dy = 0;
+			if (cx < minX) dx = minX - cx;
+			if (cx > maxX) dx = maxX - cx;
+			if (cy < minY) dy = minY - cy;
+			if (cy > maxY) dy = maxY - cy;
+			if (dx == 0 && dy == 0) continue;
+			final ui.Offset prev = groupDelta[p.groupId] ?? ui.Offset.zero;
+			// 取「絕對值較大」的，讓所有成員都進得來。
+			groupDelta[p.groupId] = ui.Offset(
+				dx.abs() > prev.dx.abs() ? dx : prev.dx,
+				dy.abs() > prev.dy.abs() ? dy : prev.dy,
+			);
+		}
+		if (groupDelta.isEmpty) return;
+		for (final PuzzlePiece p in layout.pieces) {
+			final ui.Offset? d = groupDelta[p.groupId];
+			if (d == null) continue;
+			p.currentPosition = p.currentPosition + d;
+		}
 	}
 
 	/// 把所有 piece 放回正確位置並標記鎖定（用於 debug / 預覽完整圖）。

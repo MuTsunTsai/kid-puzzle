@@ -4,11 +4,15 @@ import "puzzle_edge.dart";
 
 /// 一塊拼圖。
 ///
-/// **不可變欄位**：[id]、[gridCellId]、[polygonAabb]、[sourceRect]、[edges]、[localPath]。
+/// **不可變欄位**：[id]、[gridCellId]、[edges]、[neighborIds]、[tabNeighborIds]。
 /// 由 puzzle_cutter 建構時填好，後續絕不更動。
 ///
-/// **可變欄位**：[currentPosition]、[groupId]、[locked]、[zIndex]。
-/// 由 PuzzleController 在遊戲過程中更新。
+/// **幾何欄位**（[polygonAabb]、[sourceRect]、[localPath]）：以拼圖盤座標系
+/// 表達。當視窗尺寸變動時 [PuzzleController.rescaleStage] 會整體按比例縮放
+/// 這些欄位。除此之外不會更動。
+///
+/// **遊戲狀態欄位**：[currentPosition]、[introStartPosition]、[groupId]、
+/// [locked]、[zIndex]。由 PuzzleController 在遊戲過程中更新。
 class PuzzlePiece {
 	PuzzlePiece({
 		required this.id,
@@ -36,12 +40,12 @@ class PuzzlePiece {
 	/// 對 grid 模式：即原本的 coreRect（cell 矩形）。
 	/// 對 voronoi 模式：cell polygon 的軸對齊外接矩形。
 	/// 用於計算「正確位置」與「相鄰塊正確相對位移」。
-	final Rect polygonAabb;
+	Rect polygonAabb;
 
 	/// 含 tab 凸出的實際像素區域（在拼圖盤座標系）。
 	///
 	/// 用於 Canvas.drawImageRect 的 src 參數。
-	final Rect sourceRect;
+	Rect sourceRect;
 
 	/// piece 多邊形每條邊的描述。
 	///
@@ -65,7 +69,7 @@ class PuzzlePiece {
 	///
 	/// **以 sourceRect.topLeft 為原點 (0, 0) 的局部座標系**。
 	/// 命中測試與繪製時，依 [currentPosition] 平移後使用。
-	final Path localPath;
+	Path localPath;
 
 	/// 拼圖塊目前左上角在畫布的位置（sourceRect.topLeft 對應的點）。
 	Offset currentPosition;

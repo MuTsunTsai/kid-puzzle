@@ -46,19 +46,19 @@ class PuzzleBoardPainter extends CustomPainter {
 		final Paint boardPaint = Paint()..color = AppColors.boardBackground;
 		canvas.drawRect(boardRect, boardPaint);
 
-		// 2. 外圈 padding：把原圖的「邊框環」畫上去
-		//    內部空白先不畫（如果是空白底，靠盤底色蓋過）
-		_drawPaddingFrame(canvas, boardRect);
+		// 2. 底圖。分兩種模式：
+		//    - 靜止（boardDetailsOpacity = 1）：只畫外圈 padding 環（4 條邊拼接），
+		//      中央留白靠 locked piece 蓋滿；避免在像素上不對齊產生細微鋸齒。
+		//    - 動畫期間（< 1）：直接一次 drawImageRect 畫完整原圖、不拼接，這樣
+		//      上層淡出時露出的是「一張完整圖」而非多片拼接結果。
+		if (boardDetailsOpacity < 1.0) {
+			_drawFullBaseImage(canvas, boardRect);
+		} else {
+			_drawPaddingFrame(canvas, boardRect);
+		}
 
 		// 2.5 在 padding 環本身畫立體光澤（相框感）
 		_drawFrameBevel(canvas, boardRect);
-
-		// 2.6 動畫期間（進場淡入 / 完成淡出）才鋪「完整原圖底圖」。
-		//     動畫結束 boardDetailsOpacity = 1.0 時拿掉，避免多疊一層 raster 取樣
-		//     在像素上不對齊產生的細微鋸齒。
-		if (boardDetailsOpacity < 1.0) {
-			_drawInnerBaseImage(canvas, boardRect);
-		}
 
 		// 3. 切割線提示（如果開啟）
 		if (showCutLineHint) {
@@ -73,38 +73,18 @@ class PuzzleBoardPainter extends CustomPainter {
 		}
 	}
 
-	/// 在 padding 內側鋪上「完整原圖內側區域」。
+	/// 在整個 boardRect 一次畫完整原圖。
 	///
-	/// 這層是 locked piece 與切割線提示的襯底；當「拼塊細節」整體淡出
-	/// （`boardDetailsOpacity` → 0）時，上層 piece 光影 + 邊框消失、露出此底圖，
-	/// 達成「沒有切割、只剩外圈光影」的完成後效果。
-	void _drawInnerBaseImage(Canvas canvas, Rect boardRect) {
-		final double padding = controller.layout.boardPadding;
+	/// 動畫期間（進場淡入 / 完成淡出）使用：上層 padding 邊條、frame bevel、
+	/// locked piece 全都會 fade，此時下層必須是「一張完整、無拼接縫的圖」，
+	/// 否則使用者會在淡出最後一刻看到 4 條邊條 + 內側補圖的接合痕跡。
+	void _drawFullBaseImage(Canvas canvas, Rect boardRect) {
 		final ui.Image image = controller.boardImage;
 		final ui.Size imgSize = controller.boardImageSize;
-		final Size bs = controller.layout.boardSize;
-
-		// 內側區（盤上座標）= 去掉四邊 padding
-		final double innerW = bs.width - 2 * padding;
-		final double innerH = bs.height - 2 * padding;
-		final double scaleX = imgSize.width / boardRect.width;
-		final double scaleY = imgSize.height / boardRect.height;
-		final Rect srcInImage = Rect.fromLTWH(
-			padding * scaleX,
-			padding * scaleY,
-			innerW * scaleX,
-			innerH * scaleY,
-		);
-		final Rect destStage = Rect.fromLTWH(
-			boardRect.left + padding,
-			boardRect.top + padding,
-			innerW,
-			innerH,
-		);
 		canvas.drawImageRect(
 			image,
-			srcInImage,
-			destStage,
+			Rect.fromLTWH(0, 0, imgSize.width, imgSize.height),
+			boardRect,
 			Paint()..filterQuality = FilterQuality.medium,
 		);
 	}
@@ -135,6 +115,8 @@ class PuzzleBoardPainter extends CustomPainter {
 		}
 
 		final Size bs = controller.layout.boardSize;
+		// 四條皆延伸覆蓋整段邊（含四角），讓相鄰條在角落形成完整正方形重疊區域，
+		// 避免 web canvas 在條與條的相切處因 sub-pixel 採樣產生細縫。
 		// 上條（含四角）
 		drawStripe(
 			Rect.fromLTWH(0, 0, bs.width, padding),
@@ -145,15 +127,15 @@ class PuzzleBoardPainter extends CustomPainter {
 			Rect.fromLTWH(0, bs.height - padding, bs.width, padding),
 			Rect.fromLTWH(0, bs.height - padding, bs.width, padding),
 		);
-		// 左條
+		// 左條（含四角）
 		drawStripe(
-			Rect.fromLTWH(0, padding, padding, bs.height - 2 * padding),
-			Rect.fromLTWH(0, padding, padding, bs.height - 2 * padding),
+			Rect.fromLTWH(0, 0, padding, bs.height),
+			Rect.fromLTWH(0, 0, padding, bs.height),
 		);
-		// 右條
+		// 右條（含四角）
 		drawStripe(
-			Rect.fromLTWH(bs.width - padding, padding, padding, bs.height - 2 * padding),
-			Rect.fromLTWH(bs.width - padding, padding, padding, bs.height - 2 * padding),
+			Rect.fromLTWH(bs.width - padding, 0, padding, bs.height),
+			Rect.fromLTWH(bs.width - padding, 0, padding, bs.height),
 		);
 	}
 

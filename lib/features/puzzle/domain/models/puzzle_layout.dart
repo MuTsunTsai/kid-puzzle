@@ -6,7 +6,7 @@ import "puzzle_piece.dart";
 ///
 /// 由 puzzle_cutter 從 [GridLayoutSpec] 與圖片尺寸建構。
 class PuzzleLayout {
-	const PuzzleLayout({
+	PuzzleLayout({
 		required this.pieceCount,
 		required this.boardSize,
 		required this.boardPadding,
@@ -18,10 +18,14 @@ class PuzzleLayout {
 	final int pieceCount;
 
 	/// 拼圖盤的總尺寸（含外圈 padding）。
-	final Size boardSize;
+	///
+	/// 視窗尺寸變動時 [PuzzleController.rescaleStage] 會更新此值。
+	Size boardSize;
 
 	/// 外圈 padding（左右上下相同）。實際切割發生在內部矩形。
-	final double boardPadding;
+	///
+	/// 隨 [boardSize] 一起按比例縮放。
+	double boardPadding;
 
 	/// 所有拼圖塊。索引即 piece.id。
 	final List<PuzzlePiece> pieces;
@@ -31,7 +35,8 @@ class PuzzleLayout {
 	/// 因為 5/7 不規則切法中不同 cell 的寬高可能不同，此值代表
 	/// 「整體性」的耳尺寸（取最短邊乘上比例）；個別邊可在 puzzle_cutter
 	/// 內依該邊實際長度計算更精細的值。
-	final double tabSize;
+	/// 隨 [boardSize] 一起按比例縮放。
+	double tabSize;
 
 	/// 拼圖盤內可切割區域的左上角座標。
 	Offset get innerOrigin => Offset(boardPadding, boardPadding);

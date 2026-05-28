@@ -551,7 +551,14 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	Widget build(BuildContext context) {
 		return Scaffold(
 			backgroundColor: AppColors.boardBackground,
-			body: Stack(
+			body: LayoutBuilder(
+				builder: (BuildContext context, BoxConstraints constraints) {
+					// 視窗 / canvas 尺寸變化時即時 rescale，保留遊戲進度。
+					// 用 post-frame callback 避免在 layout pass 內動 controller。
+					_maybeRescaleForSize(
+						Size(constraints.maxWidth, constraints.maxHeight),
+					);
+					return Stack(
 				children: <Widget>[
 					if (_controller != null)
 						IgnorePointer(
@@ -665,8 +672,35 @@ class _PuzzlePageState extends State<PuzzlePage> {
 									),
 					),
 				],
+			);
+				},
 			),
 		);
+	}
+
+	/// 視窗 / canvas 尺寸改變時呼叫 controller.rescaleStage（如果尺寸有顯著
+	/// 差異）。用 post-frame callback 避免在 layout pass 內 mutate controller、
+	/// 觸發 assertion。
+	void _maybeRescaleForSize(Size newSize) {
+		final PuzzleController? c = _controller;
+		if (c == null) return;
+		if (newSize.width <= 0 || newSize.height <= 0) return;
+		final ui.Size cur = c.stageLayout.totalSize;
+		if ((cur.width - newSize.width).abs() < 0.5 &&
+				(cur.height - newSize.height).abs() < 0.5) {
+			return;
+		}
+		WidgetsBinding.instance.addPostFrameCallback((_) {
+			if (!mounted) return;
+			final PuzzleController? cc = _controller;
+			if (cc == null) return;
+			final ui.Size again = cc.stageLayout.totalSize;
+			if ((again.width - newSize.width).abs() < 0.5 &&
+					(again.height - newSize.height).abs() < 0.5) {
+				return;
+			}
+			cc.rescaleStage(PuzzleStageLayout.forSize(newSize));
+		});
 	}
 }
 
