@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 確認 tag 是基於 main 分支的 commit
       # （避免在其他分支誤打 tag 也觸發 release）

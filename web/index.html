@@ -125,8 +125,10 @@
       50%      { transform: translateY(-8px); }
     }
 
-    /* In-app browser 提示遮罩。預設 display:none，JS 偵測命中時改 display:flex。 */
-    #inapp-browser-notice {
+    /* 阻擋類遮罩（in-app browser / 不支援的瀏覽器）共用樣式。
+       預設 display:none，JS 偵測命中時改 display:flex。 */
+    #inapp-browser-notice,
+    #unsupported-browser-notice {
       display: none;
       position: fixed;
       inset: 0;
@@ -140,16 +142,21 @@
       color: #ffffff;
       text-align: center;
     }
-    #inapp-browser-notice.show { display: flex; }
-    #inapp-browser-notice .card {
+    #inapp-browser-notice.show,
+    #unsupported-browser-notice.show { display: flex; }
+    #inapp-browser-notice .card,
+    #unsupported-browser-notice .card {
       max-width: 480px;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-    #inapp-browser-notice .icon { font-size: 64px; margin-bottom: 20px; }
-    #inapp-browser-notice .title { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
-    #inapp-browser-notice .desc { font-size: 16px; line-height: 1.6; }
+    #inapp-browser-notice .icon,
+    #unsupported-browser-notice .icon { font-size: 64px; margin-bottom: 20px; }
+    #inapp-browser-notice .title,
+    #unsupported-browser-notice .title { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+    #inapp-browser-notice .desc,
+    #unsupported-browser-notice .desc { font-size: 16px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -208,6 +215,17 @@
     </div>
   </div>
 
+  <!-- 瀏覽器版本過舊提示遮罩：缺 WebAssembly.compileStreaming（Safari 15
+       以下、其它類似世代瀏覽器）時顯示。下方 script 在 SW 註冊前先 feature
+       detect 觸發。 -->
+  <div id="unsupported-browser-notice">
+    <div class="card">
+      <div class="icon">⚠️</div>
+      <div class="title">瀏覽器版本過舊</div>
+      <div class="desc">本應用程式需要支援 WebAssembly streaming 編譯的瀏覽器。請升級至 Safari 15、Chrome 61、Firefox 58 或更新版本後再試。</div>
+    </div>
+  </div>
+
   <!-- 用 esm.sh CDN 載 inapp-spy（whack-a-mouse 同款偵測庫）；
        不阻擋 Flutter 載入，命中時才把上方遮罩顯示出來。 -->
   <script type="module">
@@ -237,6 +255,18 @@
        不支援 SW 的環境（例如 in-app browser）直接跳過、繼續載入 Flutter。 -->
   <script>
     (function () {
+      // 1. Feature detect：太舊的瀏覽器（例如 Safari 14 以下）缺
+      //    WebAssembly.compileStreaming，Flutter web canvaskit / wasm renderer
+      //    都跑不起來。顯示提示遮罩、停止後續載入（含 SW 註冊與 spinner 更新）。
+      if (typeof WebAssembly === "undefined" ||
+          typeof WebAssembly.compileStreaming !== "function") {
+        var u = document.getElementById("unsupported-browser-notice");
+        if (u) u.classList.add("show");
+        var l = document.getElementById("loading");
+        if (l) l.remove();
+        return;
+      }
+
       var RELOAD_KEY = "__isolatedReloadCount";
       var MAX_RELOADS = 2;
 

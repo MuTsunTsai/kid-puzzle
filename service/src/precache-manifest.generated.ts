@@ -29,7 +29,7 @@ export const PRECACHE_MANIFEST: PrecacheEntry[] = [
 	},
 	{
 		"url": "index.html",
-		"revision": "4efcde2e3e2a1f23554f68eae03ec796be9ca3604498800cf44a3434a12b54c7"
+		"revision": "3c628c5ecfe73c4d0131968c6e856e4ceb0783d5ae3aa0e7543f69b001b0676a"
 	},
 	{
 		"url": "manifest.json",
