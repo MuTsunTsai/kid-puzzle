@@ -5,6 +5,7 @@ import "package:provider/provider.dart";
 
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/ui_strings.dart";
+import "../../../core/network/builtin_image_cache.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/storage/gallery_repository.dart";
 import "../../../shared/models/gallery_set.dart";
@@ -128,47 +129,58 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 								],
 							),
 						)
-					: GridView.builder(
-							padding: const EdgeInsets.all(8),
-							gridDelegate:
-									const SliverGridDelegateWithFixedCrossAxisCount(
-								crossAxisCount: 4,
-								crossAxisSpacing: 8,
-								mainAxisSpacing: 8,
-								childAspectRatio: 4 / 3,
-							),
-							itemCount: keys.length,
-							itemBuilder: (BuildContext ctx, int i) {
-								final String key = keys[i];
-								final bool isSelected = _selected.contains(key);
-								return _Thumbnail(
-									tokenKey: key,
-									builtin: set.builtin,
-									selected: isSelected,
-									selectionMode: _inSelectionMode,
-									onTap: () {
-										if (editable && _inSelectionMode) {
-											setState(() {
-												if (isSelected) {
-													_selected.remove(key);
-												} else {
-													_selected.add(key);
+					: Consumer<BuiltinImageCache>(
+							builder: (BuildContext ctx, BuiltinImageCache cache, _) {
+								return GridView.builder(
+									padding: const EdgeInsets.all(8),
+									gridDelegate:
+											const SliverGridDelegateWithFixedCrossAxisCount(
+										crossAxisCount: 4,
+										crossAxisSpacing: 8,
+										mainAxisSpacing: 8,
+										childAspectRatio: 4 / 3,
+									),
+									itemCount: keys.length,
+									itemBuilder: (BuildContext ctx, int i) {
+										final String key = keys[i];
+										final bool isSelected = _selected.contains(key);
+										// 內建 + 斷網 + 未下載 → placeholder、不可預覽
+										final bool unavailable = set.builtin &&
+												!cache.isOnline &&
+												!cache.isCached(key);
+										return _Thumbnail(
+											tokenKey: key,
+											builtin: set.builtin,
+											selected: isSelected,
+											selectionMode: _inSelectionMode,
+											unavailable: unavailable,
+											onTap: () {
+												if (unavailable) return;
+												if (editable && _inSelectionMode) {
+													setState(() {
+														if (isSelected) {
+															_selected.remove(key);
+														} else {
+															_selected.add(key);
+														}
+													});
+													return;
 												}
-											});
-											return;
-										}
-										// 非選取模式（含內建套）→ 開大圖預覽
-										_showPreview(context, keys, i, set.builtin);
-									},
-									onLongPress: () {
-										if (!editable) return;
-										setState(() {
-											if (isSelected) {
-												_selected.remove(key);
-											} else {
-												_selected.add(key);
-											}
-										});
+												// 非選取模式（含內建套）→ 開大圖預覽
+												_showPreview(context, keys, i, set.builtin, cache);
+											},
+											onLongPress: () {
+												if (unavailable) return;
+												if (!editable) return;
+												setState(() {
+													if (isSelected) {
+														_selected.remove(key);
+													} else {
+														_selected.add(key);
+													}
+												});
+											},
+										);
 									},
 								);
 							},
@@ -233,13 +245,25 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 		List<String> keys,
 		int initialIndex,
 		bool builtin,
+		BuiltinImageCache cache,
 	) {
+		// 內建套且斷網時，把「未下載」的圖從預覽序列排除（chevron 與 PageView
+		// 都不該看到它們）。自訂套不受影響。
+		final List<String> visible = builtin && !cache.isOnline
+				? <String>[
+						for (final String k in keys)
+							if (cache.isCached(k)) k,
+					]
+				: keys;
+		if (visible.isEmpty) return; // 理論上呼叫端已擋掉（unavailable 不能點）
+		final String origKey = keys[initialIndex];
+		final int mappedIndex = visible.indexOf(origKey).clamp(0, visible.length - 1);
 		showDialog<void>(
 			context: context,
 			barrierColor: Colors.black87,
 			builder: (BuildContext ctx) => _PreviewDialog(
-				keys: keys,
-				initialIndex: initialIndex,
+				keys: visible,
+				initialIndex: mappedIndex,
 				builtin: builtin,
 				gallery: context.read<GalleryRepository>(),
 			),
@@ -451,6 +475,7 @@ class _Thumbnail extends StatelessWidget {
 		required this.builtin,
 		required this.selected,
 		required this.selectionMode,
+		required this.unavailable,
 		required this.onTap,
 		required this.onLongPress,
 	});
@@ -460,13 +485,20 @@ class _Thumbnail extends StatelessWidget {
 	final bool builtin;
 	final bool selected;
 	final bool selectionMode;
+
+	/// 內建圖尚未下載完成 + 目前斷網時為 true：顯示 placeholder、tap / longPress
+	/// 不作用。自訂圖永遠 false。
+	final bool unavailable;
+
 	final VoidCallback onTap;
 	final VoidCallback onLongPress;
 
 	@override
 	Widget build(BuildContext context) {
 		Widget imageWidget;
-		if (builtin) {
+		if (unavailable) {
+			imageWidget = _placeholder();
+		} else if (builtin) {
 			imageWidget = Image.asset(tokenKey, fit: BoxFit.cover);
 		} else {
 			final Uint8List? bytes =
@@ -480,8 +512,8 @@ class _Thumbnail extends StatelessWidget {
 						);
 		}
 		return GestureDetector(
-			onTap: ClickSound.wrap(context, onTap),
-			onLongPress: onLongPress,
+			onTap: unavailable ? null : ClickSound.wrap(context, onTap),
+			onLongPress: unavailable ? null : onLongPress,
 			child: Stack(
 				fit: StackFit.expand,
 				children: <Widget>[
@@ -514,6 +546,29 @@ class _Thumbnail extends StatelessWidget {
 								color: AppColors.primary.withValues(alpha: 0.25),
 							),
 						),
+				],
+			),
+		);
+	}
+
+	/// 「內建圖尚未下載 + 斷網」的 placeholder：灰底 + cloud_off icon +
+	/// 「尚未下載」字樣。
+	Widget _placeholder() {
+		return Container(
+			color: Colors.black12,
+			child: Column(
+				mainAxisAlignment: MainAxisAlignment.center,
+				children: <Widget>[
+					const Icon(
+						Icons.cloud_off,
+						size: 28,
+						color: Colors.black38,
+					),
+					const SizedBox(height: 4),
+					Text(
+						GalleryDetailStrings.notDownloaded,
+						style: const TextStyle(fontSize: 11, color: Colors.black54),
+					),
 				],
 			),
 		);

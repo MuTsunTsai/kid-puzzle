@@ -50,3 +50,7 @@ CLAUDE.md
 # Android 簽署金鑰與本機密碼設定（絕對不能 commit）
 /android/keystore/
 /android/key.properties
+
+# Node / Rsbuild（service worker build tooling 用）
+node_modules/
+/service/dist/

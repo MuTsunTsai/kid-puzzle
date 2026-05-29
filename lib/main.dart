@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:firebase_core/firebase_core.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
@@ -8,6 +10,8 @@ import "app.dart";
 import "core/analytics/analytics_service.dart";
 import "core/audio/audio_service.dart";
 import "core/audio/voice_service.dart";
+import "core/constants/asset_paths.dart";
+import "core/network/builtin_image_cache.dart";
 import "core/storage/gallery_repository.dart";
 import "core/storage/settings_repository.dart";
 import "core/system/interop.dart";
@@ -52,6 +56,15 @@ Future<void> main() async {
 	audio.enabled = settings.audioEnabled;
 	voice.enabled = settings.ttsEnabled;
 
+	// Web：啟動內建圖背景下載 worker（其他平台 stub no-op）。
+	// fire-and-forget — 不擋啟動，下載狀態靠 ChangeNotifier 通知 UI。
+	final BuiltinImageCache imageCache = BuiltinImageCache.instance;
+	unawaited(
+		AssetPaths.loadBuiltinPuzzles().then((List<String> paths) {
+			return imageCache.start(paths);
+		}).catchError((_) {}),
+	);
+
 	runApp(
 		Provider<AudioService>.value(
 			value: audio,
@@ -61,7 +74,10 @@ Future<void> main() async {
 					value: settings,
 					child: ChangeNotifierProvider<GalleryRepository>.value(
 						value: gallery,
-						child: const KidPuzzleApp(),
+						child: ChangeNotifierProvider<BuiltinImageCache>.value(
+							value: imageCache,
+							child: const KidPuzzleApp(),
+						),
 					),
 				),
 			),

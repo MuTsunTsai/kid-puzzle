@@ -80,6 +80,10 @@ class PuzzleStrings {
 
 	static const String levelComplete = "你完成囉！";
 	static const String nextLevel = "點這裡進入下一關";
+
+	/// 斷網 + 已下載內建圖 < 20 張 時、進入拼圖前提示（每 session 一次）。
+	static const String needNetworkTitle = "目前是離線模式";
+	static const String needNetworkBody = "請開啟網路，以載入更多圖片喔！";
 }
 
 /// 家長區。
@@ -157,6 +161,9 @@ class GalleryDetailStrings {
 	static const String deleteDesc1 = "確定要刪除 ";
 	static const String deleteDesc2 = " 張圖片嗎？此操作無法復原。";
 	static const String delete = "刪除";
+
+	/// 內建圖尚未下載完成 + 目前斷網（web 限定）時的縮圖 placeholder 文字。
+	static const String notDownloaded = "尚未下載";
 }
 
 /// 圖片裁切頁。
@@ -217,6 +224,8 @@ String _buildPreheatCharSet() {
 		PuzzleStrings.tutorial,
 		PuzzleStrings.levelComplete,
 		PuzzleStrings.nextLevel,
+		PuzzleStrings.needNetworkTitle,
+		PuzzleStrings.needNetworkBody,
 		// ParentStrings
 		ParentStrings.homeTitle,
 		ParentStrings.sectionContent,
@@ -262,6 +271,7 @@ String _buildPreheatCharSet() {
 		GalleryDetailStrings.deleteDesc1,
 		GalleryDetailStrings.deleteDesc2,
 		GalleryDetailStrings.delete,
+		GalleryDetailStrings.notDownloaded,
 		// CropStrings
 		CropStrings.title,
 		CropStrings.done,

@@ -22,10 +22,10 @@ function _progress(value) {
 
 _progress(10);
 
+// Service worker 由 index.html 在載入這支腳本之前就註冊好（自製、Workbox-based），
+// 已棄用的 flutter_service_worker.js 不再產生（build 時 --pwa-strategy=none），
+// 因此 loader 不傳 serviceWorkerSettings。
 _flutter.loader.load({
-	serviceWorkerSettings: {
-		serviceWorkerVersion: {{flutter_service_worker_version}},
-	},
 	config: {
 		// 自 host CanvasKit；對應 build/web/canvaskit/ 由 Flutter 自動產生。
 		canvasKitBaseUrl: "canvaskit/",

@@ -14,6 +14,7 @@ import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/app_dimens.dart";
 import "../../../core/constants/ui_strings.dart";
+import "../../../core/network/builtin_image_cache.dart";
 import "../../../core/storage/gallery_repository.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../core/system/system_guard.dart";
@@ -101,6 +102,13 @@ class _PuzzlePageState extends State<PuzzlePage> {
 	/// 在 push PuzzlePage 之前呼叫 `_PuzzlePageState.debugFirstLevel = (n: ..., seed: ...)`。
 	/// 該值只影響「第一關」、之後恢復隨機；用完一次自動清為 null、避免後續關卡又被鎖定。
 	static ({int n, int seed})? debugFirstLevel;
+
+	/// 「離線 + 已下載內建圖 < 20」提示在本 session 內已顯示過。
+	/// 同 session 不再重複跳，避免每進一次拼圖頁就煩人。App 完全重啟才重置。
+	static bool _offlineNoticeShown = false;
+
+	/// 進入拼圖前若內建圖可用數量 < 此值且斷網，跳一次「請開啟網路」提示。
+	static const int _offlineMinBuiltinImages = 20;
 
 	/// Debug：是否在右下角顯示 n / seed / mode 並讓它可點擊切下一關。
 	/// 找問題切割時開啟、平常關閉。
@@ -229,13 +237,36 @@ class _PuzzlePageState extends State<PuzzlePage> {
 			if (!mounted) return;
 		}
 
-		final List<String> images =
+		final BuiltinImageCache imageCache = context.read<BuiltinImageCache>();
+		final List<String> allImages =
 				context.read<GalleryRepository>().enabledImageTokens();
+		// 斷網時把「內建 + 未下載」的圖剔除（自訂圖、已下載的內建圖保留）。
+		// 線上模式不過濾 — 即使尚未 cache、首次 fetch 仍會成功並順便寫 SW cache。
+		final List<String> images = imageCache.isOnline
+				? allImages
+				: <String>[
+						for (final String token in allImages)
+							if (_isUserToken(token) || imageCache.isCached(token)) token,
+					];
 		if (!mounted) return;
 		if (images.isEmpty) {
 			await _showEmptyGalleryThenExit();
 			return;
 		}
+
+		// 斷網 + 有啟用內建套 + 已下載內建圖 < 20 → 跳一次性提示（本 session）
+		if (!_PuzzlePageState._offlineNoticeShown && !imageCache.isOnline) {
+			final int builtinCached = images
+					.where((String t) => !_isUserToken(t))
+					.length;
+			final bool hasBuiltinEnabled = allImages.any((String t) => !_isUserToken(t));
+			if (hasBuiltinEnabled && builtinCached < _offlineMinBuiltinImages) {
+				_PuzzlePageState._offlineNoticeShown = true;
+				await _showOfflineNotice();
+				if (!mounted) return;
+			}
+		}
+
 		setState(() {
 			_puzzleAssets = images;
 		});
@@ -244,6 +275,27 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		if (!mounted) return;
 		// controller 就緒、第一關拼片散落後才啟動教學氣泡。
 		await _maybeStartTutorial();
+	}
+
+	/// token 是否來自自訂套（GalleryRepository.enabledImageTokens 對自訂圖
+	/// 加上 "imageId:" 前綴；內建圖則是原始 assets 路徑）。
+	static bool _isUserToken(String token) => token.startsWith("imageId:");
+
+	/// 斷網 + 內建圖不足時的「請開啟網路」提示對話框。
+	Future<void> _showOfflineNotice() async {
+		await showDialog<void>(
+			context: context,
+			builder: (BuildContext ctx) => AlertDialog(
+				title: const Text(PuzzleStrings.needNetworkTitle),
+				content: const Text(PuzzleStrings.needNetworkBody),
+				actions: <Widget>[
+					ElevatedButton(
+						onPressed: ClickSound.wrap(ctx, () => Navigator.of(ctx).pop()),
+						child: const Text(PuzzleStrings.ok),
+					),
+				],
+			),
+		);
 	}
 
 	/// 沒有任何可用圖時：顯示提示對話框 → 關掉後返回上一頁。

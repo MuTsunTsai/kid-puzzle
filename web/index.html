@@ -218,14 +218,58 @@
     }
   </script>
 
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <!-- 啟動 Flutter 前先註冊自製 service worker（取代 Flutter 內建的
+       flutter_service_worker.js — 已棄用，build 時 --pwa-strategy=none）。
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+       Service worker 會對 same-origin 回應補 COOP=same-origin /
+       COEP=credentialless headers，讓 window.crossOriginIsolated === true，
+       為未來 wasm renderer 鋪路。
+
+       Flow：
+       1. 註冊 SW（首次進站會等它 activate）
+       2. 檢查 crossOriginIsolated
+          - true → 直接載入 flutter_bootstrap.js
+          - false → 強制重新整理：SW 已 active、reload 後所有 fetch 走 SW、
+                    headers 被補上 → isolated → 載入 Flutter
+       不支援 SW 的環境（例如 in-app browser）直接跳過、繼續載入 Flutter。 -->
+  <script>
+    (function () {
+      function loadFlutter() {
+        var s = document.createElement("script");
+        s.src = "flutter_bootstrap.js";
+        s.async = true;
+        document.body.appendChild(s);
+      }
+      if (!("serviceWorker" in navigator)) {
+        loadFlutter();
+        return;
+      }
+      navigator.serviceWorker.register("sw.js").then(function (reg) {
+        // 確保有 active 的 SW 才繼續判斷 isolated
+        function whenActive() {
+          if (reg.active) return Promise.resolve();
+          return new Promise(function (resolve) {
+            var sw = reg.installing || reg.waiting;
+            if (!sw) { resolve(); return; }
+            sw.addEventListener("statechange", function () {
+              if (sw.state === "activated") resolve();
+            });
+          });
+        }
+        whenActive().then(function () {
+          if (window.crossOriginIsolated) {
+            loadFlutter();
+          } else {
+            // SW 已就緒但目前頁面是「SW active 之前」載入的、headers 沒被補。
+            // 重新整理一次讓所有 fetch 都走 SW；reload 後會走 isolated 分支。
+            window.location.reload();
+          }
+        });
+      }).catch(function () {
+        // SW 註冊失敗（例如本地 file:// 開、或不支援的環境）→ 直接載 Flutter
+        loadFlutter();
+      });
+    })();
+  </script>
 </body>
 </html>

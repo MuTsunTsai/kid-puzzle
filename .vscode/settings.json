@@ -13,6 +13,11 @@
 	"files.eol": "\n",
 	"files.encoding": "utf8",
 	"cSpell.words": [
-		"voronoi"
+		"credentialless",
+		"precache",
+		"precaching",
+		"rsbuild",
+		"voronoi",
+		"workbox"
 	]
 }
