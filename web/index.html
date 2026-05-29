@@ -221,31 +221,68 @@
   <!-- 啟動 Flutter 前先註冊自製 service worker（取代 Flutter 內建的
        flutter_service_worker.js — 已棄用，build 時 --pwa-strategy=none）。
 
-       Service worker 會對 same-origin 回應補 COOP=same-origin /
-       COEP=credentialless headers，讓 window.crossOriginIsolated === true，
-       為未來 wasm renderer 鋪路。
+       SW 對 same-origin 回應補 COOP=same-origin / COEP=credentialless headers，
+       讓 window.crossOriginIsolated === true，為未來 wasm renderer 鋪路。
 
        Flow：
        1. 註冊 SW（首次進站會等它 activate）
-       2. 檢查 crossOriginIsolated
-          - true → 直接載入 flutter_bootstrap.js
-          - false → 強制重新整理：SW 已 active、reload 後所有 fetch 走 SW、
-                    headers 被補上 → isolated → 載入 Flutter
+       2. 判斷是否要嘗試 isolated：
+          - Safari（包含 iOS）→ 直接放棄、不檢查、不 reload。原因：實測
+            Safari 26.4 對「SW 注入 COOP/COEP 後 reload 進入 isolated」這條
+            路徑無法成立、會陷入無窮 reload（WebKit bug）。Safari 上 wasm
+            就跑單執行緒、不指望 isolated。
+          - 其它瀏覽器 → 檢查 crossOriginIsolated；true 載 Flutter、false reload
+       3. 兜底：sessionStorage 記 reload 次數，超過 2 次強制放棄、直接載 Flutter
+          以免任何未知 edge case 把使用者卡在 reload loop。
        不支援 SW 的環境（例如 in-app browser）直接跳過、繼續載入 Flutter。 -->
   <script>
     (function () {
+      var RELOAD_KEY = "__isolatedReloadCount";
+      var MAX_RELOADS = 2;
+
+      // sessionStorage 在隱私模式 / 嚴格隱私設定下 set/get 可能 throw；
+      // 任何 throw 都當作 0 / no-op，絕對不能讓 storage 問題阻斷 Flutter 載入。
+      function getReloadCount() {
+        try {
+          return parseInt(sessionStorage.getItem(RELOAD_KEY) || "0", 10) || 0;
+        } catch (_) { return 0; }
+      }
+      function setReloadCount(n) {
+        try { sessionStorage.setItem(RELOAD_KEY, String(n)); } catch (_) {}
+      }
+      function clearReloadCount() {
+        try { sessionStorage.removeItem(RELOAD_KEY); } catch (_) {}
+      }
+
       function loadFlutter() {
+        clearReloadCount(); // 成功載入就重置計數
         var s = document.createElement("script");
         s.src = "flutter_bootstrap.js";
         s.async = true;
         document.body.appendChild(s);
       }
+
+      // Safari / WebKit 偵測：UA 含 "Safari" 但不含 "Chrome" / "Chromium" /
+      // "Edg"（Chrome 系列在 Safari token 之外都會出現自己的標記）。
+      // iOS 上所有瀏覽器底層都是 WebKit、UA 也走 Safari 規則。
+      function isSafari() {
+        var ua = navigator.userAgent;
+        return /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
+      }
+
       if (!("serviceWorker" in navigator)) {
         loadFlutter();
         return;
       }
+
+      // 兜底：reload 過頭 → 放棄 isolated、直接載
+      var reloadCount = getReloadCount();
+      if (reloadCount >= MAX_RELOADS) {
+        loadFlutter();
+        return;
+      }
+
       navigator.serviceWorker.register("sw.js").then(function (reg) {
-        // 確保有 active 的 SW 才繼續判斷 isolated
         function whenActive() {
           if (reg.active) return Promise.resolve();
           return new Promise(function (resolve) {
@@ -257,16 +294,19 @@
           });
         }
         whenActive().then(function () {
+          // Safari：放棄 isolated、直接載（reload 也救不了）
+          if (isSafari()) {
+            loadFlutter();
+            return;
+          }
           if (window.crossOriginIsolated) {
             loadFlutter();
           } else {
-            // SW 已就緒但目前頁面是「SW active 之前」載入的、headers 沒被補。
-            // 重新整理一次讓所有 fetch 都走 SW；reload 後會走 isolated 分支。
+            setReloadCount(reloadCount + 1);
             window.location.reload();
           }
         });
       }).catch(function () {
-        // SW 註冊失敗（例如本地 file:// 開、或不支援的環境）→ 直接載 Flutter
         loadFlutter();
       });
     })();

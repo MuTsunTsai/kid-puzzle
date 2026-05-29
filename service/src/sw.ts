@@ -34,17 +34,42 @@ import { PRECACHE_MANIFEST } from "./precache-manifest.generated";
 
 declare const self: ServiceWorkerGlobalScope;
 
-// 對所有 Workbox handler 出來的 response 補 COOP/COEP headers。
+// 對所有 Workbox handler 出來的 response 補 COOP/COEP headers，並對 wasm
+// 回應額外處理 transfer encoding。
 //
 // 用 clone() 取 body 而非直接吃 `response.body`：實測現行 Workbox 兩種寫法
 // 都能 cache（hook 跑的順序顯然在寫 cache 之後），但 Response body 是
 // ReadableStream、只能讀一次，若日後 Workbox 內部順序變動、不 clone 就會
 // 踩 stream-already-consumed。clone 成本低、純保險。
+//
+// 對 application/wasm 的特殊處理：GitHub Pages 對 `.wasm` 強制加
+// `Content-Encoding: gzip`、不能關。瀏覽器拿到 gzipped wasm 雖然會自動解碼
+// body，但 `Content-Encoding: gzip` header 仍留在 Response 上，dart2wasm 的
+// `WebAssembly.compileStreaming` 在 chunk + dynamic linking 路徑下對這個 header
+// 異常敏感（症狀：runtime type metadata 對不上、Provider not found）。
+// canvaskit 的 MVP wasm 沒事是因為它走簡單初始化路徑。
+//
+// 解法：偵測 wasm → 把 body 用 arrayBuffer() 讀完（body 此時是 decoded
+// bytes）→ 回一個不帶 Content-Encoding 的新 Response。瀏覽器當 identity 處理。
 const headersPlugin: WorkboxPlugin = {
 	handlerWillRespond: async ({ response }) => {
 		const headers = new Headers(response.headers);
 		headers.set("Cross-Origin-Opener-Policy", "same-origin");
 		headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+
+		const isWasm = (headers.get("Content-Type") ?? "").includes("application/wasm");
+		if (isWasm) {
+			// body 已被瀏覽器自動 decode，arrayBuffer() 拿到的是 raw wasm bytes
+			const buf = await response.clone().arrayBuffer();
+			headers.delete("Content-Encoding");
+			headers.delete("Content-Length"); // 原值是 gzipped 長度、與 buf 不符
+			return new Response(buf, {
+				status: response.status,
+				statusText: response.statusText,
+				headers,
+			});
+		}
+
 		const clone = response.clone();
 		return new Response(clone.body, {
 			status: clone.status,
