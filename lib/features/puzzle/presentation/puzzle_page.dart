@@ -618,23 +618,44 @@ class _PuzzlePageState extends State<PuzzlePage> {
 		}
 	}
 
-	/// 是否該隱藏右上 X 按鈕：有任何拼片接近右上角區域時隱藏，避免拖曳誤觸。
+	/// 是否該隱藏右上 X 按鈕：拼片實際多邊形與 X 按鈕的圓形佔用區域重疊時隱藏。
+	///
+	/// X 按鈕（[LongPressProgressButton] size=96 + `Positioned(top:12, right:12)`）
+	/// 在 stage 座標系是一個半徑 48、圓心在 `(screen.width - 60, 60)` 的圓。
+	///
+	/// 判定方式：在圓內均勻取樣若干點 → 對每個點檢查是否落入任一未鎖定拼片的
+	/// `localPath`（與點選命中測試同一條 path）。任一點命中即視為重疊。
+	/// 用 sourceRect AABB 判定會在片數很高（每片很小、形狀不規則）時誤判
+	/// 「bbox 重疊但實際多邊形不重疊」、或反過來，採樣 + localPath 精準。
 	bool _shouldHideCloseButton() {
 		final PuzzleController? c = _controller;
 		if (c == null) return false;
 		final Size screen = MediaQuery.of(context).size;
-		// 右上「危險區」：包住 X 按鈕（top:12, right:12, ~64×64）加上 buffer。
-		const double dangerSize = 60;
-		final Rect dangerZone = Rect.fromLTWH(
-			screen.width - dangerSize,
-			0,
-			dangerSize,
-			dangerSize,
+		const double buttonRadius = 48; // size 96 / 2
+		final Offset buttonCenter = Offset(screen.width - 60, 60);
+		// AABB 粗篩用矩形（拼片 sourceRect 不與按鈕方框相交、不可能命中圓）
+		final Rect buttonBounds = Rect.fromCircle(
+			center: buttonCenter,
+			radius: buttonRadius,
 		);
+		// 圓內取樣：8 px 間距 → 約 100 個點，足以涵蓋常見最小拼片尺寸
+		const double step = 8;
+		final List<Offset> samples = <Offset>[];
+		for (double dy = -buttonRadius; dy <= buttonRadius; dy += step) {
+			for (double dx = -buttonRadius; dx <= buttonRadius; dx += step) {
+				if (dx * dx + dy * dy > buttonRadius * buttonRadius) continue;
+				samples.add(buttonCenter + Offset(dx, dy));
+			}
+		}
 		for (final PuzzlePiece p in c.layout.pieces) {
 			if (p.locked) continue;
-			final Rect pieceRect = p.currentPosition & p.sourceRect.size;
-			if (pieceRect.overlaps(dangerZone)) return true;
+			final Rect pieceBounds = p.currentPosition & p.sourceRect.size;
+			if (!pieceBounds.overlaps(buttonBounds)) continue; // AABB 粗篩
+			// 把採樣點反旋轉到 piece local 座標系後問 localPath
+			// （未啟用旋轉時等價於 `pos - currentPosition`）
+			for (final Offset s in samples) {
+				if (p.localPath.contains(c.unrotateForPiece(s, p))) return true;
+			}
 		}
 		return false;
 	}

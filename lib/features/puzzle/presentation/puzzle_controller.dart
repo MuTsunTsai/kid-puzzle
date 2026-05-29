@@ -473,6 +473,10 @@ class PuzzleController extends ChangeNotifier {
 	///   2) 減 currentPosition（回到 piece 局部）
 	///
 	/// 旋轉模式關閉或群組角度 = 0 時直接走原本的 `pos - currentPosition`，沒額外成本。
+	/// 把 stage 座標的點 [pos] 反旋轉回 [p] 的 local 座標系，方便用 localPath
+	/// 做命中測試。沒啟用 rotation（或該群組未旋轉）時等價於 `pos - currentPosition`。
+	ui.Offset unrotateForPiece(ui.Offset pos, PuzzlePiece p) => _unrotateForPiece(pos, p);
+
 	ui.Offset _unrotateForPiece(ui.Offset pos, PuzzlePiece p) {
 		final double rotDeg = rotationEnabled ? groupCurrentRotation(p.groupId) : 0.0;
 		if (rotDeg == 0.0) return pos - p.currentPosition;

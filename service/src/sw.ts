@@ -43,14 +43,21 @@ declare const self: ServiceWorkerGlobalScope;
 // 踩 stream-already-consumed。clone 成本低、純保險。
 //
 // 對 application/wasm 的特殊處理：GitHub Pages 對 `.wasm` 強制加
-// `Content-Encoding: gzip`、不能關。瀏覽器拿到 gzipped wasm 雖然會自動解碼
-// body，但 `Content-Encoding: gzip` header 仍留在 Response 上，dart2wasm 的
-// `WebAssembly.compileStreaming` 在 chunk + dynamic linking 路徑下對這個 header
-// 異常敏感（症狀：runtime type metadata 對不上、Provider not found）。
-// canvaskit 的 MVP wasm 沒事是因為它走簡單初始化路徑。
+// `Content-Encoding: gzip`、不能關。瀏覽器拿到 gzipped wasm 時：
+//   1. fetch 自動把 body decode 成原始 wasm bytes
+//   2. 但 `Content-Encoding: gzip` header 仍留在 Response 上
+// dart2wasm 的 `WebAssembly.compileStreaming` 在 chunk + dynamic linking
+// 路徑下對這個 header 異常敏感（症狀：runtime type metadata 對不上、
+// `Provider not found`、無窮 reload）。canvaskit 的 MVP wasm 沒事是因為
+// 它走簡單初始化路徑。
 //
-// 解法：偵測 wasm → 把 body 用 arrayBuffer() 讀完（body 此時是 decoded
-// bytes）→ 回一個不帶 Content-Encoding 的新 Response。瀏覽器當 identity 處理。
+// 解法：**只刪 header、body 直接以 ReadableStream forward**、不 await
+// arrayBuffer()。這樣 wasm streaming compile 可以與 fetch 並行進行
+// （首次載入省 100~300ms）；瀏覽器看到沒有 Content-Encoding 會當 identity
+// 處理、streaming compiler 走正常路徑。
+//
+// 注意：Content-Length 必須也刪掉 — 原值是 gzipped 長度（例如 1.1MB），
+// 跟 decoded body（例如 3MB）對不上，留著瀏覽器可能據此預估錯誤導致解析失敗。
 const headersPlugin: WorkboxPlugin = {
 	handlerWillRespond: async ({ response }) => {
 		const headers = new Headers(response.headers);
@@ -59,15 +66,10 @@ const headersPlugin: WorkboxPlugin = {
 
 		const isWasm = (headers.get("Content-Type") ?? "").includes("application/wasm");
 		if (isWasm) {
-			// body 已被瀏覽器自動 decode，arrayBuffer() 拿到的是 raw wasm bytes
-			const buf = await response.clone().arrayBuffer();
 			headers.delete("Content-Encoding");
-			headers.delete("Content-Length"); // 原值是 gzipped 長度、與 buf 不符
-			return new Response(buf, {
-				status: response.status,
-				statusText: response.statusText,
-				headers,
-			});
+			headers.delete("Content-Length");
+			// 與 non-wasm 同一條路徑：直接 stream forward、不 await
+			// arrayBuffer，保留 streaming 優勢。
 		}
 
 		const clone = response.clone();
