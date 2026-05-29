@@ -1,0 +1,53 @@
+# 手動觸發、只 build wasm、上傳 artifact 給本地 preview 除錯用。
+#
+# 用途：複製 deploy-web.yml 的環境（同 ubuntu / 同 flutter 版本 / 同 cache），
+# 改成 --wasm build、把 build/web/ 上傳成 artifact，不部署。
+# 開發者下載 artifact、解壓到本地、用 tools/preview.mjs 跑、確認 wasm 行為
+# 是否與正式環境一致 — 用來定位「本地 build 正常、CI build 壞」的差異。
+#
+# 啟動方式：GitHub UI → Actions → "Build WASM Artifact (debug)" → Run workflow
+# 不會自動跑、不會影響 https://mutsuntsai.github.io/kid-puzzle/。
+
+name: Build WASM Artifact (debug)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 與 deploy-web.yml 對齊：同樣的 flutter-version + 同樣的 dart_tool cache
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.44.0"
+          cache: true
+
+      - name: Cache .dart_tool
+        uses: actions/cache@v4
+        with:
+          path: .dart_tool
+          key: dart-tool-web-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            dart-tool-web-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 加 --wasm；其它 flag 與 deploy-web.yml 一致
+      - name: Build web (wasm)
+        run: flutter build web --wasm --release --pwa-strategy=none --base-href /kid-puzzle/
+
+      # 用 actions/upload-artifact 而非 upload-pages-artifact —— 後者強制走部署
+      # 流程；我們只要可以下載解壓的 zip。retention 7 天避免長期占用空間。
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-web-wasm
+          path: build/web
+          retention-days: 7
