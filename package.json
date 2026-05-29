@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"build:sw": "rsbuild build --config service/rsbuild.config.ts",
-		"build:web": "pnpm build:sw && flutter build web --no-wasm-dry-run --release --pwa-strategy=none --base-href /kid-puzzle/",
+		"build:web": "pnpm build:sw && flutter build web --wasm --release --pwa-strategy=none --base-href /kid-puzzle/",
 		"preview": "node tools/preview.mjs"
 	},
 	"devDependencies": {
