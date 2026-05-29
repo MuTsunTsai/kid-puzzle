@@ -47,7 +47,7 @@ jobs:
 
       # base-href 結尾必須有斜線；對應 repo 名稱 kid-puzzle
       - name: Build web
-        run: flutter build web --wasm --release --base-href /kid-puzzle/
+        run: flutter build web --no-wasm-dry-run --release --base-href /kid-puzzle/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
