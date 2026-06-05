@@ -211,7 +211,7 @@ class VoronoiCellPlanner extends CellPlanner {
 			bounds: innerBounds,
 		);
 		// 初始 polygons（從 Voronoi 取出）。後續合併會直接修改這個 list。
-		List<List<Offset>> polys =
+		final List<List<Offset>> polys =
 				vCells.map((VoronoiCell c) => List<Offset>.of(c.polygon)).toList();
 
 		// 合併策略：以「拼片大小盡量接近 targetArea」為導向。

@@ -71,7 +71,7 @@
        - 66%：engine 初始化完
        - 90%：runApp 已呼叫
        - 100%：flutter-first-frame + flutter-fonts-ready 都到 → 淡出 + remove */
-    html, body { margin: 0; padding: 0; height: 100%; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
     body {
       background: linear-gradient(135deg, #ff8a65, #ffd54f);
     }
@@ -131,7 +131,9 @@
     #unsupported-browser-notice {
       display: none;
       position: fixed;
-      inset: 0;
+      width: 100vw;
+      height: 100vh;
+	  height: 100dvh;
       background: #ff8a65;
       align-items: center;
       justify-content: center;
@@ -222,7 +224,7 @@
     <div class="card">
       <div class="icon">⚠️</div>
       <div class="title">瀏覽器版本過舊</div>
-      <div class="desc">本應用程式需要支援 WebAssembly streaming 編譯的瀏覽器。請升級至 Safari 15、Chrome 61、Firefox 58 或更新版本後再試。</div>
+      <div class="desc">本應用程式需要較新的瀏覽器才能執行。請升級至 Safari 16、Chrome 61、Firefox 65 或更新版本後再試。</div>
     </div>
   </div>
 
@@ -255,17 +257,41 @@
        不支援 SW 的環境（例如 in-app browser）直接跳過、繼續載入 Flutter。 -->
   <script>
     (function () {
-      // 1. Feature detect：太舊的瀏覽器（例如 Safari 14 以下）缺
-      //    WebAssembly.compileStreaming，Flutter web canvaskit / wasm renderer
-      //    都跑不起來。顯示提示遮罩、停止後續載入（含 SW 註冊與 spinner 更新）。
-      if (typeof WebAssembly === "undefined" ||
-          typeof WebAssembly.compileStreaming !== "function") {
+      // 1. Feature detect：缺以下任一者就視為過舊、顯示遮罩並停止後續載入
+      //    （含 SW 註冊與 spinner 更新）：
+      //    - WebAssembly.compileStreaming：Flutter web canvaskit / wasm
+      //      renderer 都需要（Safari 14 以下、其它類似世代瀏覽器沒有）
+      //    - webp 解碼：本專案內建資源有 webp 圖檔
+      //      （Safari 15 以下、Firefox 64 以下沒有原生解碼）
+      function showUnsupported() {
         var u = document.getElementById("unsupported-browser-notice");
         if (u) u.classList.add("show");
         var l = document.getElementById("loading");
         if (l) l.remove();
+      }
+      function detectWebp() {
+        return new Promise(function (resolve) {
+          var img = new Image();
+          img.onload = function () { resolve(img.width > 0 && img.height > 0); };
+          img.onerror = function () { resolve(false); };
+          // 1x1 lossy webp
+          img.src = "data:image/webp;base64,UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=";
+        });
+      }
+      var hasWasmStreaming =
+        typeof WebAssembly !== "undefined" &&
+        typeof WebAssembly.compileStreaming === "function";
+      if (!hasWasmStreaming) {
+        showUnsupported();
         return;
       }
+      detectWebp().then(function (ok) {
+        if (!ok) {
+          showUnsupported();
+          return;
+        }
+        startBootstrap();
+      });
 
       var RELOAD_KEY = "__isolatedReloadCount";
       var MAX_RELOADS = 2;
@@ -300,45 +326,58 @@
         return /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
       }
 
-      if (!("serviceWorker" in navigator)) {
-        loadFlutter();
-        return;
-      }
-
-      // 兜底：reload 過頭 → 放棄 isolated、直接載
-      var reloadCount = getReloadCount();
-      if (reloadCount >= MAX_RELOADS) {
-        loadFlutter();
-        return;
-      }
-
-      navigator.serviceWorker.register("sw.js").then(function (reg) {
-        function whenActive() {
-          if (reg.active) return Promise.resolve();
-          return new Promise(function (resolve) {
-            var sw = reg.installing || reg.waiting;
-            if (!sw) { resolve(); return; }
-            sw.addEventListener("statechange", function () {
-              if (sw.state === "activated") resolve();
-            });
-          });
+      function startBootstrap() {
+        if (!("serviceWorker" in navigator)) {
+          loadFlutter();
+          return;
         }
-        whenActive().then(function () {
-          // Safari：放棄 isolated、直接載（reload 也救不了）
-          if (isSafari()) {
-            loadFlutter();
-            return;
+
+        // Dev 模式（flutter run --web-port=49985）：不註冊 SW、且把之前殘留
+        // 的註冊 unregister 掉。否則 hot reload 後 main.dart.js 被 SW
+        // cache 攔截、永遠載回舊版，每次都要冷啟動兩次才看得到變更。
+        if (location.port === "49985") {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            for (var i = 0; i < regs.length; i++) regs[i].unregister();
+          }).catch(function () {});
+          loadFlutter();
+          return;
+        }
+
+        // 兜底：reload 過頭 → 放棄 isolated、直接載
+        var reloadCount = getReloadCount();
+        if (reloadCount >= MAX_RELOADS) {
+          loadFlutter();
+          return;
+        }
+
+        navigator.serviceWorker.register("sw.js").then(function (reg) {
+          function whenActive() {
+            if (reg.active) return Promise.resolve();
+            return new Promise(function (resolve) {
+              var sw = reg.installing || reg.waiting;
+              if (!sw) { resolve(); return; }
+              sw.addEventListener("statechange", function () {
+                if (sw.state === "activated") resolve();
+              });
+            });
           }
-          if (window.crossOriginIsolated) {
-            loadFlutter();
-          } else {
-            setReloadCount(reloadCount + 1);
-            window.location.reload();
-          }
+          whenActive().then(function () {
+            // Safari：放棄 isolated、直接載（reload 也救不了）
+            if (isSafari()) {
+              loadFlutter();
+              return;
+            }
+            if (window.crossOriginIsolated) {
+              loadFlutter();
+            } else {
+              setReloadCount(reloadCount + 1);
+              window.location.reload();
+            }
+          });
+        }).catch(function () {
+          loadFlutter();
         });
-      }).catch(function () {
-        loadFlutter();
-      });
+      }
     })();
   </script>
 </body>

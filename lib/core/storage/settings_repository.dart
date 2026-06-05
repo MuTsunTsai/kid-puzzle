@@ -20,8 +20,20 @@ class SettingsRepository {
 	static const String _kRotationEnabled = "rotationEnabled";
 	static const String _kScreenLockEnabled = "screenLockEnabled";
 	static const String _kAudioEnabled = "audioEnabled";
-	static const String _kTtsEnabled = "ttsEnabled";
+	/// Hive key 沿用 "ttsEnabled" 字面值（早期專案曾用 flutter_tts，後來改成
+	/// 預錄人聲）— 這條 raw string 不能改，否則使用者既有「語音」開關設定
+	/// 會被當成沒設過、套預設 true。對外 API 名稱都用 "voice" 系列。
+	static const String _kVoiceEnabled = "ttsEnabled";
 	static const String _kBigKidMode = "bigKidMode";
+
+	/// 嵌入拼圖：每關物件數範圍上下界。
+	static const String _kInsetMinPieces = "insetMinPieces";
+	static const String _kInsetMaxPieces = "insetMaxPieces";
+	/// 嵌入拼圖：是否允許剪影相似度高的物件出現在同一關。
+	/// 關閉（預設）→ 抽 item 時門檻 0.85、剪影差異要求嚴格；
+	/// 開啟 → 門檻放寬到 0.95、只擋「剪影幾乎完全相同」的少數對。
+	static const String _kInsetAllowSimilarSilhouette =
+			"insetAllowSimilarSilhouette";
 
 	/// 各畫面教學流程「最後看過的版本」存檔。
 	/// key 形如 "tutorialVersion.home"、"tutorialVersion.setup"。
@@ -45,7 +57,7 @@ class SettingsRepository {
 	bool get screenLockEnabled =>
 			(_box.get(_kScreenLockEnabled) as bool?) ?? false;
 	bool get audioEnabled => (_box.get(_kAudioEnabled) as bool?) ?? true;
-	bool get ttsEnabled => (_box.get(_kTtsEnabled) as bool?) ?? true;
+	bool get voiceEnabled => (_box.get(_kVoiceEnabled) as bool?) ?? true;
 
 	/// 「大朋友模式」開關。
 	///
@@ -113,6 +125,16 @@ class SettingsRepository {
 		}
 	}
 
+	/// 獨立更新「鎖定畫面」設定（兩個遊戲模式共用此 setting；嵌入拼圖 setup
+	/// 頁沒有跑 [saveSetupConfig]、需要單獨寫入）。
+	Future<void> setScreenLockEnabled(bool value) async {
+		try {
+			await _box.put(_kScreenLockEnabled, value);
+		} catch (e) {
+			debugPrint("SettingsRepository.setScreenLockEnabled failed: $e");
+		}
+	}
+
 	Future<void> setAudioEnabled(bool value) async {
 		try {
 			await _box.put(_kAudioEnabled, value);
@@ -121,11 +143,121 @@ class SettingsRepository {
 		}
 	}
 
-	Future<void> setTtsEnabled(bool value) async {
+	Future<void> setVoiceEnabled(bool value) async {
 		try {
-			await _box.put(_kTtsEnabled, value);
+			await _box.put(_kVoiceEnabled, value);
 		} catch (e) {
-			debugPrint("SettingsRepository.setTtsEnabled failed: $e");
+			debugPrint("SettingsRepository.setVoiceEnabled failed: $e");
+		}
+	}
+
+	/// 素材分類 / 子類別啟用狀態。
+	///
+	/// 編碼：`Map<String, bool>`，key 形如：
+	/// - `"zhuyin"`（分類本身）
+	/// - `"alphabet/uppercase"`（分類 alphabet 的 uppercase 子類別）
+	///
+	/// **三種狀態都要能區分**：
+	/// - key 不在 map 中 → 「使用者從未處理」→ 套預設規則
+	/// - key 對應 `true` → 「明確選取」
+	/// - key 對應 `false` → 「明確取消」（**不**重設為預設值）
+	///
+	/// 用 `Set<String>` 無法區分後兩種狀態 — 那是這個改版要解的痛點。
+	static const String _kEnabledSpriteSelections = "enabledSpriteSelections";
+
+	/// 舊版（v0.2.x）的 Set-based key；存在的話啟動時自動 migrate 到新 key
+	/// 後清除。
+	static const String _kEnabledSpriteSelectionsLegacy =
+			"enabledSpriteSelections_legacySet";
+
+	Map<String, bool> get spriteSelections {
+		final Object? raw = _box.get(_kEnabledSpriteSelections);
+		if (raw is Map) {
+			return <String, bool>{
+				for (final MapEntry<Object?, Object?> e in raw.entries)
+					if (e.key is String && e.value is bool) e.key as String: e.value as bool,
+			};
+		}
+		// 偵測舊版 Set-based 紀錄、in-memory migrate（沒寫回 box；下一次 toggle
+		// 會把新格式 persist 進去）。舊紀錄本身在 [_migrateLegacy] 改寫過後
+		// 就不會再走到這條。
+		final Object? legacy = _box.get(_kEnabledSpriteSelections);
+		if (legacy is List) {
+			return <String, bool>{
+				for (final Object? e in legacy)
+					if (e is String) e: true,
+			};
+		}
+		return const <String, bool>{};
+	}
+
+	/// 啟動時呼叫一次：把舊 `Set<String>` 結構轉成 `Map<String, bool>`。
+	/// 找不到舊資料時 no-op。
+	Future<void> migrateLegacySpriteSelections() async {
+		final Object? current = _box.get(_kEnabledSpriteSelections);
+		if (current is Map) return; // 已是新格式
+		if (current is! List) return; // 沒設定過 → 不用 migrate
+		final Map<String, bool> migrated = <String, bool>{
+			for (final Object? e in current)
+				if (e is String) e: true,
+		};
+		try {
+			await _box.put(_kEnabledSpriteSelections, migrated);
+			// 順便記一份 backup 給 debug 用（之後若無需可刪）
+			await _box.put(_kEnabledSpriteSelectionsLegacy, current);
+		} catch (e) {
+			debugPrint("SettingsRepository.migrateLegacySpriteSelections failed: $e");
+		}
+	}
+
+	Future<void> setSpriteSelections(Map<String, bool> selections) async {
+		try {
+			await _box.put(_kEnabledSpriteSelections, selections);
+		} catch (e) {
+			debugPrint("SettingsRepository.setSpriteSelections failed: $e");
+		}
+	}
+
+	/// 嵌入拼圖：每關物件數範圍下界（slider 範圍 2~12）。
+	/// 用 num 接 + toInt 是為了相容 web 端 Hive 序列化後可能變 double 的情況。
+	int get insetMinPieces {
+		final Object? raw = _box.get(_kInsetMinPieces);
+		if (raw is num) return raw.toInt();
+		return 4;
+	}
+
+	int get insetMaxPieces {
+		final Object? raw = _box.get(_kInsetMaxPieces);
+		if (raw is num) return raw.toInt();
+		return 8;
+	}
+
+	Future<void> setInsetPieceRange({
+		required int minPieces,
+		required int maxPieces,
+	}) async {
+		try {
+			await _box.putAll(<String, Object?>{
+				_kInsetMinPieces: minPieces,
+				_kInsetMaxPieces: maxPieces,
+			});
+		} catch (e) {
+			debugPrint("SettingsRepository.setInsetPieceRange failed: $e");
+		}
+	}
+
+	/// 嵌入拼圖：允許剪影相似度高的物件同關出現。預設 false。
+	bool get insetAllowSimilarSilhouette {
+		final Object? raw = _box.get(_kInsetAllowSimilarSilhouette);
+		return raw is bool ? raw : false;
+	}
+
+	Future<void> setInsetAllowSimilarSilhouette(bool value) async {
+		try {
+			await _box.put(_kInsetAllowSimilarSilhouette, value);
+		} catch (e) {
+			debugPrint(
+					"SettingsRepository.setInsetAllowSimilarSilhouette failed: $e");
 		}
 	}
 
@@ -149,6 +281,49 @@ class SettingsRepository {
 		} catch (e) {
 			debugPrint("SettingsRepository.setTutorialVersionSeen failed: $e");
 		}
+	}
+
+	/// 匯出用：把 settings box 內所有資料 dump 成純 JSON-friendly map。
+	///
+	/// 略過已知的 legacy / internal key（如 [_kEnabledSpriteSelectionsLegacy]），
+	/// 避免把過渡期的舊資料帶到備份檔。
+	Map<String, Object?> exportAll() {
+		const Set<String> skipKeys = <String>{
+			_kEnabledSpriteSelectionsLegacy,
+			_kLegacyCutMode,
+		};
+		final Map<String, Object?> out = <String, Object?>{};
+		for (final dynamic key in _box.keys) {
+			if (key is! String) continue;
+			if (skipKeys.contains(key)) continue;
+			final Object? value = _box.get(key);
+			// Hive 內可能是 Map<dynamic, dynamic> / List<dynamic>；遞迴轉成
+			// JSON-safe（key 全 String）。
+			out[key] = _toJsonSafe(value);
+		}
+		return out;
+	}
+
+	/// 匯入用：整批覆蓋 settings box。
+	///
+	/// 注意：**會先 clear box** 再 putAll。匯入後等於完全替換、舊設定全沒了
+	/// （tutorialVersion.* 也一起換）。
+	Future<void> importAll(Map<String, Object?> data) async {
+		await _box.clear();
+		await _box.putAll(data);
+	}
+
+	static Object? _toJsonSafe(Object? v) {
+		if (v == null || v is bool || v is num || v is String) return v;
+		if (v is List) return v.map<Object?>(_toJsonSafe).toList();
+		if (v is Map) {
+			return <String, Object?>{
+				for (final MapEntry<Object?, Object?> e in v.entries)
+					if (e.key is String) e.key as String: _toJsonSafe(e.value),
+			};
+		}
+		// 其它型別（理論上不會出現）→ 轉成字串、保證可序列化
+		return v.toString();
 	}
 
 	/// 清掉所有教學畫面的「已看過」紀錄，下次開對應畫面會重新播放教學。

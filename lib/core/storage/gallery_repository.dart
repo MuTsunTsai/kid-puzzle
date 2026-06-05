@@ -224,6 +224,155 @@ class GalleryRepository extends ChangeNotifier {
 		notifyListeners();
 	}
 
+	/// 匯出用：列出所有自訂套（不含內建套）+ 內建套的 enabled 狀態。
+	///
+	/// 回傳結構讓備份服務直接寫成 JSON 用：
+	/// ```
+	/// {
+	///   "builtinEnabled": true,
+	///   "userSets": [
+	///     {"id": "...", "name": "...", "enabled": true, "imageIds": ["..."]}
+	///   ]
+	/// }
+	/// ```
+	Map<String, Object?> exportMeta() {
+		final List<Map<String, Object?>> userRaw = _sets
+				.where((GallerySet s) => !s.builtin)
+				.map((GallerySet s) => s.toJson())
+				.toList();
+		return <String, Object?>{
+			"builtinEnabled":
+					(_metaBox.get(_kBuiltinEnabled) as bool?) ?? true,
+			"userSets": userRaw,
+		};
+	}
+
+	/// 匯出用：依 imageId 取 bytes。找不到回 null。
+	Uint8List? exportImageBytes(String imageId) => _imagesBox.get(imageId);
+
+	/// 匯入：覆蓋模式。把所有自訂套清掉、再依 [userSets] 重建。
+	///
+	/// [userSets] 每筆要有 `id` / `name` / `enabled` / `imageIds`，
+	/// `imageIds` 內的 id 必須能從 [imageBytesProvider] 取到 bytes（取不到的
+	/// 圖會被跳過、整套若全部圖都拿不到、仍會保留為空套）。
+	Future<void> importReplace({
+		required bool builtinEnabled,
+		required List<Map<String, Object?>> userSets,
+		required Uint8List? Function(String imageId) imageBytesProvider,
+	}) async {
+		// 清掉現有自訂套的所有圖 bytes
+		final List<String> currentImageIds = <String>[];
+		for (final GallerySet s in _sets) {
+			if (!s.builtin) currentImageIds.addAll(s.imageIds);
+		}
+		if (currentImageIds.isNotEmpty) {
+			await _imagesBox.deleteAll(currentImageIds);
+		}
+		await _metaBox.put(_kBuiltinEnabled, builtinEnabled);
+
+		// 重建自訂套：圖 id 用新 UUID 寫入、不沿用備份檔內的 id（避免跟其他
+		// 來源衝突）。
+		final List<GallerySet> rebuilt = <GallerySet>[];
+		for (final Map<String, Object?> raw in userSets) {
+			final String name = (raw["name"] as String?)?.trim() ?? "自訂圖庫";
+			final bool enabled = (raw["enabled"] as bool?) ?? true;
+			final List<dynamic> rawIds =
+					(raw["imageIds"] as List<dynamic>?) ?? const <dynamic>[];
+			final List<String> newImageIds = <String>[];
+			for (final dynamic idRaw in rawIds) {
+				if (idRaw is! String) continue;
+				final Uint8List? bytes = imageBytesProvider(idRaw);
+				if (bytes == null) continue;
+				final String newId = _uuid.v4();
+				await _imagesBox.put(newId, bytes);
+				newImageIds.add(newId);
+			}
+			rebuilt.add(GallerySet(
+				id: _uuid.v4(),
+				name: name.isEmpty ? "自訂圖庫" : name,
+				enabled: enabled,
+				builtin: false,
+				assetPaths: const <String>[],
+				imageIds: newImageIds,
+			));
+		}
+
+		_sets = <GallerySet>[
+			_sets.firstWhere(
+				(GallerySet s) => s.builtin,
+				orElse: () => GallerySet(
+					id: GallerySet.builtinId,
+					name: GallerySet.builtinName,
+					enabled: builtinEnabled,
+					builtin: true,
+					assetPaths: const <String>[],
+					imageIds: const <String>[],
+				),
+			).copyWith(enabled: builtinEnabled),
+			...rebuilt,
+		];
+		await _persistUserSets();
+		notifyListeners();
+	}
+
+	/// 匯入：新增模式。依名稱 trim 後完全相符匹配：
+	/// - 名稱已存在於現有自訂套 → 圖追加到該套
+	/// - 名稱不存在 → 整套新增
+	/// 內建套的 enabled 不動。
+	Future<void> importMerge({
+		required List<Map<String, Object?>> userSets,
+		required Uint8List? Function(String imageId) imageBytesProvider,
+	}) async {
+		final Map<String, GallerySet> existingByName = <String, GallerySet>{
+			for (final GallerySet s in _sets)
+				if (!s.builtin) s.name.trim(): s,
+		};
+		for (final Map<String, Object?> raw in userSets) {
+			final String name = ((raw["name"] as String?) ?? "自訂圖庫").trim();
+			final String resolvedName = name.isEmpty ? "自訂圖庫" : name;
+			final List<dynamic> rawIds =
+					(raw["imageIds"] as List<dynamic>?) ?? const <dynamic>[];
+
+			// 先把這套要追加的 bytes 全部寫進 images box、拿到新 uuid list
+			final List<String> newImageIds = <String>[];
+			for (final dynamic idRaw in rawIds) {
+				if (idRaw is! String) continue;
+				final Uint8List? bytes = imageBytesProvider(idRaw);
+				if (bytes == null) continue;
+				final String newId = _uuid.v4();
+				await _imagesBox.put(newId, bytes);
+				newImageIds.add(newId);
+			}
+
+			final GallerySet? existing = existingByName[resolvedName];
+			if (existing != null) {
+				// 合併到既有套
+				_sets = _sets.map((GallerySet s) {
+					if (s.id == existing.id) {
+						return s.copyWith(
+							imageIds: <String>[...s.imageIds, ...newImageIds],
+						);
+					}
+					return s;
+				}).toList();
+			} else {
+				// 新增套
+				final GallerySet created = GallerySet(
+					id: _uuid.v4(),
+					name: resolvedName,
+					enabled: (raw["enabled"] as bool?) ?? true,
+					builtin: false,
+					assetPaths: const <String>[],
+					imageIds: newImageIds,
+				);
+				_sets = <GallerySet>[..._sets, created];
+				existingByName[resolvedName] = created;
+			}
+		}
+		await _persistUserSets();
+		notifyListeners();
+	}
+
 	Future<void> _persistUserSets() async {
 		final List<Map<String, Object?>> raw = _sets
 				.where((GallerySet s) => !s.builtin)

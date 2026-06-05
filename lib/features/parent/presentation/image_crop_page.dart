@@ -10,11 +10,57 @@ import "../../../shared/widgets/click_sound.dart";
 
 /// 進入 [ImageCropPage] 的引數。
 class ImageCropArguments {
-	const ImageCropArguments({required this.sourceBytes});
+	const ImageCropArguments({
+		required this.sourceBytes,
+		this.batchInfo,
+	});
 
 	/// 原始圖 bytes（任何 [img.decodeImage] 接受的格式）。
 	final Uint8List sourceBytes;
+
+	/// 批次匯入時的進度資訊（如「3 / 8」）。
+	/// 非 null 時 AppBar 會顯示進度、左下角會多一個「停止匯入」按鈕、
+	/// pop 回去時用 [CropPageResult.abort] 表示「停止後續所有檔案」。
+	final ImageCropBatchInfo? batchInfo;
 }
+
+/// 多檔批次匯入時、傳給 [ImageCropPage] 的進度與控制旗標。
+class ImageCropBatchInfo {
+	const ImageCropBatchInfo({
+		required this.indexFromOne,
+		required this.total,
+	});
+
+	/// 目前是第幾張（1-based、給人看的）。
+	final int indexFromOne;
+
+	/// 總共幾張。
+	final int total;
+}
+
+/// [ImageCropPage] 的 pop 結果。三態：
+/// - 成功 → [bytes] != null 的 [cropped]
+/// - 跳過（取消當前一張、繼續處理後面）→ [skipped]（也是系統返回的預設語意）
+/// - 全部中止（多檔模式下的左下「停止匯入」鈕）→ [aborted]
+class CropPageResult {
+	const CropPageResult._({required this.kind, this.bytes});
+
+	final CropPageResultKind kind;
+	final Uint8List? bytes;
+
+	bool get isCropped => kind == CropPageResultKind.cropped;
+	bool get isAborted => kind == CropPageResultKind.aborted;
+	bool get isSkipped => kind == CropPageResultKind.skipped;
+
+	static CropPageResult cropped(Uint8List b) =>
+			CropPageResult._(kind: CropPageResultKind.cropped, bytes: b);
+	static const CropPageResult skipped =
+			CropPageResult._(kind: CropPageResultKind.skipped);
+	static const CropPageResult aborted =
+			CropPageResult._(kind: CropPageResultKind.aborted);
+}
+
+enum CropPageResultKind { cropped, skipped, aborted }
 
 /// 自製 4:3 裁切頁。
 ///
@@ -89,12 +135,16 @@ class _ImageCropPageState extends State<ImageCropPage> {
 
 	@override
 	Widget build(BuildContext context) {
+		final ImageCropBatchInfo? batch = _batchInfo;
+		final String titleText = batch == null
+				? CropStrings.title
+				: "${CropStrings.title} (${batch.indexFromOne} / ${batch.total})";
 		return Scaffold(
 			backgroundColor: Colors.black,
 			appBar: AppBar(
 				backgroundColor: Colors.black,
 				foregroundColor: Colors.white,
-				title: const Text(CropStrings.title),
+				title: Text(titleText),
 				actions: <Widget>[
 					TextButton(
 						onPressed: _processing
@@ -253,6 +303,46 @@ class _ImageCropPageState extends State<ImageCropPage> {
 					),
 				),
 
+				// 批次模式：左下角「停止匯入」鈕。pop CropPageResult.aborted
+				// 讓上層整批中止後續所有檔案的處理。
+				if (_batchInfo != null && !_processing)
+					Positioned(
+						left: 12,
+						bottom: 12,
+						child: Material(
+							color: Colors.black54,
+							borderRadius: BorderRadius.circular(20),
+							child: InkWell(
+								borderRadius: BorderRadius.circular(20),
+								onTap: ClickSound.wrap(
+									context,
+									() => Navigator.of(context)
+											.pop(CropPageResult.aborted),
+								),
+								child: Padding(
+									padding: const EdgeInsets.symmetric(
+											horizontal: 14, vertical: 10),
+									child: Row(
+										mainAxisSize: MainAxisSize.min,
+										children: const <Widget>[
+											Icon(Icons.stop_circle_outlined,
+													color: Colors.white, size: 20),
+											SizedBox(width: 6),
+											Text(
+												CropStrings.stopBatch,
+												style: TextStyle(
+													color: Colors.white,
+													fontSize: 14,
+													fontWeight: FontWeight.w600,
+												),
+											),
+										],
+									),
+								),
+							),
+						),
+					),
+
 				if (_processing)
 					const Positioned.fill(
 						child: ColoredBox(
@@ -393,7 +483,14 @@ class _ImageCropPageState extends State<ImageCropPage> {
 			);
 			return;
 		}
-		Navigator.of(context).pop(out);
+		Navigator.of(context).pop(CropPageResult.cropped(out));
+	}
+
+	/// 取當前批次資訊（若有）。
+	ImageCropBatchInfo? get _batchInfo {
+		final Object? args = ModalRoute.of(context)?.settings.arguments;
+		if (args is ImageCropArguments) return args.batchInfo;
+		return null;
 	}
 }
 

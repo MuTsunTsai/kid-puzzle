@@ -1,4 +1,5 @@
-import "package:flutter/foundation.dart";
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
@@ -10,6 +11,7 @@ import "../../../core/routing/app_router.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../shared/widgets/click_sound.dart";
 import "../../../shared/widgets/tutorial_bubble.dart";
+import "../../shared/screen_lock_option.dart";
 import "../domain/services/cell_planner.dart";
 import "../puzzle_dimens.dart";
 
@@ -81,12 +83,12 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 			_tutorialCutModeKey,
 		];
 		_showcase.startShowCase(sequence);
-		repo.setTutorialVersionSeen("puzzleSetup", _setupTutorialVersion);
+		unawaited(
+				repo.setTutorialVersionSeen("puzzleSetup", _setupTutorialVersion));
 	}
 
 	/// 只有 Android 才顯示「鎖定畫面」選項。
-	bool get _showScreenLockOption =>
-			!kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+	bool get _showScreenLockOption => showScreenLockOption;
 
 	// 範圍與步進依「大朋友模式」切換：
 	// - 一般：2 ~ 30，step 1
@@ -449,7 +451,7 @@ class _OptionsCard extends StatelessWidget {
 					children: <Widget>[
 						wrap(
 							wrapShowHintRow,
-							_OptionCheckRow(
+							OptionCheckRow(
 								label: SetupStrings.showHintLabel,
 								value: showHint,
 								onChanged: onShowHintChanged,
@@ -457,7 +459,7 @@ class _OptionsCard extends StatelessWidget {
 						),
 						wrap(
 							wrapRotationRow,
-							_OptionCheckRow(
+							OptionCheckRow(
 								label: SetupStrings.rotationLabel,
 								value: rotation,
 								onChanged: onRotationChanged,
@@ -466,7 +468,7 @@ class _OptionsCard extends StatelessWidget {
 						if (showScreenLockOption)
 							wrap(
 								wrapScreenLockRow,
-								_OptionCheckRow(
+								OptionCheckRow(
 									label: SetupStrings.screenLockLabel,
 									value: screenLock,
 									onChanged: onScreenLockChanged,
@@ -604,44 +606,3 @@ class PuzzleArguments {
 	final bool bigKidMode;
 }
 
-/// Setup card 內的 checkbox + 文字一行 UI，整行可點。
-class _OptionCheckRow extends StatelessWidget {
-	const _OptionCheckRow({
-		required this.label,
-		required this.value,
-		required this.onChanged,
-	});
-
-	final String label;
-	final bool value;
-	final ValueChanged<bool> onChanged;
-
-	@override
-	Widget build(BuildContext context) {
-		return InkWell(
-			borderRadius: BorderRadius.circular(8),
-			onTap: () => onChanged(!value),
-			child: Padding(
-				padding: const EdgeInsets.fromLTRB(0, 4, 8, 4),
-				child: Row(
-					mainAxisSize: MainAxisSize.min,
-					children: <Widget>[
-						Checkbox(
-							value: value,
-							onChanged: (bool? v) => onChanged(v ?? false),
-						),
-						const SizedBox(width: 4),
-						Text(
-							label,
-							style: const TextStyle(
-								fontSize: 18,
-								fontWeight: FontWeight.w600,
-								color: Colors.black87,
-							),
-						),
-					],
-				),
-			),
-		);
-	}
-}

@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 
@@ -7,11 +9,12 @@ import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
+import "../../../core/sprites/sprite_registry.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../core/system/interop.dart";
 import "../../../shared/widgets/click_sound.dart";
 
-/// 家長區首頁：音效 / TTS 開關，以及圖庫入口（M8 之後）。
+/// 家長區首頁：音效 / 語音 開關，以及圖庫入口（M8 之後）。
 ///
 /// 必須先通過 [ParentalLockDialog] 才能進來；本頁不再加鎖。
 class ParentHomePage extends StatefulWidget {
@@ -23,7 +26,7 @@ class ParentHomePage extends StatefulWidget {
 
 class _ParentHomePageState extends State<ParentHomePage> {
 	bool _audioEnabled = true;
-	bool _ttsEnabled = true;
+	bool _voiceEnabled = true;
 	bool _bigKidMode = false;
 	bool _loaded = false;
 
@@ -35,7 +38,7 @@ class _ParentHomePageState extends State<ParentHomePage> {
 		final SettingsRepository repo = context.read<SettingsRepository>();
 		setState(() {
 			_audioEnabled = repo.audioEnabled;
-			_ttsEnabled = repo.ttsEnabled;
+			_voiceEnabled = repo.voiceEnabled;
 			_bigKidMode = repo.bigKidMode;
 		});
 	}
@@ -57,6 +60,16 @@ class _ParentHomePageState extends State<ParentHomePage> {
 						children: <Widget>[
 							_SectionTitle(text: ParentStrings.sectionContent),
 							ListTile(
+								leading: const Icon(Icons.category_outlined),
+								title: const Text(ParentStrings.sprites),
+								subtitle: const Text(ParentStrings.spritesSubtitle),
+								trailing: const Icon(Icons.chevron_right),
+								onTap: ClickSound.wrap(
+									context,
+									() => Navigator.of(context).pushNamed(AppRoutes.parentSprites),
+								),
+							),
+							ListTile(
 								leading: const Icon(Icons.collections),
 								title: const Text(ParentStrings.gallery),
 								subtitle: const Text(ParentStrings.gallerySubtitle),
@@ -65,6 +78,18 @@ class _ParentHomePageState extends State<ParentHomePage> {
 									context,
 									() => Navigator.of(context).pushNamed(AppRoutes.parentGallery),
 								),
+							),
+							SwitchListTile(
+								secondary: const Icon(Icons.escalator_warning),
+								title: const Text(ParentStrings.bigKidMode),
+								subtitle: const Text(ParentStrings.bigKidModeSubtitle),
+								value: _bigKidMode,
+								onChanged: (bool v) {
+									setState(() => _bigKidMode = v);
+									context.read<SettingsRepository>().setBigKidMode(v);
+									AnalyticsService.instance
+											.logBigKidModeToggled(enabled: v);
+								},
 							),
 							const Divider(),
 							_SectionTitle(text: ParentStrings.sectionSystem),
@@ -83,24 +108,23 @@ class _ParentHomePageState extends State<ParentHomePage> {
 								secondary: const Icon(Icons.record_voice_over),
 								title: const Text(ParentStrings.voice),
 								subtitle: const Text(ParentStrings.voiceSubtitle),
-								value: _ttsEnabled,
+								value: _voiceEnabled,
 								onChanged: (bool v) {
-									setState(() => _ttsEnabled = v);
+									setState(() => _voiceEnabled = v);
 									context.read<VoiceService>().enabled = v;
-									context.read<SettingsRepository>().setTtsEnabled(v);
+									context.read<SpriteRegistry>().voiceEnabled = v;
+									context.read<SettingsRepository>().setVoiceEnabled(v);
 								},
 							),
-							SwitchListTile(
-								secondary: const Icon(Icons.escalator_warning),
-								title: const Text(ParentStrings.bigKidMode),
-								subtitle: const Text(ParentStrings.bigKidModeSubtitle),
-								value: _bigKidMode,
-								onChanged: (bool v) {
-									setState(() => _bigKidMode = v);
-									context.read<SettingsRepository>().setBigKidMode(v);
-									AnalyticsService.instance
-											.logBigKidModeToggled(enabled: v);
-								},
+							ListTile(
+								leading: const Icon(Icons.save_alt),
+								title: const Text(ParentStrings.backup),
+								subtitle: const Text(ParentStrings.backupSubtitle),
+								trailing: const Icon(Icons.chevron_right),
+								onTap: ClickSound.wrap(
+									context,
+									() => Navigator.of(context).pushNamed(AppRoutes.parentBackup),
+								),
 							),
 							ListTile(
 								leading: const Icon(Icons.school_outlined),
@@ -154,7 +178,7 @@ class _ParentHomePageState extends State<ParentHomePage> {
 		);
 		if (confirmed != true) return;
 		if (!mounted) return;
-		AnalyticsService.instance.logResetTutorials();
+		unawaited(AnalyticsService.instance.logResetTutorials());
 		final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
 		await context.read<SettingsRepository>().resetAllTutorials();
 		if (!mounted) return;

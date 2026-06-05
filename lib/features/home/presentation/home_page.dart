@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
@@ -109,7 +111,8 @@ class _HomePageState extends State<HomePage> with RouteAware {
 		_showcase.startShowCase(steps);
 		// 不等使用者真的看完，直接記為「已看過」— 避免使用者中途離開又每次都被
 		// 強塞同一輪教學。要重看請從家長區提供入口（後續實作）。
-		repo.setTutorialVersionSeen("home", HomePage._homeTutorialVersion);
+		unawaited(
+				repo.setTutorialVersionSeen("home", HomePage._homeTutorialVersion));
 	}
 
 	@override
@@ -147,24 +150,40 @@ class _HomePageState extends State<HomePage> with RouteAware {
 									),
 								),
 							),
-							// 中央：大「開始」按鈕
+							// 中央：兩個模式按鈕（嵌入拼圖 / 多片拼圖），左右並排。
+							// 教學氣泡仍掛在「多片拼圖」這顆上，沿用既有 startTutorial 文案
+							// （首版教學只介紹多片拼圖；嵌入拼圖之後再加 step）。
 							Center(
-								child: Showcase.withWidget(
-									key: _startKey,
-									container: TutorialBubble(
-										text: HomeStrings.startTutorial,
-										onTap: _showcase.next,
-									),
-									child: _StartButton(
-										onPressed: () async {
-											// Web 手機瀏覽器：在 user gesture handler 內請求全螢幕 + 鎖橫向。
-											// 必須在 pushNamed 之前 await，否則 gesture context 已過期、瀏覽器會拒。
-											// 非手機 / 非 web 平台一律 no-op。
-											await requestFullscreenLandscape();
-											if (!context.mounted) return;
-											Navigator.of(context).pushNamed(AppRoutes.puzzleSetup);
-										},
-									),
+								child: Row(
+									mainAxisSize: MainAxisSize.min,
+									children: <Widget>[
+										_StartButton(
+											label: HomeStrings.startInsetPuzzle,
+											onPressed: () async {
+												await requestFullscreenLandscape();
+												if (!context.mounted) return;
+												unawaited(Navigator.of(context)
+														.pushNamed(AppRoutes.insetPuzzleSetup));
+											},
+										),
+										const SizedBox(width: 24),
+										Showcase.withWidget(
+											key: _startKey,
+											container: TutorialBubble(
+												text: HomeStrings.startTutorial,
+												onTap: _showcase.next,
+											),
+											child: _StartButton(
+												label: HomeStrings.startMultiPuzzle,
+												onPressed: () async {
+													await requestFullscreenLandscape();
+													if (!context.mounted) return;
+													unawaited(Navigator.of(context)
+															.pushNamed(AppRoutes.puzzleSetup));
+												},
+											),
+										),
+									],
 								),
 							),
 							// 底部標題
@@ -229,8 +248,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
 }
 
 class _StartButton extends StatelessWidget {
-	const _StartButton({required this.onPressed});
+	const _StartButton({required this.label, required this.onPressed});
 
+	final String label;
 	final VoidCallback onPressed;
 
 	@override
@@ -240,16 +260,16 @@ class _StartButton extends StatelessWidget {
 			style: ElevatedButton.styleFrom(
 				backgroundColor: Colors.white,
 				foregroundColor: AppColors.primary,
-				padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 24),
+				padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
 				shape: RoundedRectangleBorder(
 					borderRadius: BorderRadius.circular(48),
 				),
 				elevation: 8,
 			),
-			child: const Text(
-				HomeStrings.startButton,
-				style: TextStyle(
-					fontSize: 32,
+			child: Text(
+				label,
+				style: const TextStyle(
+					fontSize: 28,
 					fontWeight: FontWeight.bold,
 				),
 			),

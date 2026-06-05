@@ -5,7 +5,7 @@ import "package:provider/provider.dart";
 
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/ui_strings.dart";
-import "../../../core/network/builtin_image_cache.dart";
+import "../../../core/network/background_asset_cache.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/storage/gallery_repository.dart";
 import "../../../shared/models/gallery_set.dart";
@@ -129,8 +129,8 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 								],
 							),
 						)
-					: Consumer<BuiltinImageCache>(
-							builder: (BuildContext ctx, BuiltinImageCache cache, _) {
+					: Consumer<BackgroundAssetCache>(
+							builder: (BuildContext ctx, BackgroundAssetCache cache, _) {
 								return GridView.builder(
 									padding: const EdgeInsets.all(8),
 									gridDelegate:
@@ -190,40 +190,83 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 
 	Future<void> _onAddImages(BuildContext context, String setId) async {
 		try {
-			// 1. picker 選原圖
+			// 1. picker：一次選多張
 			final ImagePicker picker = ImagePicker();
-			debugPrint("[gallery] pickImage start");
-			final XFile? picked =
-					await picker.pickImage(source: ImageSource.gallery);
-			debugPrint("[gallery] pickImage returned: ${picked?.path}");
-			if (picked == null) return;
+			debugPrint("[gallery] pickMultiImage start");
+			final List<XFile> picked = await picker.pickMultiImage();
+			debugPrint("[gallery] pickMultiImage returned ${picked.length} file(s)");
+			if (picked.isEmpty) return;
 			if (!context.mounted) return;
 
-			// 2. 讀 bytes
-			final Uint8List sourceBytes = await picked.readAsBytes();
-			debugPrint("[gallery] read ${sourceBytes.length} bytes");
-			if (!context.mounted) return;
+			final int total = picked.length;
+			int saved = 0;
+			int skipped = 0;
+			bool aborted = false;
 
-			// 3. 進自製裁切頁。裁切頁回傳壓縮好的 JPEG bytes（4:3、長邊 ≤ 1600）。
-			// 不走 named route，因為 routes map 註冊的是 MaterialPageRoute<dynamic>,
-			// 無法強轉到 MaterialPageRoute<Uint8List?> — 直接 push 一個正確泛型的 route。
-			final Uint8List? cropped =
-					await Navigator.of(context).push<Uint8List>(
-				MaterialPageRoute<Uint8List>(
-					builder: (_) => const ImageCropPage(),
-					settings: RouteSettings(
-						name: AppRoutes.parentImageCrop,
-						arguments:
-								ImageCropArguments(sourceBytes: sourceBytes),
+			// 2. 對每張依序：讀 bytes → 推進裁切頁 → 看結果
+			for (int i = 0; i < picked.length; i++) {
+				if (!context.mounted) return;
+				final XFile file = picked[i];
+				final Uint8List sourceBytes;
+				try {
+					sourceBytes = await file.readAsBytes();
+				} catch (e) {
+					debugPrint("[gallery] readAsBytes failed for ${file.path}: $e");
+					skipped++;
+					continue;
+				}
+				if (!context.mounted) return;
+
+				final CropPageResult? result =
+						await Navigator.of(context).push<CropPageResult>(
+					MaterialPageRoute<CropPageResult>(
+						builder: (_) => const ImageCropPage(),
+						settings: RouteSettings(
+							name: AppRoutes.parentImageCrop,
+							arguments: ImageCropArguments(
+								sourceBytes: sourceBytes,
+								batchInfo: total > 1
+										? ImageCropBatchInfo(
+												indexFromOne: i + 1,
+												total: total,
+											)
+										: null,
+							),
+						),
 					),
-				),
-			);
-			debugPrint("[gallery] crop returned: ${cropped?.length} bytes");
-			if (cropped == null) return;
-			if (!context.mounted) return;
+				);
+				if (!context.mounted) return;
+				if (result == null || result.isSkipped) {
+					// 系統返回 = 跳過這張、繼續下一張
+					skipped++;
+					continue;
+				}
+				if (result.isAborted) {
+					// 左下「停止匯入」鈕 → 中止整個流程
+					aborted = true;
+					break;
+				}
+				final Uint8List? bytes = result.bytes;
+				if (bytes == null) {
+					skipped++;
+					continue;
+				}
+				await context.read<GalleryRepository>().addImageToSet(setId, bytes);
+				saved++;
+			}
 
-			// 4. 存進 repo
-			await context.read<GalleryRepository>().addImageToSet(setId, cropped);
+			if (!context.mounted) return;
+			if (total > 1 || aborted) {
+				final String msg = aborted
+						? "${GalleryDetailStrings.batchAbortedPrefix}$saved"
+								"${GalleryDetailStrings.batchSavedSuffix}"
+						: "${GalleryDetailStrings.batchDonePrefix}$saved"
+								"${GalleryDetailStrings.batchSavedSuffix}"
+								"${skipped > 0 ? "${GalleryDetailStrings.batchSkippedSeparator}$skipped${GalleryDetailStrings.batchSkippedSuffix}" : ""}";
+				ScaffoldMessenger.of(context).showSnackBar(
+					SnackBar(content: Text(msg)),
+				);
+			}
 		} catch (e, st) {
 			debugPrint("[gallery] _onAddImages failed: $e\n$st");
 			if (context.mounted) {
@@ -245,7 +288,7 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 		List<String> keys,
 		int initialIndex,
 		bool builtin,
-		BuiltinImageCache cache,
+		BackgroundAssetCache cache,
 	) {
 		// 內建套且斷網時，把「未下載」的圖從預覽序列排除（chevron 與 PageView
 		// 都不該看到它們）。自訂套不受影響。

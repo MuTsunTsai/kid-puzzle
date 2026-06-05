@@ -17,6 +17,8 @@ class HomeStrings {
 
 	static const String appTitle = "幼兒益智遊戲";
 	static const String startButton = "開始拼圖";
+	static const String startInsetPuzzle = "嵌入拼圖";
+	static const String startMultiPuzzle = "多片拼圖";
 
 	// 教學 ----
 	static const String welcomeMessage = "歡迎來到《幼兒益智遊戲》！"
@@ -96,11 +98,16 @@ class ParentStrings {
 
 	static const String gallery = "圖庫管理";
 	static const String gallerySubtitle = "一套一套組織內建與自訂圖庫";
+	static const String sprites = "素材管理";
+	static const String spritesSubtitle = "選擇遊戲中使用的素材分類";
+	static const String spritesDetailTitle = "預覽素材";
+	static const String spritesNoneSelected =
+			"目前沒有勾選任何分類，使用素材的遊戲將無法進行";
 
 	static const String audio = "音效";
 	static const String audioSubtitle = "點擊、拖曳、過關等";
 	static const String voice = "語音提示";
-	static const String voiceSubtitle = "進關卡 / 過關的鼓勵";
+	static const String voiceSubtitle = "素材名稱朗讀、以及關卡進入 / 過關鼓勵";
 
 	static const String resetTutorial = "重新觀看教學";
 	static const String resetTutorialSubtitle = "清除所有教學的「已看過」紀錄";
@@ -119,6 +126,37 @@ class ParentStrings {
 	static const String tipJar = "請作者喝咖啡";
 	static const String tipJarSubtitle = "自由打賞～";
 	static const String tipJarUrl = "https://buymeacoffee.com/mutsuntsai";
+
+	// 設定備份 ----
+	static const String backup = "設定備份";
+	static const String backupSubtitle = "匯出 / 匯入所有設定與自訂圖庫";
+	static const String backupTitle = "設定備份";
+	static const String backupExport = "匯出設定";
+	static const String backupExportSubtitle =
+			"把目前的所有設定與自訂圖庫存成單一檔案";
+	static const String backupImport = "匯入設定";
+	static const String backupImportSubtitle =
+			"從之前匯出的檔案還原設定";
+	static const String backupExportDone = "已匯出備份檔";
+	static const String backupExportFailed = "匯出失敗：";
+	static const String backupImportFailed = "匯入失敗：";
+	static const String backupImportFailedNoBytes =
+			"無法讀取所選檔案內容";
+	static const String backupImportDoneReplace =
+			"已匯入備份（覆蓋模式），設定與圖庫已全部替換";
+	static const String backupImportDoneMerge =
+			"已匯入備份（新增模式），圖庫已合併";
+	static const String backupCancelled = "已取消";
+	static const String backupCancel = "取消";
+	static const String backupModeTitle = "選擇匯入模式";
+	static const String backupModeBodyPrefix = "備份檔包含 ";
+	static const String backupModeBodyMid = " 個自訂圖庫、共 ";
+	static const String backupModeBodySuffix =
+			" 張圖。\n\n"
+			"「覆蓋」會清掉目前所有自訂圖庫與設定、換成備份檔的內容。\n"
+			"「新增」只把圖庫依名稱合併進來，設定與教學紀錄不會被動到。";
+	static const String backupModeReplace = "覆蓋";
+	static const String backupModeMerge = "新增";
 }
 
 /// 圖庫管理列表頁。
@@ -133,6 +171,7 @@ class GalleryStrings {
 	static const String confirm = "確定";
 	static const String builtin = "內建";
 	static const String custom = "自訂";
+	static const String menu = "選單";
 	static const String rename = "重新命名";
 	static const String deleteSet = "刪除整套";
 	static const String deleteSetPrompt = "刪除整套？";
@@ -164,6 +203,13 @@ class GalleryDetailStrings {
 
 	/// 內建圖尚未下載完成 + 目前斷網（web 限定）時的縮圖 placeholder 文字。
 	static const String notDownloaded = "尚未下載";
+
+	// 批次匯入 ----
+	static const String batchDonePrefix = "已匯入 ";
+	static const String batchAbortedPrefix = "已停止匯入，共匯入 ";
+	static const String batchSavedSuffix = " 張";
+	static const String batchSkippedSeparator = "、跳過 ";
+	static const String batchSkippedSuffix = " 張";
 }
 
 /// 圖片裁切頁。
@@ -174,6 +220,7 @@ class CropStrings {
 	static const String done = "完成";
 	static const String tooSmall = "裁切區域太小";
 	static const String cropFailed = "裁切失敗";
+	static const String stopBatch = "停止匯入";
 }
 
 /// 共用 widget。
@@ -198,6 +245,8 @@ String _buildPreheatCharSet() {
 		// HomeStrings
 		HomeStrings.appTitle,
 		HomeStrings.startButton,
+		HomeStrings.startInsetPuzzle,
+		HomeStrings.startMultiPuzzle,
 		HomeStrings.welcomeMessage,
 		HomeStrings.startTutorial,
 		HomeStrings.gearTutorial,
@@ -232,6 +281,10 @@ String _buildPreheatCharSet() {
 		ParentStrings.sectionSystem,
 		ParentStrings.gallery,
 		ParentStrings.gallerySubtitle,
+		ParentStrings.sprites,
+		ParentStrings.spritesSubtitle,
+		ParentStrings.spritesDetailTitle,
+		ParentStrings.spritesNoneSelected,
 		ParentStrings.audio,
 		ParentStrings.audioSubtitle,
 		ParentStrings.voice,
@@ -239,6 +292,27 @@ String _buildPreheatCharSet() {
 		ParentStrings.resetTutorial,
 		ParentStrings.resetTutorialSubtitle,
 		ParentStrings.resetTutorialDone,
+		ParentStrings.backup,
+		ParentStrings.backupSubtitle,
+		ParentStrings.backupTitle,
+		ParentStrings.backupExport,
+		ParentStrings.backupExportSubtitle,
+		ParentStrings.backupImport,
+		ParentStrings.backupImportSubtitle,
+		ParentStrings.backupExportDone,
+		ParentStrings.backupExportFailed,
+		ParentStrings.backupImportFailed,
+		ParentStrings.backupImportFailedNoBytes,
+		ParentStrings.backupImportDoneReplace,
+		ParentStrings.backupImportDoneMerge,
+		ParentStrings.backupCancelled,
+		ParentStrings.backupCancel,
+		ParentStrings.backupModeTitle,
+		ParentStrings.backupModeBodyPrefix,
+		ParentStrings.backupModeBodyMid,
+		ParentStrings.backupModeBodySuffix,
+		ParentStrings.backupModeReplace,
+		ParentStrings.backupModeMerge,
 		// GalleryStrings
 		GalleryStrings.title,
 		GalleryStrings.addGallery,
@@ -248,6 +322,7 @@ String _buildPreheatCharSet() {
 		GalleryStrings.confirm,
 		GalleryStrings.builtin,
 		GalleryStrings.custom,
+		GalleryStrings.menu,
 		GalleryStrings.rename,
 		GalleryStrings.deleteSet,
 		GalleryStrings.deleteSetPrompt,
@@ -272,11 +347,17 @@ String _buildPreheatCharSet() {
 		GalleryDetailStrings.deleteDesc2,
 		GalleryDetailStrings.delete,
 		GalleryDetailStrings.notDownloaded,
+		GalleryDetailStrings.batchDonePrefix,
+		GalleryDetailStrings.batchAbortedPrefix,
+		GalleryDetailStrings.batchSavedSuffix,
+		GalleryDetailStrings.batchSkippedSeparator,
+		GalleryDetailStrings.batchSkippedSuffix,
 		// CropStrings
 		CropStrings.title,
 		CropStrings.done,
 		CropStrings.tooSmall,
 		CropStrings.cropFailed,
+		CropStrings.stopBatch,
 		// SharedStrings
 		SharedStrings.parentalLockPrompt,
 		SharedStrings.parentalLockFailures,

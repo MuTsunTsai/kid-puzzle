@@ -184,8 +184,13 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 			oldWidget.controller.completedListenable.removeListener(_onCompletedChange);
 			widget.controller.lockBump.addListener(_onLockBump);
 			widget.controller.completedListenable.addListener(_onCompletedChange);
-			_scheduleIntro();
+			// 先 reset 為 0：_scheduleIntro 內部會等 hold 時間（imageShownAt
+			// 起算 200ms）才呼叫 forward(from:0)、期間 _intro.value 若還停在
+			// 上一關結尾的 1.0、painter 會把它當「動畫已完成」直接畫散落位、
+			// hold 結束才從盤上飛回散落位。
+			_intro.value = 0.0;
 			_outro.reset();
+			_scheduleIntro();
 		}
 	}
 

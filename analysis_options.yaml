@@ -12,6 +12,20 @@ linter:
     use_super_parameters: true
     # 不要省略 ; 結尾
     always_put_control_body_on_new_line: false
+    # 區域變數能 final 就 final（減少誤改）
+    prefer_final_locals: true
+    prefer_final_in_for_each: true
+    # 漏 await / 沒明確 fire-and-forget 的 Future 要警告
+    unawaited_futures: true
+    # StreamSubscription 必須 cancel、StreamController 必須 close
+    cancel_subscriptions: true
+    close_sinks: true
+    # async gap 後使用 BuildContext 要先檢查 mounted
+    use_build_context_synchronously: true
+    # 別 return null 在 void function
+    avoid_returning_null_for_void: true
+    # 不准改 parameter 變數
+    parameter_assignments: true
 
 analyzer:
   exclude:

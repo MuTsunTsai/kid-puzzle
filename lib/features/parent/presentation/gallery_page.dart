@@ -178,6 +178,7 @@ class _GallerySetTile extends StatelessWidget {
 					? const Icon(Icons.chevron_right, color: Colors.black38)
 					: PopupMenuButton<String>(
 							icon: const Icon(Icons.more_vert),
+							tooltip: GalleryStrings.menu,
 							onSelected: (String action) {
 								try {
 									context.read<AudioService>().play(SfxKind.click);

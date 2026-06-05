@@ -27,7 +27,7 @@
 
 import { PrecacheController, PrecacheRoute } from "workbox-precaching";
 import { registerRoute, setDefaultHandler } from "workbox-routing";
-import { StaleWhileRevalidate } from "workbox-strategies";
+import { NetworkFirst, StaleWhileRevalidate } from "workbox-strategies";
 import type { WorkboxPlugin } from "workbox-core/types";
 
 import { PRECACHE_MANIFEST } from "./precache-manifest.generated";
@@ -58,27 +58,32 @@ declare const self: ServiceWorkerGlobalScope;
 //
 // 注意：Content-Length 必須也刪掉 — 原值是 gzipped 長度（例如 1.1MB），
 // 跟 decoded body（例如 3MB）對不上，留著瀏覽器可能據此預估錯誤導致解析失敗。
+// 補 COOP/COEP headers + 對 application/wasm 拿掉 Content-Encoding。
+// 抽成 pure function 方便手寫 handler（sprite reconcile）也能呼叫、與
+// Workbox plugin 行為一致。
+function applyHeaders(response: Response): Response {
+	const headers = new Headers(response.headers);
+	headers.set("Cross-Origin-Opener-Policy", "same-origin");
+	headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+
+	const isWasm = (headers.get("Content-Type") ?? "").includes("application/wasm");
+	if (isWasm) {
+		headers.delete("Content-Encoding");
+		headers.delete("Content-Length");
+		// 與 non-wasm 同一條路徑：直接 stream forward、不 await
+		// arrayBuffer，保留 streaming 優勢。
+	}
+
+	const clone = response.clone();
+	return new Response(clone.body, {
+		status: clone.status,
+		statusText: clone.statusText,
+		headers,
+	});
+}
+
 const headersPlugin: WorkboxPlugin = {
-	handlerWillRespond: async ({ response }) => {
-		const headers = new Headers(response.headers);
-		headers.set("Cross-Origin-Opener-Policy", "same-origin");
-		headers.set("Cross-Origin-Embedder-Policy", "credentialless");
-
-		const isWasm = (headers.get("Content-Type") ?? "").includes("application/wasm");
-		if (isWasm) {
-			headers.delete("Content-Encoding");
-			headers.delete("Content-Length");
-			// 與 non-wasm 同一條路徑：直接 stream forward、不 await
-			// arrayBuffer，保留 streaming 優勢。
-		}
-
-		const clone = response.clone();
-		return new Response(clone.body, {
-			status: clone.status,
-			statusText: clone.statusText,
-			headers,
-		});
-	},
+	handlerWillRespond: async ({ response }) => applyHeaders(response),
 };
 
 // 1. precache：手動掌控 install / activate，每個 cache 都掛 headersPlugin。
@@ -92,7 +97,95 @@ registerRoute(new PrecacheRoute(precacheController, {
 	cleanURLs: false,
 }));
 
-// 2. 其它一律 stale-while-revalidate（同 cache 名稱避免與 precache 衝突）。
+// 2. Sprite 資源版本同步（僅 Web、設計見 docs/sprite-revision.md）：
+//
+// 每個 sprite 產出檔（sprites.json、images/sprites/*.webp、audio/sprites/*.zip）
+// 由 kid-puzzle-sprite build 期算出 SHA-256 前 8 hex、runtime 在 URL 帶
+// `?rev=<hash>` query。SW 攔到時：
+//   1. 用 path（不含 query）當「身份識別」找 cache 內所有同身份的 entries
+//   2. 找到完全相符（path + rev 都一致）→ cache hit、直接回
+//   3. 否則走網路抓新版 → 成功後 cache.put 新 entry → 刪所有同身份不同
+//      rev 的舊 entries（一定先 put 再 delete、避免 fetch 失敗時連舊版
+//      都丟掉）
+//
+// `sprites_revision.json` 不帶 rev 自身就是「版本指南」、走 network-first：
+// 每次嘗試網路、失敗時退回 cache 內最近一份。
+//
+// 兩個 handler 都 bypass Workbox 預設的 stale-while-revalidate — Workbox 的
+// route handler 接管 respondWith 後仍要保留 COOP/COEP headers，因此手動
+// 透過 headersPlugin.handlerWillRespond 處理（與其它 handler 一致）。
+
+const SPRITE_CACHE = "sprite-revisioned-v1";
+
+async function handleSpriteFetch(request: Request): Promise<Response> {
+	const url = new URL(request.url);
+	const idKey = url.pathname;
+	const newRev = url.searchParams.get("rev");
+
+	const cache = await caches.open(SPRITE_CACHE);
+	const sameIdentity: Request[] = [];
+	for (const req of await cache.keys()) {
+		const u = new URL(req.url);
+		if (u.pathname === idKey) sameIdentity.push(req);
+	}
+
+	// 完全相符（path + rev）→ 直接回 cached
+	const exact = sameIdentity.find((req) => {
+		const u = new URL(req.url);
+		return u.searchParams.get("rev") === newRev;
+	});
+	if (exact) {
+		const cached = await cache.match(exact);
+		if (cached) return applyHeaders(cached);
+	}
+
+	// miss：走網路 → 成功才更新 cache + 刪舊版
+	let networkResponse: Response;
+	try {
+		networkResponse = await fetch(request);
+	} catch (err) {
+		// 網路失敗時退回任一 same-identity cache（如果有的話），讓使用者至少
+		// 還能拿到舊版用、勝過整個 app 因為 sprite 載不到而當掉。
+		if (sameIdentity.length > 0) {
+			const fallback = await cache.match(sameIdentity[0]);
+			if (fallback) return applyHeaders(fallback);
+		}
+		throw err;
+	}
+	if (!networkResponse.ok) {
+		return applyHeaders(networkResponse);
+	}
+
+	// 先 put 新版、再刪舊版（順序顛倒會在失敗時把舊版也丟掉）
+	await cache.put(request, networkResponse.clone());
+	await Promise.all(sameIdentity.map((req) => cache.delete(req)));
+	return applyHeaders(networkResponse);
+}
+
+// 路徑 match：assets/data/sprites.json、assets/images/sprites/*、
+// assets/audio/sprites/* 三條都走 reconcile。
+function isSpriteAssetPath(pathname: string): boolean {
+	return /^\/.*\/assets\/(data\/sprites\.json|images\/sprites\/[^/]+|audio\/sprites\/[^/]+)(\?|$)/.test(pathname) ||
+		/^\/assets\/(data\/sprites\.json|images\/sprites\/[^/]+|audio\/sprites\/[^/]+)(\?|$)/.test(pathname);
+}
+
+registerRoute(
+	({ url }) => url.origin === self.location.origin && isSpriteAssetPath(url.pathname),
+	({ request }) => handleSpriteFetch(request),
+);
+
+// sprites_revision.json 自己走 network-first（不帶 rev、必須每次嘗試網路）。
+registerRoute(
+	({ url }) =>
+		url.origin === self.location.origin &&
+		/\/assets\/data\/sprites_revision\.json$/.test(url.pathname),
+	new NetworkFirst({
+		cacheName: SPRITE_CACHE,
+		plugins: [headersPlugin],
+	}),
+);
+
+// 3. 其它一律 stale-while-revalidate（同 cache 名稱避免與 precache 衝突）。
 setDefaultHandler(new StaleWhileRevalidate({
 	cacheName: "runtime",
 	plugins: [headersPlugin],

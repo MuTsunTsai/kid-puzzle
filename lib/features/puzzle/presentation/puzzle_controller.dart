@@ -11,7 +11,9 @@ import "../domain/services/cell_planner.dart";
 import "../domain/services/puzzle_cutter.dart";
 import "../domain/services/snap_detector.dart";
 import "../domain/services/triangle_planner.dart";
-import "../domain/services/voronoi.dart";
+import "../../shared/drag_speed_tracker.dart";
+import "../../shared/scatter_layout.dart";
+import "../../shared/touch_vote_hit.dart";
 import "painters/bevel_painter.dart";
 
 /// 拼圖場景的可繪製區域劃分。
@@ -430,36 +432,15 @@ class PuzzleController extends ChangeNotifier {
 			return null;
 		}
 
-		// 觸控：上方半圓投票
-		final Map<int, int> votes = <int, int>{}; // pieceId → 票數
-		final double r = _hitNearPx;
-		final double r2 = r * r;
-		const double step = 4.0; // 取樣間距 4px → 半圓內約 ~55 點
-		for (double dy = -r; dy <= 0; dy += step) {
-			for (double dx = -r; dx <= r; dx += step) {
-				if (dx * dx + dy * dy > r2) continue;
-				final ui.Offset sample = localPos + ui.Offset(dx, dy);
-				for (final PuzzlePiece p in active) {
-					if (p.localPath.contains(_unrotateForPiece(sample, p))) {
-						votes[p.id] = (votes[p.id] ?? 0) + 1;
-						break; // 找到 z 最高的命中、後面跳過
-					}
-				}
-			}
-		}
-		if (votes.isEmpty) return null;
-		int bestId = -1;
-		int bestVotes = 0;
-		votes.forEach((int id, int v) {
-			if (v > bestVotes) {
-				bestVotes = v;
-				bestId = id;
-			}
-		});
-		for (final PuzzlePiece p in active) {
-			if (p.id == bestId) return p;
-		}
-		return null;
+		// 觸控：上方半圓投票（共用 [touchVoteHit]）
+		return touchVoteHit<PuzzlePiece>(
+			point: localPos,
+			candidates: active,
+			idOf: (PuzzlePiece p) => p.id,
+			hitsAt: (PuzzlePiece p, ui.Offset sample) =>
+					p.localPath.contains(_unrotateForPiece(sample, p)),
+			radius: _hitNearPx,
+		);
 	}
 
 	/// 觸控時的投票半徑（pixel）。
@@ -514,12 +495,9 @@ class PuzzleController extends ChangeNotifier {
 		// 同一群組不允許被兩指同時拖曳
 		if (_draggingGroupIds.contains(hit.groupId)) return false;
 
-		final DateTime now = DateTime.now();
 		_dragSessions[pointerId] = _DragSession(
 			groupId: hit.groupId,
 			strictLocking: strictLocking,
-			startTimestamp: now,
-			lastTimestamp: now,
 		);
 		_draggingGroupIds.add(hit.groupId);
 		_bringGroupToFront(hit.groupId);
@@ -527,14 +505,6 @@ class PuzzleController extends ChangeNotifier {
 		bumpRepaint();
 		return true;
 	}
-
-	/// 自動 snap 啟用前的延遲：本次 [beginDrag] 後至少要經過這麼久才考慮自動 snap。
-	static const Duration _autoSnapWarmup = Duration(milliseconds: 500);
-
-	/// 速度滑動視窗大小：最近 N 幀的 (distance, elapsedSec)，取總距離 / 總時間
-	/// = 視窗平均速度。單幀速度因取樣頻率不穩 + distance 量化到整數 px、波動
-	/// 很大，平均後比較穩定。
-	static const int _speedWindowSize = 20;
 
 	/// 拖曳中：把 delta 套到指定 pointer 對應 dragging 群組所有成員。
 	///
@@ -556,39 +526,10 @@ class PuzzleController extends ChangeNotifier {
 			}
 		}
 
-		// 算瞬時速度（用實際套到 piece 的 clamped delta、不用原始 delta；
-		// 邊界 clamp 後速度應該算成 0）。
-		// warmup：拖曳剛起步時不算自動 snap，避免「一抓起來剛好命中」就觸發。
-		final DateTime now = DateTime.now();
-		final DateTime prev = session.lastTimestamp;
-		session.lastTimestamp = now;
-		final bool warmedUp =
-				now.difference(session.startTimestamp) >= _autoSnapWarmup;
-		if (warmedUp) {
-			final double distance = clamped.distance;
-			final double elapsedSec = now.difference(prev).inMicroseconds / 1e6;
-			if (elapsedSec > 0) {
-				// 放進滑動視窗
-				session.speedWindow
-						.add((distance: distance, elapsedSec: elapsedSec));
-				if (session.speedWindow.length > _speedWindowSize) {
-					session.speedWindow.removeAt(0);
-				}
-				// 視窗滿了才考慮自動 snap（避免起步階段樣本太少不穩定）
-				if (session.speedWindow.length >= _speedWindowSize) {
-					double sumD = 0;
-					double sumT = 0;
-					for (final ({double distance, double elapsedSec}) e
-							in session.speedWindow) {
-						sumD += e.distance;
-						sumT += e.elapsedSec;
-					}
-					final double avgSpeed = sumT > 0 ? sumD / sumT : 0;
-					if (avgSpeed < PuzzleDimens.autoSnapSpeedThreshold) {
-						_tryAutoSnap(pointerId);
-					}
-				}
-			}
+		// 用實際套到 piece 的 clamped delta 餵速度追蹤器（邊界 clamp 後距離 0
+		// = 視同停止）；達 warmup + 視窗滿 + 平均速度低就嘗試自動 snap。
+		if (session.speed.recordAndCheckSlow(distance: clamped.distance)) {
+			_tryAutoSnap(pointerId);
 		}
 		bumpRepaint();
 	}
@@ -784,12 +725,11 @@ class PuzzleController extends ChangeNotifier {
 		final List<PuzzlePiece> pieces = layout.pieces;
 		final int n = pieces.length;
 
-		// 與 Voronoi 種子點同一套演算法（完全隨機 + 3 次 Lloyd 鬆弛）。
-		final List<ui.Offset> centers = await VoronoiBuilder.generatePoissonLikePoints(
+		// 共用 helper：完全隨機 + Lloyd 鬆弛產生分散點。
+		final List<ui.Offset> centers = await computeScatterCenters(
 			bounds: scatter,
 			count: n,
 			random: random,
-			lloydIterations: 3,
 		);
 
 		// shuffle 配對，避免 piece id 與位置綁定
@@ -1129,9 +1069,9 @@ class _DragSession {
 	_DragSession({
 		required this.groupId,
 		required this.strictLocking,
-		required this.startTimestamp,
-		required this.lastTimestamp,
-	});
+	}) : speed = DragSpeedTracker(
+				slowThreshold: PuzzleDimens.autoSnapSpeedThreshold,
+			)..start();
 
 	/// 此 pointer 正在拖曳的群組 ID。
 	final int groupId;
@@ -1139,13 +1079,6 @@ class _DragSession {
 	/// 進入時記下的「無提示線」嚴格鎖定旗標，給 dragBy / 自動 snap 共用。
 	final bool strictLocking;
 
-	/// 此次 beginDrag 時間戳，用於 auto-snap warmup 判定。
-	final DateTime startTimestamp;
-
-	/// 上一次 dragBy 時間戳，用於算瞬時速度。
-	DateTime lastTimestamp;
-
-	/// 速度滑動視窗。
-	final List<({double distance, double elapsedSec})> speedWindow =
-			<({double distance, double elapsedSec})>[];
+	/// 拖曳速度追蹤（warmup + 滑動視窗 + 平均速度）。
+	final DragSpeedTracker speed;
 }

@@ -3,7 +3,9 @@ import "package:flutter/material.dart";
 import "core/analytics/analytics_service.dart";
 import "core/constants/app_colors.dart";
 import "core/constants/ui_strings.dart";
+import "core/network/background_asset_cache.dart";
 import "core/routing/app_router.dart";
+import "core/routing/background_priority_observer.dart";
 import "core/routing/route_observer.dart";
 import "core/system/interop.dart";
 import "features/puzzle/domain/services/cell_planner.dart";
@@ -99,6 +101,7 @@ class KidPuzzleApp extends StatelessWidget {
 			//   為 null，這邊用 whereType 過濾掉。
 			navigatorObservers: <NavigatorObserver>[
 				appRouteObserver,
+				BackgroundPriorityRouteObserver(BackgroundAssetCache.instance),
 				if (AnalyticsService.instance.observer != null)
 					AnalyticsService.instance.observer!,
 			],

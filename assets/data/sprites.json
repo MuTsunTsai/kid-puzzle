@@ -1,0 +1,2861 @@
+{
+	"version": 1,
+	"categories": [
+		{
+			"id": "number",
+			"name": "數字",
+			"sheets": [
+				{
+					"file": "images/sprites/number.webp",
+					"rev": "839ce303",
+					"rows": 18,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "b208b7e5",
+			"items": [
+				{
+					"id": "it_b6589fc6",
+					"name": "0"
+				},
+				{
+					"id": "it_356a192b",
+					"name": "1"
+				},
+				{
+					"id": "it_da4b9237",
+					"name": "2"
+				},
+				{
+					"id": "it_77de68da",
+					"name": "3"
+				},
+				{
+					"id": "it_1b645389",
+					"name": "4"
+				},
+				{
+					"id": "it_ac3478d6",
+					"name": "5"
+				},
+				{
+					"id": "it_c1dfd96e",
+					"name": "6"
+				},
+				{
+					"id": "it_902ba3cd",
+					"name": "7"
+				},
+				{
+					"id": "it_fe5dbbce",
+					"name": "8"
+				},
+				{
+					"id": "it_0ade7c2c",
+					"name": "9"
+				},
+				{
+					"id": "it_b1d57811",
+					"name": "10"
+				},
+				{
+					"id": "it_a3c0639a",
+					"name": "加"
+				},
+				{
+					"id": "it_d31f78ba",
+					"name": "減"
+				},
+				{
+					"id": "it_a42fa134",
+					"name": "乘"
+				},
+				{
+					"id": "it_49b8a236",
+					"name": "除"
+				},
+				{
+					"id": "it_ae41055a",
+					"name": "等於"
+				},
+				{
+					"id": "it_17ba0791",
+					"name": "11"
+				},
+				{
+					"id": "it_7b52009b",
+					"name": "12"
+				},
+				{
+					"id": "it_bd307a3e",
+					"name": "13"
+				},
+				{
+					"id": "it_fa35e192",
+					"name": "14"
+				},
+				{
+					"id": "it_f1abd670",
+					"name": "15"
+				},
+				{
+					"id": "it_1574bddb",
+					"name": "16"
+				},
+				{
+					"id": "it_0716d970",
+					"name": "17"
+				},
+				{
+					"id": "it_9e6a55b6",
+					"name": "18"
+				},
+				{
+					"id": "it_b3f0c7f6",
+					"name": "19"
+				},
+				{
+					"id": "it_91032ad7",
+					"name": "20"
+				},
+				{
+					"id": "it_472b07b9",
+					"name": "21"
+				},
+				{
+					"id": "it_12c6fc06",
+					"name": "22"
+				},
+				{
+					"id": "it_d435a6cd",
+					"name": "23"
+				},
+				{
+					"id": "it_4d134bc0",
+					"name": "24"
+				},
+				{
+					"id": "it_f6e1126c",
+					"name": "25"
+				},
+				{
+					"id": "it_887309d0",
+					"name": "26"
+				},
+				{
+					"id": "it_bc33ea4e",
+					"name": "27"
+				},
+				{
+					"id": "it_0a57cb53",
+					"name": "28"
+				},
+				{
+					"id": "it_7719a1c7",
+					"name": "29"
+				},
+				{
+					"id": "it_22d200f8",
+					"name": "30"
+				},
+				{
+					"id": "it_63266754",
+					"name": "31"
+				},
+				{
+					"id": "it_cb4e5208",
+					"name": "32"
+				},
+				{
+					"id": "it_b6692ea5",
+					"name": "33"
+				},
+				{
+					"id": "it_f1f836cb",
+					"name": "34"
+				},
+				{
+					"id": "it_972a67c4",
+					"name": "35"
+				},
+				{
+					"id": "it_fc074d50",
+					"name": "36"
+				},
+				{
+					"id": "it_cb7a1d77",
+					"name": "37"
+				},
+				{
+					"id": "it_5b384ce3",
+					"name": "38"
+				},
+				{
+					"id": "it_ca3512f4",
+					"name": "39"
+				},
+				{
+					"id": "it_af3e1334",
+					"name": "40"
+				},
+				{
+					"id": "it_761f22b2",
+					"name": "41"
+				},
+				{
+					"id": "it_92cfceb3",
+					"name": "42"
+				},
+				{
+					"id": "it_0286dd55",
+					"name": "43"
+				},
+				{
+					"id": "it_98fbc42f",
+					"name": "44"
+				},
+				{
+					"id": "it_fb644351",
+					"name": "45"
+				},
+				{
+					"id": "it_fe2ef495",
+					"name": "46"
+				},
+				{
+					"id": "it_827bfc45",
+					"name": "47"
+				},
+				{
+					"id": "it_64e095fe",
+					"name": "48"
+				},
+				{
+					"id": "it_2e01e174",
+					"name": "49"
+				},
+				{
+					"id": "it_e1822db4",
+					"name": "50"
+				},
+				{
+					"id": "it_b7eb6c68",
+					"name": "51"
+				},
+				{
+					"id": "it_a9334987",
+					"name": "52"
+				},
+				{
+					"id": "it_c5b76da3",
+					"name": "53"
+				},
+				{
+					"id": "it_80e28a51",
+					"name": "54"
+				},
+				{
+					"id": "it_8effee40",
+					"name": "55"
+				},
+				{
+					"id": "it_54ceb912",
+					"name": "56"
+				},
+				{
+					"id": "it_9109c85a",
+					"name": "57"
+				},
+				{
+					"id": "it_667be543",
+					"name": "58"
+				},
+				{
+					"id": "it_5a5b0f9b",
+					"name": "59"
+				},
+				{
+					"id": "it_e6c3dd63",
+					"name": "60"
+				},
+				{
+					"id": "it_6c1e671f",
+					"name": "61"
+				},
+				{
+					"id": "it_511a418e",
+					"name": "62"
+				},
+				{
+					"id": "it_a17554a0",
+					"name": "63"
+				},
+				{
+					"id": "it_c66c6517",
+					"name": "64"
+				},
+				{
+					"id": "it_2a459380",
+					"name": "65"
+				},
+				{
+					"id": "it_59129aac",
+					"name": "66"
+				},
+				{
+					"id": "it_4d89d294",
+					"name": "67"
+				},
+				{
+					"id": "it_b4c96d80",
+					"name": "68"
+				},
+				{
+					"id": "it_a72b2006",
+					"name": "69"
+				},
+				{
+					"id": "it_b7103ca2",
+					"name": "70"
+				},
+				{
+					"id": "it_d02560dd",
+					"name": "71"
+				},
+				{
+					"id": "it_c097638f",
+					"name": "72"
+				},
+				{
+					"id": "it_35e995c1",
+					"name": "73"
+				},
+				{
+					"id": "it_1f1362ea",
+					"name": "74"
+				},
+				{
+					"id": "it_450ddec8",
+					"name": "75"
+				},
+				{
+					"id": "it_d54ad009",
+					"name": "76"
+				},
+				{
+					"id": "it_d321d6f7",
+					"name": "77"
+				},
+				{
+					"id": "it_eb4ac303",
+					"name": "78"
+				},
+				{
+					"id": "it_b74f5ee9",
+					"name": "79"
+				},
+				{
+					"id": "it_b888b298",
+					"name": "80"
+				},
+				{
+					"id": "it_1d513c0b",
+					"name": "81"
+				},
+				{
+					"id": "it_76546f9a",
+					"name": "82"
+				},
+				{
+					"id": "it_7d7116e2",
+					"name": "83"
+				},
+				{
+					"id": "it_be461a0c",
+					"name": "84"
+				},
+				{
+					"id": "it_1352246e",
+					"name": "85"
+				},
+				{
+					"id": "it_3c26dffc",
+					"name": "86"
+				},
+				{
+					"id": "it_e62d7f1e",
+					"name": "87"
+				},
+				{
+					"id": "it_b37f6ddc",
+					"name": "88"
+				},
+				{
+					"id": "it_16b06bd9",
+					"name": "89"
+				},
+				{
+					"id": "it_2d0c8af8",
+					"name": "90"
+				},
+				{
+					"id": "it_4cd66dfa",
+					"name": "91"
+				},
+				{
+					"id": "it_8ee51caa",
+					"name": "92"
+				},
+				{
+					"id": "it_08a35293",
+					"name": "93"
+				},
+				{
+					"id": "it_215bb47d",
+					"name": "94"
+				},
+				{
+					"id": "it_8e63fd3e",
+					"name": "95"
+				},
+				{
+					"id": "it_6fb84aed",
+					"name": "96"
+				},
+				{
+					"id": "it_812ed456",
+					"name": "97"
+				},
+				{
+					"id": "it_31bd9b9f",
+					"name": "98"
+				},
+				{
+					"id": "it_9a79be61",
+					"name": "99"
+				},
+				{
+					"id": "it_310b86e0",
+					"name": "100"
+				}
+			],
+			"subcategories": [
+				{
+					"id": "number-10",
+					"name": "10 以內的數字",
+					"itemIds": [
+						"it_b6589fc6",
+						"it_356a192b",
+						"it_da4b9237",
+						"it_77de68da",
+						"it_1b645389",
+						"it_ac3478d6",
+						"it_c1dfd96e",
+						"it_902ba3cd",
+						"it_fe5dbbce",
+						"it_0ade7c2c",
+						"it_b1d57811",
+						"it_a3c0639a",
+						"it_d31f78ba",
+						"it_a42fa134",
+						"it_49b8a236",
+						"it_ae41055a"
+					]
+				},
+				{
+					"id": "number-20",
+					"name": "20 以內的數字",
+					"itemIds": [
+						"it_17ba0791",
+						"it_7b52009b",
+						"it_bd307a3e",
+						"it_fa35e192",
+						"it_f1abd670",
+						"it_1574bddb",
+						"it_0716d970",
+						"it_9e6a55b6",
+						"it_b3f0c7f6",
+						"it_91032ad7"
+					]
+				},
+				{
+					"id": "number-50",
+					"name": "50 以內的數字",
+					"itemIds": [
+						"it_472b07b9",
+						"it_12c6fc06",
+						"it_d435a6cd",
+						"it_4d134bc0",
+						"it_f6e1126c",
+						"it_887309d0",
+						"it_bc33ea4e",
+						"it_0a57cb53",
+						"it_7719a1c7",
+						"it_22d200f8",
+						"it_63266754",
+						"it_cb4e5208",
+						"it_b6692ea5",
+						"it_f1f836cb",
+						"it_972a67c4",
+						"it_fc074d50",
+						"it_cb7a1d77",
+						"it_5b384ce3",
+						"it_ca3512f4",
+						"it_af3e1334",
+						"it_761f22b2",
+						"it_92cfceb3",
+						"it_0286dd55",
+						"it_98fbc42f",
+						"it_fb644351",
+						"it_fe2ef495",
+						"it_827bfc45",
+						"it_64e095fe",
+						"it_2e01e174",
+						"it_e1822db4"
+					]
+				},
+				{
+					"id": "number-100",
+					"name": "100 以內的數字",
+					"itemIds": [
+						"it_b7eb6c68",
+						"it_a9334987",
+						"it_c5b76da3",
+						"it_80e28a51",
+						"it_8effee40",
+						"it_54ceb912",
+						"it_9109c85a",
+						"it_667be543",
+						"it_5a5b0f9b",
+						"it_e6c3dd63",
+						"it_6c1e671f",
+						"it_511a418e",
+						"it_a17554a0",
+						"it_c66c6517",
+						"it_2a459380",
+						"it_59129aac",
+						"it_4d89d294",
+						"it_b4c96d80",
+						"it_a72b2006",
+						"it_b7103ca2",
+						"it_d02560dd",
+						"it_c097638f",
+						"it_35e995c1",
+						"it_1f1362ea",
+						"it_450ddec8",
+						"it_d54ad009",
+						"it_d321d6f7",
+						"it_eb4ac303",
+						"it_b74f5ee9",
+						"it_b888b298",
+						"it_1d513c0b",
+						"it_76546f9a",
+						"it_7d7116e2",
+						"it_be461a0c",
+						"it_1352246e",
+						"it_3c26dffc",
+						"it_e62d7f1e",
+						"it_b37f6ddc",
+						"it_16b06bd9",
+						"it_2d0c8af8",
+						"it_4cd66dfa",
+						"it_8ee51caa",
+						"it_08a35293",
+						"it_215bb47d",
+						"it_8e63fd3e",
+						"it_6fb84aed",
+						"it_812ed456",
+						"it_31bd9b9f",
+						"it_9a79be61",
+						"it_310b86e0"
+					]
+				}
+			]
+		},
+		{
+			"id": "zhuyin",
+			"name": "注音符號",
+			"sheets": [
+				{
+					"file": "images/sprites/zhuyin.webp",
+					"rev": "07c21590",
+					"rows": 7,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "55ef04b7",
+			"items": [
+				{
+					"id": "it_208d0914",
+					"name": "ㄅ"
+				},
+				{
+					"id": "it_5781b493",
+					"name": "ㄆ"
+				},
+				{
+					"id": "it_0ee3e6c1",
+					"name": "ㄈ"
+				},
+				{
+					"id": "it_80c6bcac",
+					"name": "ㄇ"
+				},
+				{
+					"id": "it_67c7fc35",
+					"name": "ㄉ"
+				},
+				{
+					"id": "it_1e9dc4b8",
+					"name": "ㄊ"
+				},
+				{
+					"id": "it_c1736813",
+					"name": "ㄋ"
+				},
+				{
+					"id": "it_2b59ac4c",
+					"name": "ㄌ"
+				},
+				{
+					"id": "it_842438fa",
+					"name": "ㄍ"
+				},
+				{
+					"id": "it_fdd33d9b",
+					"name": "ㄎ"
+				},
+				{
+					"id": "it_0075b7c5",
+					"name": "ㄏ"
+				},
+				{
+					"id": "it_42172e3e",
+					"name": "ㄐ"
+				},
+				{
+					"id": "it_cd50f7cc",
+					"name": "ㄑ"
+				},
+				{
+					"id": "it_dce4e59b",
+					"name": "ㄒ"
+				},
+				{
+					"id": "it_6f43d198",
+					"name": "ㄓ"
+				},
+				{
+					"id": "it_cc707265",
+					"name": "ㄔ"
+				},
+				{
+					"id": "it_84030fe3",
+					"name": "ㄕ"
+				},
+				{
+					"id": "it_6631573a",
+					"name": "ㄖ"
+				},
+				{
+					"id": "it_c0aeccb3",
+					"name": "ㄗ"
+				},
+				{
+					"id": "it_d16128f1",
+					"name": "ㄘ"
+				},
+				{
+					"id": "it_4f94a517",
+					"name": "ㄙ"
+				},
+				{
+					"id": "it_70170258",
+					"name": "ㄧ"
+				},
+				{
+					"id": "it_b5c7a1db",
+					"name": "ㄨ"
+				},
+				{
+					"id": "it_eb858b0c",
+					"name": "ㄩ"
+				},
+				{
+					"id": "it_66a3f1d8",
+					"name": "ㄚ"
+				},
+				{
+					"id": "it_cb924d92",
+					"name": "ㄛ"
+				},
+				{
+					"id": "it_a4d5b531",
+					"name": "ㄜ"
+				},
+				{
+					"id": "it_38f26384",
+					"name": "ㄝ"
+				},
+				{
+					"id": "it_2a853a66",
+					"name": "ㄞ"
+				},
+				{
+					"id": "it_04edddc3",
+					"name": "ㄟ"
+				},
+				{
+					"id": "it_353d9b5c",
+					"name": "ㄠ"
+				},
+				{
+					"id": "it_f5d271ff",
+					"name": "ㄡ"
+				},
+				{
+					"id": "it_f07e1997",
+					"name": "ㄢ"
+				},
+				{
+					"id": "it_0d42f402",
+					"name": "ㄣ"
+				},
+				{
+					"id": "it_a55fa28d",
+					"name": "ㄤ"
+				},
+				{
+					"id": "it_c3c5317d",
+					"name": "ㄥ"
+				},
+				{
+					"id": "it_70b41daa",
+					"name": "ㄦ"
+				},
+				{
+					"id": "it_03124c77",
+					"name": "二聲"
+				},
+				{
+					"id": "it_1b178e55",
+					"name": "三聲"
+				},
+				{
+					"id": "it_9ee9c92d",
+					"name": "四聲"
+				},
+				{
+					"id": "it_25411d1d",
+					"name": "輕聲"
+				}
+			],
+			"subcategories": [
+				{
+					"id": "phonetic",
+					"name": "注音符",
+					"itemIds": [
+						"it_208d0914",
+						"it_5781b493",
+						"it_0ee3e6c1",
+						"it_80c6bcac",
+						"it_67c7fc35",
+						"it_1e9dc4b8",
+						"it_c1736813",
+						"it_2b59ac4c",
+						"it_842438fa",
+						"it_fdd33d9b",
+						"it_0075b7c5",
+						"it_42172e3e",
+						"it_cd50f7cc",
+						"it_dce4e59b",
+						"it_6f43d198",
+						"it_cc707265",
+						"it_84030fe3",
+						"it_6631573a",
+						"it_c0aeccb3",
+						"it_d16128f1",
+						"it_4f94a517",
+						"it_70170258",
+						"it_b5c7a1db",
+						"it_eb858b0c",
+						"it_66a3f1d8",
+						"it_cb924d92",
+						"it_a4d5b531",
+						"it_38f26384",
+						"it_2a853a66",
+						"it_04edddc3",
+						"it_353d9b5c",
+						"it_f5d271ff",
+						"it_f07e1997",
+						"it_0d42f402",
+						"it_a55fa28d",
+						"it_c3c5317d",
+						"it_70b41daa"
+					]
+				},
+				{
+					"id": "tones",
+					"name": "聲調符",
+					"itemIds": [
+						"it_03124c77",
+						"it_1b178e55",
+						"it_9ee9c92d",
+						"it_25411d1d"
+					]
+				}
+			]
+		},
+		{
+			"id": "alphabet",
+			"name": "英文字母",
+			"sheets": [
+				{
+					"file": "images/sprites/alphabet.webp",
+					"rev": "8ef67cd0",
+					"rows": 9,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "4c9d4cf9",
+			"items": [
+				{
+					"id": "it_029d23fc",
+					"name": "A"
+				},
+				{
+					"id": "it_78663cd2",
+					"name": "B"
+				},
+				{
+					"id": "it_02f8b987",
+					"name": "C"
+				},
+				{
+					"id": "it_2a1fcad8",
+					"name": "D"
+				},
+				{
+					"id": "it_76c2aedf",
+					"name": "E"
+				},
+				{
+					"id": "it_140e3a43",
+					"name": "F"
+				},
+				{
+					"id": "it_3451d44e",
+					"name": "G"
+				},
+				{
+					"id": "it_4739986d",
+					"name": "H"
+				},
+				{
+					"id": "it_417d556e",
+					"name": "I"
+				},
+				{
+					"id": "it_fbc4a109",
+					"name": "J"
+				},
+				{
+					"id": "it_326b52f1",
+					"name": "K"
+				},
+				{
+					"id": "it_be96245e",
+					"name": "L"
+				},
+				{
+					"id": "it_9bd66fe9",
+					"name": "M"
+				},
+				{
+					"id": "it_4589b3b6",
+					"name": "N"
+				},
+				{
+					"id": "it_c5620e4e",
+					"name": "O"
+				},
+				{
+					"id": "it_3c82aea1",
+					"name": "P"
+				},
+				{
+					"id": "it_6df40b45",
+					"name": "Q"
+				},
+				{
+					"id": "it_8b94542b",
+					"name": "R"
+				},
+				{
+					"id": "it_7171bf7e",
+					"name": "S"
+				},
+				{
+					"id": "it_0178056e",
+					"name": "T"
+				},
+				{
+					"id": "it_eb2bb818",
+					"name": "U"
+				},
+				{
+					"id": "it_c930dc3c",
+					"name": "V"
+				},
+				{
+					"id": "it_9651dc77",
+					"name": "W"
+				},
+				{
+					"id": "it_36f61705",
+					"name": "X"
+				},
+				{
+					"id": "it_50539f2e",
+					"name": "Y"
+				},
+				{
+					"id": "it_0d65c0cb",
+					"name": "Z"
+				},
+				{
+					"id": "it_4b9f645a",
+					"name": "a"
+				},
+				{
+					"id": "it_ef0ccb72",
+					"name": "b"
+				},
+				{
+					"id": "it_56431c2b",
+					"name": "c"
+				},
+				{
+					"id": "it_f8f3d8a5",
+					"name": "d"
+				},
+				{
+					"id": "it_28b520c1",
+					"name": "e"
+				},
+				{
+					"id": "it_19bc859a",
+					"name": "f"
+				},
+				{
+					"id": "it_53066927",
+					"name": "g"
+				},
+				{
+					"id": "it_8eca952d",
+					"name": "h"
+				},
+				{
+					"id": "it_d58fdfb5",
+					"name": "i"
+				},
+				{
+					"id": "it_d8621eb1",
+					"name": "j"
+				},
+				{
+					"id": "it_50b95760",
+					"name": "k"
+				},
+				{
+					"id": "it_f79f4bbb",
+					"name": "l"
+				},
+				{
+					"id": "it_da51bf54",
+					"name": "m"
+				},
+				{
+					"id": "it_ee6a4c8f",
+					"name": "n"
+				},
+				{
+					"id": "it_2a6989ae",
+					"name": "o"
+				},
+				{
+					"id": "it_9570830e",
+					"name": "p"
+				},
+				{
+					"id": "it_e61d8f5f",
+					"name": "q"
+				},
+				{
+					"id": "it_4378c912",
+					"name": "r"
+				},
+				{
+					"id": "it_9d2d3abf",
+					"name": "s"
+				},
+				{
+					"id": "it_f0b0c181",
+					"name": "t"
+				},
+				{
+					"id": "it_44766943",
+					"name": "u"
+				},
+				{
+					"id": "it_aa07fbd6",
+					"name": "v"
+				},
+				{
+					"id": "it_c3297ae2",
+					"name": "w"
+				},
+				{
+					"id": "it_9e1ccd10",
+					"name": "x"
+				},
+				{
+					"id": "it_36549ab6",
+					"name": "y"
+				},
+				{
+					"id": "it_b6e81eb1",
+					"name": "z"
+				}
+			],
+			"subcategories": [
+				{
+					"id": "uppercase",
+					"name": "大寫",
+					"itemIds": [
+						"it_029d23fc",
+						"it_78663cd2",
+						"it_02f8b987",
+						"it_2a1fcad8",
+						"it_76c2aedf",
+						"it_140e3a43",
+						"it_3451d44e",
+						"it_4739986d",
+						"it_417d556e",
+						"it_fbc4a109",
+						"it_326b52f1",
+						"it_be96245e",
+						"it_9bd66fe9",
+						"it_4589b3b6",
+						"it_c5620e4e",
+						"it_3c82aea1",
+						"it_6df40b45",
+						"it_8b94542b",
+						"it_7171bf7e",
+						"it_0178056e",
+						"it_eb2bb818",
+						"it_c930dc3c",
+						"it_9651dc77",
+						"it_36f61705",
+						"it_50539f2e",
+						"it_0d65c0cb"
+					]
+				},
+				{
+					"id": "lowercase",
+					"name": "小寫",
+					"itemIds": [
+						"it_4b9f645a",
+						"it_ef0ccb72",
+						"it_56431c2b",
+						"it_f8f3d8a5",
+						"it_28b520c1",
+						"it_19bc859a",
+						"it_53066927",
+						"it_8eca952d",
+						"it_d58fdfb5",
+						"it_d8621eb1",
+						"it_50b95760",
+						"it_f79f4bbb",
+						"it_da51bf54",
+						"it_ee6a4c8f",
+						"it_2a6989ae",
+						"it_9570830e",
+						"it_e61d8f5f",
+						"it_4378c912",
+						"it_9d2d3abf",
+						"it_f0b0c181",
+						"it_44766943",
+						"it_aa07fbd6",
+						"it_c3297ae2",
+						"it_9e1ccd10",
+						"it_36549ab6",
+						"it_b6e81eb1"
+					]
+				}
+			]
+		},
+		{
+			"id": "animal",
+			"name": "動物",
+			"sheets": [
+				{
+					"file": "images/sprites/animal.webp",
+					"rev": "9572d7b8",
+					"rows": 7,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "82fc1a3e",
+			"items": [
+				{
+					"id": "it_043c2196",
+					"name": "貓"
+				},
+				{
+					"id": "it_2fcbe72f",
+					"name": "狗"
+				},
+				{
+					"id": "it_5299eeeb",
+					"name": "烏龜"
+				},
+				{
+					"id": "it_a22e5018",
+					"name": "鸚鵡"
+				},
+				{
+					"id": "it_dc2a2ea3",
+					"name": "倉鼠"
+				},
+				{
+					"id": "it_3daaa92b",
+					"name": "兔子"
+				},
+				{
+					"id": "it_a4f49fc3",
+					"name": "獅子"
+				},
+				{
+					"id": "it_ae3bc43a",
+					"name": "大象"
+				},
+				{
+					"id": "it_de06440f",
+					"name": "長頸鹿"
+				},
+				{
+					"id": "it_6c7f2bc1",
+					"name": "河馬"
+				},
+				{
+					"id": "it_e5380405",
+					"name": "斑馬"
+				},
+				{
+					"id": "it_889a34d0",
+					"name": "大猩猩"
+				},
+				{
+					"id": "it_580adaff",
+					"name": "鱷魚"
+				},
+				{
+					"id": "it_367c56dd",
+					"name": "麻雀"
+				},
+				{
+					"id": "it_0a6196e7",
+					"name": "燕子"
+				},
+				{
+					"id": "it_303a5868",
+					"name": "鴿子"
+				},
+				{
+					"id": "it_6f999113",
+					"name": "斑鳩"
+				},
+				{
+					"id": "it_4588f365",
+					"name": "乳牛"
+				},
+				{
+					"id": "it_2d808ebf",
+					"name": "馬"
+				},
+				{
+					"id": "it_6dab6d2b",
+					"name": "綿羊"
+				},
+				{
+					"id": "it_b28bd16d",
+					"name": "豬"
+				},
+				{
+					"id": "it_7dcf9fb9",
+					"name": "雞"
+				},
+				{
+					"id": "it_a75288af",
+					"name": "鴨子"
+				},
+				{
+					"id": "it_f8c988c0",
+					"name": "松鼠"
+				},
+				{
+					"id": "it_7f1a2264",
+					"name": "鹿"
+				},
+				{
+					"id": "it_67bcd687",
+					"name": "蛇"
+				},
+				{
+					"id": "it_165a48ed",
+					"name": "猴子"
+				},
+				{
+					"id": "it_34a1ca41",
+					"name": "企鵝"
+				},
+				{
+					"id": "it_5601a7fa",
+					"name": "貓熊"
+				},
+				{
+					"id": "it_4dc6f87c",
+					"name": "老虎"
+				},
+				{
+					"id": "it_6f8eeaee",
+					"name": "孔雀"
+				},
+				{
+					"id": "it_f4cec40e",
+					"name": "無尾熊"
+				},
+				{
+					"id": "it_76cdb81b",
+					"name": "青蛙"
+				},
+				{
+					"id": "it_44897c15",
+					"name": "老鼠"
+				},
+				{
+					"id": "it_7cccbf9e",
+					"name": "老鷹"
+				},
+				{
+					"id": "it_7f1efc3b",
+					"name": "狐狸"
+				},
+				{
+					"id": "it_74512a43",
+					"name": "熊"
+				},
+				{
+					"id": "it_10730c01",
+					"name": "貓頭鷹"
+				},
+				{
+					"id": "it_273321c4",
+					"name": "北極熊"
+				},
+				{
+					"id": "it_34508423",
+					"name": "蝙蝠"
+				},
+				{
+					"id": "it_b893dc37",
+					"name": "袋鼠"
+				}
+			]
+		},
+		{
+			"id": "transportation",
+			"name": "交通工具",
+			"sheets": [
+				{
+					"file": "images/sprites/transportation.webp",
+					"rev": "3cdf7b9f",
+					"rows": 9,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "149759d0",
+			"items": [
+				{
+					"id": "it_948305fc",
+					"name": "飛機"
+				},
+				{
+					"id": "it_d2aed817",
+					"name": "高鐵"
+				},
+				{
+					"id": "it_cf5dad73",
+					"name": "捷運"
+				},
+				{
+					"id": "it_832cee72",
+					"name": "火車"
+				},
+				{
+					"id": "it_68c6b484",
+					"name": "遊覽車"
+				},
+				{
+					"id": "it_847c8f4e",
+					"name": "公車"
+				},
+				{
+					"id": "it_6ec19994",
+					"name": "娃娃車"
+				},
+				{
+					"id": "it_d6620598",
+					"name": "垃圾車"
+				},
+				{
+					"id": "it_c9a792da",
+					"name": "消防車"
+				},
+				{
+					"id": "it_06bbdc1b",
+					"name": "救護車"
+				},
+				{
+					"id": "it_a7e45715",
+					"name": "警車"
+				},
+				{
+					"id": "it_d00d5a60",
+					"name": "卡車"
+				},
+				{
+					"id": "it_aca768cf",
+					"name": "貨櫃車"
+				},
+				{
+					"id": "it_0efc0fc1",
+					"name": "汽車"
+				},
+				{
+					"id": "it_86e3e8d4",
+					"name": "休旅車"
+				},
+				{
+					"id": "it_7dbacbe8",
+					"name": "計程車"
+				},
+				{
+					"id": "it_21f7c9b3",
+					"name": "嬰兒車"
+				},
+				{
+					"id": "it_b05d5482",
+					"name": "三輪車"
+				},
+				{
+					"id": "it_ff9fface",
+					"name": "腳踏車"
+				},
+				{
+					"id": "it_460328fe",
+					"name": "機車"
+				},
+				{
+					"id": "it_ae303bc3",
+					"name": "挖土機"
+				},
+				{
+					"id": "it_0166f77b",
+					"name": "漁船"
+				},
+				{
+					"id": "it_746a4157",
+					"name": "郵輪"
+				},
+				{
+					"id": "it_a09395b5",
+					"name": "直升機"
+				},
+				{
+					"id": "it_1e287f2f",
+					"name": "熱氣球"
+				},
+				{
+					"id": "it_9171c7c2",
+					"name": "火箭"
+				},
+				{
+					"id": "it_31af2b83",
+					"name": "太空梭"
+				},
+				{
+					"id": "it_f50c00c2",
+					"name": "纜車"
+				},
+				{
+					"id": "it_3e92bab9",
+					"name": "蒸氣火車"
+				},
+				{
+					"id": "it_1077129e",
+					"name": "雙層巴士"
+				},
+				{
+					"id": "it_480fed55",
+					"name": "跑車"
+				},
+				{
+					"id": "it_f195e992",
+					"name": "敞篷車"
+				},
+				{
+					"id": "it_b20aba58",
+					"name": "露營車"
+				},
+				{
+					"id": "it_653d3415",
+					"name": "吉普車"
+				},
+				{
+					"id": "it_aff1ae1b",
+					"name": "怪獸卡車"
+				},
+				{
+					"id": "it_87a9892f",
+					"name": "油罐車"
+				},
+				{
+					"id": "it_55f5794f",
+					"name": "拖吊車"
+				},
+				{
+					"id": "it_d8026075",
+					"name": "汽車載運車"
+				},
+				{
+					"id": "it_baaa1741",
+					"name": "滑板車"
+				},
+				{
+					"id": "it_1b3177f2",
+					"name": "重型機車"
+				},
+				{
+					"id": "it_b1adc1c0",
+					"name": "混凝土攪拌車"
+				},
+				{
+					"id": "it_3fbb7670",
+					"name": "起重機"
+				},
+				{
+					"id": "it_11074596",
+					"name": "推土機"
+				},
+				{
+					"id": "it_d1493f74",
+					"name": "壓路機"
+				},
+				{
+					"id": "it_67eb3400",
+					"name": "賽車"
+				},
+				{
+					"id": "it_49a513eb",
+					"name": "馬車"
+				},
+				{
+					"id": "it_ccd192a2",
+					"name": "獨木舟"
+				},
+				{
+					"id": "it_bc537bca",
+					"name": "遊艇"
+				},
+				{
+					"id": "it_72fa7074",
+					"name": "蒸氣船"
+				},
+				{
+					"id": "it_ca3c20f4",
+					"name": "帆船"
+				},
+				{
+					"id": "it_a985b915",
+					"name": "坦克車"
+				},
+				{
+					"id": "it_c4cbb5ce",
+					"name": "潛水艇"
+				},
+				{
+					"id": "it_b123751f",
+					"name": "戰鬥機"
+				},
+				{
+					"id": "it_47c42a98",
+					"name": "軍艦"
+				}
+			],
+			"subcategories": [
+				{
+					"id": "basic-transportation",
+					"name": "常見交通工具",
+					"itemIds": [
+						"it_948305fc",
+						"it_d2aed817",
+						"it_cf5dad73",
+						"it_832cee72",
+						"it_68c6b484",
+						"it_847c8f4e",
+						"it_6ec19994",
+						"it_d6620598",
+						"it_c9a792da",
+						"it_06bbdc1b",
+						"it_a7e45715",
+						"it_d00d5a60",
+						"it_aca768cf",
+						"it_0efc0fc1",
+						"it_86e3e8d4",
+						"it_7dbacbe8",
+						"it_21f7c9b3",
+						"it_b05d5482",
+						"it_ff9fface",
+						"it_460328fe",
+						"it_ae303bc3",
+						"it_0166f77b",
+						"it_746a4157"
+					]
+				},
+				{
+					"id": "more-transportation",
+					"name": "更多交通工具",
+					"itemIds": [
+						"it_a09395b5",
+						"it_1e287f2f",
+						"it_9171c7c2",
+						"it_31af2b83",
+						"it_f50c00c2",
+						"it_3e92bab9",
+						"it_1077129e",
+						"it_480fed55",
+						"it_f195e992",
+						"it_b20aba58",
+						"it_653d3415",
+						"it_aff1ae1b",
+						"it_87a9892f",
+						"it_55f5794f",
+						"it_d8026075",
+						"it_baaa1741",
+						"it_1b3177f2",
+						"it_b1adc1c0",
+						"it_3fbb7670",
+						"it_11074596",
+						"it_d1493f74",
+						"it_67eb3400",
+						"it_49a513eb",
+						"it_ccd192a2",
+						"it_bc537bca",
+						"it_72fa7074",
+						"it_ca3c20f4",
+						"it_a985b915",
+						"it_c4cbb5ce",
+						"it_b123751f",
+						"it_47c42a98"
+					]
+				}
+			]
+		},
+		{
+			"id": "household",
+			"name": "居家物品",
+			"sheets": [
+				{
+					"file": "images/sprites/household.webp",
+					"rev": "cdf81222",
+					"rows": 6,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "01597441",
+			"items": [
+				{
+					"id": "it_9f66c3e6",
+					"name": "沙發"
+				},
+				{
+					"id": "it_e658440c",
+					"name": "電視"
+				},
+				{
+					"id": "it_eb097d5a",
+					"name": "冰箱"
+				},
+				{
+					"id": "it_41c27067",
+					"name": "冷氣機"
+				},
+				{
+					"id": "it_bfce25fe",
+					"name": "電風扇"
+				},
+				{
+					"id": "it_22b263f4",
+					"name": "桌子"
+				},
+				{
+					"id": "it_9d08e401",
+					"name": "椅子"
+				},
+				{
+					"id": "it_a30d8f6d",
+					"name": "床"
+				},
+				{
+					"id": "it_14cdb61b",
+					"name": "檯燈"
+				},
+				{
+					"id": "it_6a6a8794",
+					"name": "時鐘"
+				},
+				{
+					"id": "it_129873b8",
+					"name": "鏡子"
+				},
+				{
+					"id": "it_9d9b92c6",
+					"name": "布鞋"
+				},
+				{
+					"id": "it_ec36a8d8",
+					"name": "雨傘"
+				},
+				{
+					"id": "it_ff3d08fd",
+					"name": "背包"
+				},
+				{
+					"id": "it_2a50f424",
+					"name": "水壺"
+				},
+				{
+					"id": "it_a49c4094",
+					"name": "杯子"
+				},
+				{
+					"id": "it_c7040e85",
+					"name": "碗盤"
+				},
+				{
+					"id": "it_6bf1b729",
+					"name": "湯匙"
+				},
+				{
+					"id": "it_8dafb7da",
+					"name": "刀叉"
+				},
+				{
+					"id": "it_3785d811",
+					"name": "筷子"
+				},
+				{
+					"id": "it_5f5dc776",
+					"name": "鍋子"
+				},
+				{
+					"id": "it_529b4332",
+					"name": "牙刷牙膏"
+				},
+				{
+					"id": "it_3eb3ffc6",
+					"name": "毛巾"
+				},
+				{
+					"id": "it_c30e4f20",
+					"name": "手機"
+				},
+				{
+					"id": "it_d75bbe06",
+					"name": "鑰匙"
+				},
+				{
+					"id": "it_9db829fc",
+					"name": "剪刀"
+				},
+				{
+					"id": "it_bf8f403a",
+					"name": "玩具熊"
+				},
+				{
+					"id": "it_59975f64",
+					"name": "故事書"
+				},
+				{
+					"id": "it_d2679413",
+					"name": "筆記型電腦"
+				},
+				{
+					"id": "it_59fe37e3",
+					"name": "茶壺"
+				},
+				{
+					"id": "it_fa6b8759",
+					"name": "馬桶"
+				},
+				{
+					"id": "it_3e00ae85",
+					"name": "安全帽"
+				},
+				{
+					"id": "it_f98f1464",
+					"name": "拖鞋"
+				},
+				{
+					"id": "it_2e34963b",
+					"name": "衣服"
+				},
+				{
+					"id": "it_8dccc4a2",
+					"name": "帽子"
+				},
+				{
+					"id": "it_40da5671",
+					"name": "積木"
+				}
+			]
+		},
+		{
+			"id": "food",
+			"name": "食物",
+			"sheets": [
+				{
+					"file": "images/sprites/food.webp",
+					"rev": "4c5de45a",
+					"rows": 18,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "125f2b64",
+			"items": [
+				{
+					"id": "it_21ea519e",
+					"name": "拉麵"
+				},
+				{
+					"id": "it_bd6c3349",
+					"name": "牛肉麵"
+				},
+				{
+					"id": "it_4e582d6f",
+					"name": "壽司"
+				},
+				{
+					"id": "it_1dad319d",
+					"name": "牛排"
+				},
+				{
+					"id": "it_90f723fc",
+					"name": "炒飯"
+				},
+				{
+					"id": "it_11a98344",
+					"name": "炒麵"
+				},
+				{
+					"id": "it_b773d092",
+					"name": "沙拉"
+				},
+				{
+					"id": "it_72c7c2c4",
+					"name": "火鍋"
+				},
+				{
+					"id": "it_c48adeba",
+					"name": "咖哩飯"
+				},
+				{
+					"id": "it_41de926d",
+					"name": "披薩"
+				},
+				{
+					"id": "it_ddc3dd23",
+					"name": "義大利麵"
+				},
+				{
+					"id": "it_6f97bd92",
+					"name": "烤肉"
+				},
+				{
+					"id": "it_5b11dffa",
+					"name": "漢堡"
+				},
+				{
+					"id": "it_ec5e703e",
+					"name": "薯條"
+				},
+				{
+					"id": "it_8fddb2b4",
+					"name": "炸雞"
+				},
+				{
+					"id": "it_e1c01e83",
+					"name": "三明治"
+				},
+				{
+					"id": "it_71dd160b",
+					"name": "水餃"
+				},
+				{
+					"id": "it_ddeb2eeb",
+					"name": "麵包"
+				},
+				{
+					"id": "it_8c40710a",
+					"name": "荷包蛋"
+				},
+				{
+					"id": "it_d5a74a75",
+					"name": "饅頭"
+				},
+				{
+					"id": "it_9a8f91fd",
+					"name": "肉包"
+				},
+				{
+					"id": "it_04d8eaa6",
+					"name": "飯糰"
+				},
+				{
+					"id": "it_c265c4d1",
+					"name": "便當"
+				},
+				{
+					"id": "it_6897ca62",
+					"name": "烤雞"
+				},
+				{
+					"id": "it_be459e0e",
+					"name": "粽子"
+				},
+				{
+					"id": "it_6dd38f4f",
+					"name": "滷肉飯"
+				},
+				{
+					"id": "it_824da1c7",
+					"name": "茶葉蛋"
+				},
+				{
+					"id": "it_faedfa5f",
+					"name": "果汁"
+				},
+				{
+					"id": "it_95b94c8c",
+					"name": "珍珠奶茶"
+				},
+				{
+					"id": "it_f543d6b8",
+					"name": "冰沙"
+				},
+				{
+					"id": "it_6716aa4e",
+					"name": "奶昔"
+				},
+				{
+					"id": "it_33087fa6",
+					"name": "綠拿鐵"
+				},
+				{
+					"id": "it_4b3efd1d",
+					"name": "牛奶"
+				},
+				{
+					"id": "it_d3994c51",
+					"name": "可樂"
+				},
+				{
+					"id": "it_29d421dd",
+					"name": "抹茶"
+				},
+				{
+					"id": "it_db422440",
+					"name": "咖啡"
+				},
+				{
+					"id": "it_9418e348",
+					"name": "蛋糕"
+				},
+				{
+					"id": "it_4272d2c1",
+					"name": "甜甜圈"
+				},
+				{
+					"id": "it_c8c1485e",
+					"name": "冰淇淋"
+				},
+				{
+					"id": "it_52eb7136",
+					"name": "鯛魚燒"
+				},
+				{
+					"id": "it_da3ca3c5",
+					"name": "雞蛋糕"
+				},
+				{
+					"id": "it_a7cb3a6f",
+					"name": "馬卡龍"
+				},
+				{
+					"id": "it_5963ed5b",
+					"name": "泡芙"
+				},
+				{
+					"id": "it_153280a9",
+					"name": "軟糖"
+				},
+				{
+					"id": "it_ed4ec4af",
+					"name": "格子鬆餅"
+				},
+				{
+					"id": "it_fddafe71",
+					"name": "可麗餅"
+				},
+				{
+					"id": "it_9a65e1d1",
+					"name": "地瓜球"
+				},
+				{
+					"id": "it_6bfcddc6",
+					"name": "巧克力"
+				},
+				{
+					"id": "it_4766f5dd",
+					"name": "銅鑼燒"
+				},
+				{
+					"id": "it_a9f798c2",
+					"name": "仙貝"
+				},
+				{
+					"id": "it_2e2583e7",
+					"name": "麻糬"
+				},
+				{
+					"id": "it_5d1559b2",
+					"name": "和菓子"
+				},
+				{
+					"id": "it_3b5dd58a",
+					"name": "小饅頭"
+				},
+				{
+					"id": "it_331fc042",
+					"name": "布丁"
+				},
+				{
+					"id": "it_1f4e392e",
+					"name": "月餅"
+				},
+				{
+					"id": "it_29d4e5ee",
+					"name": "煎餅"
+				},
+				{
+					"id": "it_ab6cba09",
+					"name": "雪花冰"
+				},
+				{
+					"id": "it_4ea85d35",
+					"name": "蘋果派"
+				},
+				{
+					"id": "it_f1d332e8",
+					"name": "爆米花"
+				},
+				{
+					"id": "it_6260264f",
+					"name": "果凍"
+				},
+				{
+					"id": "it_f23fd007",
+					"name": "鳳梨酥"
+				},
+				{
+					"id": "it_e477ad78",
+					"name": "太陽餅"
+				},
+				{
+					"id": "it_387d2d3b",
+					"name": "魷魚絲"
+				},
+				{
+					"id": "it_857642d3",
+					"name": "蛋捲"
+				},
+				{
+					"id": "it_5245b3f9",
+					"name": "洋芋片"
+				},
+				{
+					"id": "it_63e1fa78",
+					"name": "糖葫蘆"
+				},
+				{
+					"id": "it_5ae39f94",
+					"name": "牛軋糖"
+				},
+				{
+					"id": "it_58126b52",
+					"name": "芝麻湯圓"
+				},
+				{
+					"id": "it_f31e4c06",
+					"name": "仙草芋圓"
+				},
+				{
+					"id": "it_063ec5e4",
+					"name": "愛玉"
+				},
+				{
+					"id": "it_11a9a20d",
+					"name": "優格"
+				},
+				{
+					"id": "it_561d2c9d",
+					"name": "滷味"
+				},
+				{
+					"id": "it_20aea391",
+					"name": "臭豆腐"
+				},
+				{
+					"id": "it_fb669098",
+					"name": "豬排丼"
+				},
+				{
+					"id": "it_02d6d817",
+					"name": "玉米片"
+				},
+				{
+					"id": "it_0050bbcb",
+					"name": "果醬吐司"
+				},
+				{
+					"id": "it_0eee1215",
+					"name": "蛋餅"
+				},
+				{
+					"id": "it_79c51042",
+					"name": "蘿蔔糕"
+				},
+				{
+					"id": "it_79647e6b",
+					"name": "燒餅油條"
+				},
+				{
+					"id": "it_44755388",
+					"name": "燒賣蒸餃"
+				},
+				{
+					"id": "it_926290e3",
+					"name": "油飯"
+				},
+				{
+					"id": "it_835f4518",
+					"name": "羊肉爐"
+				},
+				{
+					"id": "it_76d521dc",
+					"name": "鐵板燒"
+				},
+				{
+					"id": "it_2ee6b435",
+					"name": "麻婆豆腐"
+				},
+				{
+					"id": "it_62eca46f",
+					"name": "酸菜魚"
+				},
+				{
+					"id": "it_9cd13568",
+					"name": "烤鴨"
+				},
+				{
+					"id": "it_25366c93",
+					"name": "蔥抓餅"
+				},
+				{
+					"id": "it_8fdd663f",
+					"name": "鹹酥雞"
+				},
+				{
+					"id": "it_5100e4ed",
+					"name": "肉圓"
+				},
+				{
+					"id": "it_87d55fd6",
+					"name": "蚵仔煎"
+				},
+				{
+					"id": "it_2b4cfed5",
+					"name": "章魚燒"
+				},
+				{
+					"id": "it_0624c215",
+					"name": "酥皮濃湯"
+				},
+				{
+					"id": "it_6c588587",
+					"name": "塔可"
+				},
+				{
+					"id": "it_0e1df5a9",
+					"name": "熱狗堡"
+				},
+				{
+					"id": "it_8eee3bb0",
+					"name": "月亮蝦餅"
+				},
+				{
+					"id": "it_7e7f9508",
+					"name": "綠咖哩"
+				},
+				{
+					"id": "it_8dcfeaa2",
+					"name": "印度咖哩"
+				},
+				{
+					"id": "it_ab373806",
+					"name": "西班牙海鮮飯"
+				},
+				{
+					"id": "it_673f0243",
+					"name": "夏威夷飯"
+				},
+				{
+					"id": "it_3753cffc",
+					"name": "爐烤牛肉"
+				},
+				{
+					"id": "it_8ccba84d",
+					"name": "德國豬腳"
+				},
+				{
+					"id": "it_6a9bbf8d",
+					"name": "銅板烤肉"
+				},
+				{
+					"id": "it_7bac100e",
+					"name": "石鍋拌飯"
+				}
+			],
+			"subcategories": [
+				{
+					"id": "basic-food",
+					"name": "常見食物",
+					"itemIds": [
+						"it_21ea519e",
+						"it_bd6c3349",
+						"it_4e582d6f",
+						"it_1dad319d",
+						"it_90f723fc",
+						"it_11a98344",
+						"it_b773d092",
+						"it_72c7c2c4",
+						"it_c48adeba",
+						"it_41de926d",
+						"it_ddc3dd23",
+						"it_6f97bd92",
+						"it_5b11dffa",
+						"it_ec5e703e",
+						"it_8fddb2b4",
+						"it_e1c01e83",
+						"it_71dd160b",
+						"it_ddeb2eeb",
+						"it_8c40710a",
+						"it_d5a74a75",
+						"it_9a8f91fd",
+						"it_04d8eaa6",
+						"it_c265c4d1",
+						"it_6897ca62",
+						"it_be459e0e",
+						"it_6dd38f4f",
+						"it_824da1c7"
+					]
+				},
+				{
+					"id": "drink",
+					"name": "飲料",
+					"itemIds": [
+						"it_faedfa5f",
+						"it_95b94c8c",
+						"it_f543d6b8",
+						"it_6716aa4e",
+						"it_33087fa6",
+						"it_4b3efd1d",
+						"it_d3994c51",
+						"it_29d421dd",
+						"it_db422440"
+					]
+				},
+				{
+					"id": "dessert",
+					"name": "點心",
+					"itemIds": [
+						"it_9418e348",
+						"it_4272d2c1",
+						"it_c8c1485e",
+						"it_52eb7136",
+						"it_da3ca3c5",
+						"it_a7cb3a6f",
+						"it_5963ed5b",
+						"it_153280a9",
+						"it_ed4ec4af",
+						"it_fddafe71",
+						"it_9a65e1d1",
+						"it_6bfcddc6",
+						"it_4766f5dd",
+						"it_a9f798c2",
+						"it_2e2583e7",
+						"it_5d1559b2",
+						"it_3b5dd58a",
+						"it_331fc042",
+						"it_1f4e392e",
+						"it_29d4e5ee",
+						"it_ab6cba09",
+						"it_4ea85d35",
+						"it_f1d332e8",
+						"it_6260264f",
+						"it_f23fd007",
+						"it_e477ad78",
+						"it_387d2d3b",
+						"it_857642d3",
+						"it_5245b3f9",
+						"it_63e1fa78",
+						"it_5ae39f94",
+						"it_58126b52",
+						"it_f31e4c06",
+						"it_063ec5e4",
+						"it_11a9a20d"
+					]
+				},
+				{
+					"id": "more-food",
+					"name": "更多食物",
+					"itemIds": [
+						"it_561d2c9d",
+						"it_20aea391",
+						"it_fb669098",
+						"it_02d6d817",
+						"it_0050bbcb",
+						"it_0eee1215",
+						"it_79c51042",
+						"it_79647e6b",
+						"it_44755388",
+						"it_926290e3",
+						"it_835f4518",
+						"it_76d521dc",
+						"it_2ee6b435",
+						"it_62eca46f",
+						"it_9cd13568",
+						"it_25366c93",
+						"it_8fdd663f",
+						"it_5100e4ed",
+						"it_87d55fd6",
+						"it_2b4cfed5",
+						"it_0624c215",
+						"it_6c588587",
+						"it_0e1df5a9",
+						"it_8eee3bb0",
+						"it_7e7f9508",
+						"it_8dcfeaa2",
+						"it_ab373806",
+						"it_673f0243",
+						"it_3753cffc",
+						"it_8ccba84d",
+						"it_6a9bbf8d",
+						"it_7bac100e"
+					]
+				}
+			]
+		},
+		{
+			"id": "vegetable",
+			"name": "蔬菜五穀",
+			"sheets": [
+				{
+					"file": "images/sprites/vegetable.webp",
+					"rev": "fcb623d5",
+					"rows": 12,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "90239a64",
+			"items": [
+				{
+					"id": "it_08f76884",
+					"name": "高麗菜"
+				},
+				{
+					"id": "it_6691ba80",
+					"name": "紅蘿蔔"
+				},
+				{
+					"id": "it_1f90fab1",
+					"name": "花椰菜"
+				},
+				{
+					"id": "it_76aef0af",
+					"name": "馬鈴薯"
+				},
+				{
+					"id": "it_445c4b2b",
+					"name": "地瓜"
+				},
+				{
+					"id": "it_a71596d9",
+					"name": "洋蔥"
+				},
+				{
+					"id": "it_0d1150bd",
+					"name": "南瓜"
+				},
+				{
+					"id": "it_6f9c16de",
+					"name": "茄子"
+				},
+				{
+					"id": "it_f1b760f1",
+					"name": "番茄"
+				},
+				{
+					"id": "it_0907615f",
+					"name": "青椒"
+				},
+				{
+					"id": "it_5cd96dc9",
+					"name": "香菇"
+				},
+				{
+					"id": "it_8531dc2f",
+					"name": "玉米"
+				},
+				{
+					"id": "it_d646c552",
+					"name": "豌豆"
+				},
+				{
+					"id": "it_ed3fc99a",
+					"name": "花生"
+				},
+				{
+					"id": "it_545f9714",
+					"name": "大蒜"
+				},
+				{
+					"id": "it_e3c0bcba",
+					"name": "蔥"
+				},
+				{
+					"id": "it_c003e163",
+					"name": "辣椒"
+				},
+				{
+					"id": "it_0130fe34",
+					"name": "豆芽"
+				},
+				{
+					"id": "it_b2fbb3a2",
+					"name": "稻米"
+				},
+				{
+					"id": "it_28c5f3ee",
+					"name": "小麥"
+				},
+				{
+					"id": "it_30d25f9f",
+					"name": "小白菜"
+				},
+				{
+					"id": "it_2fb8cb4d",
+					"name": "大白菜"
+				},
+				{
+					"id": "it_11d919b8",
+					"name": "青江菜"
+				},
+				{
+					"id": "it_8ef8fdbe",
+					"name": "大陸妹"
+				},
+				{
+					"id": "it_0de4e523",
+					"name": "奶油白菜"
+				},
+				{
+					"id": "it_35b39075",
+					"name": "龍鬚菜"
+				},
+				{
+					"id": "it_929daad5",
+					"name": "空心菜"
+				},
+				{
+					"id": "it_01b2ac93",
+					"name": "地瓜葉"
+				},
+				{
+					"id": "it_c6aaea82",
+					"name": "蘿蔔"
+				},
+				{
+					"id": "it_3117cf96",
+					"name": "大頭菜"
+				},
+				{
+					"id": "it_62f25a26",
+					"name": "芹菜"
+				},
+				{
+					"id": "it_95b1115a",
+					"name": "水蓮"
+				},
+				{
+					"id": "it_00053ff3",
+					"name": "昆布"
+				},
+				{
+					"id": "it_56f689fe",
+					"name": "紫蘇"
+				},
+				{
+					"id": "it_8d2fcc3e",
+					"name": "九層塔"
+				},
+				{
+					"id": "it_475904ce",
+					"name": "香菜"
+				},
+				{
+					"id": "it_d8502aa0",
+					"name": "小黃瓜"
+				},
+				{
+					"id": "it_7a52b652",
+					"name": "絲瓜"
+				},
+				{
+					"id": "it_15128d59",
+					"name": "冬瓜"
+				},
+				{
+					"id": "it_704e0ef6",
+					"name": "苦瓜"
+				},
+				{
+					"id": "it_6cc94cbd",
+					"name": "蘆筍"
+				},
+				{
+					"id": "it_4e2c270f",
+					"name": "彩椒"
+				},
+				{
+					"id": "it_45849479",
+					"name": "洋菇"
+				},
+				{
+					"id": "it_3826819c",
+					"name": "鴻禧菇"
+				},
+				{
+					"id": "it_0c2d8965",
+					"name": "金針菇"
+				},
+				{
+					"id": "it_31aec3b3",
+					"name": "杏鮑菇"
+				},
+				{
+					"id": "it_c6935b7c",
+					"name": "黑木耳"
+				},
+				{
+					"id": "it_15669303",
+					"name": "山藥"
+				},
+				{
+					"id": "it_fc21f00d",
+					"name": "牛蒡"
+				},
+				{
+					"id": "it_1bacb86d",
+					"name": "竹筍"
+				},
+				{
+					"id": "it_904d6549",
+					"name": "筊白筍"
+				},
+				{
+					"id": "it_a951840a",
+					"name": "菱角"
+				},
+				{
+					"id": "it_edd53689",
+					"name": "秋葵"
+				},
+				{
+					"id": "it_407b9caa",
+					"name": "金針"
+				},
+				{
+					"id": "it_a9ab4d3c",
+					"name": "橄欖"
+				},
+				{
+					"id": "it_e1619eee",
+					"name": "薑"
+				},
+				{
+					"id": "it_62bf79f9",
+					"name": "山葵"
+				},
+				{
+					"id": "it_f951be46",
+					"name": "花椒"
+				},
+				{
+					"id": "it_f7febc5e",
+					"name": "胡椒"
+				},
+				{
+					"id": "it_37ef6e13",
+					"name": "芋頭"
+				},
+				{
+					"id": "it_4b6e3d1f",
+					"name": "蓮藕"
+				},
+				{
+					"id": "it_3729e3da",
+					"name": "蓮子"
+				},
+				{
+					"id": "it_e835045b",
+					"name": "四季豆"
+				},
+				{
+					"id": "it_9b270a70",
+					"name": "毛豆"
+				},
+				{
+					"id": "it_b368f721",
+					"name": "紅豆"
+				},
+				{
+					"id": "it_c0e9463f",
+					"name": "綠豆"
+				},
+				{
+					"id": "it_536ee122",
+					"name": "薏仁"
+				},
+				{
+					"id": "it_c0593ed0",
+					"name": "腰果"
+				},
+				{
+					"id": "it_e7da2de3",
+					"name": "栗子"
+				},
+				{
+					"id": "it_762b5b8f",
+					"name": "夏威夷果"
+				},
+				{
+					"id": "it_91e17ff8",
+					"name": "核桃"
+				},
+				{
+					"id": "it_c1bda0b5",
+					"name": "開心果"
+				}
+			],
+			"subcategories": [
+				{
+					"id": "basic-vegetable",
+					"name": "常見蔬菜",
+					"itemIds": [
+						"it_08f76884",
+						"it_6691ba80",
+						"it_1f90fab1",
+						"it_76aef0af",
+						"it_445c4b2b",
+						"it_a71596d9",
+						"it_0d1150bd",
+						"it_6f9c16de",
+						"it_f1b760f1",
+						"it_0907615f",
+						"it_5cd96dc9",
+						"it_8531dc2f",
+						"it_d646c552",
+						"it_ed3fc99a",
+						"it_545f9714",
+						"it_e3c0bcba",
+						"it_c003e163",
+						"it_0130fe34",
+						"it_b2fbb3a2",
+						"it_28c5f3ee"
+					]
+				},
+				{
+					"id": "more-vegetable",
+					"name": "更多蔬菜",
+					"itemIds": [
+						"it_30d25f9f",
+						"it_2fb8cb4d",
+						"it_11d919b8",
+						"it_8ef8fdbe",
+						"it_0de4e523",
+						"it_35b39075",
+						"it_929daad5",
+						"it_01b2ac93",
+						"it_c6aaea82",
+						"it_3117cf96",
+						"it_62f25a26",
+						"it_95b1115a",
+						"it_00053ff3",
+						"it_56f689fe",
+						"it_8d2fcc3e",
+						"it_475904ce",
+						"it_d8502aa0",
+						"it_7a52b652",
+						"it_15128d59",
+						"it_704e0ef6",
+						"it_6cc94cbd",
+						"it_4e2c270f",
+						"it_45849479",
+						"it_3826819c",
+						"it_0c2d8965",
+						"it_31aec3b3",
+						"it_c6935b7c",
+						"it_15669303",
+						"it_fc21f00d",
+						"it_1bacb86d",
+						"it_904d6549",
+						"it_a951840a",
+						"it_edd53689",
+						"it_407b9caa",
+						"it_a9ab4d3c",
+						"it_e1619eee",
+						"it_62bf79f9",
+						"it_f951be46",
+						"it_f7febc5e",
+						"it_37ef6e13",
+						"it_4b6e3d1f",
+						"it_3729e3da",
+						"it_e835045b",
+						"it_9b270a70",
+						"it_b368f721",
+						"it_c0e9463f",
+						"it_536ee122",
+						"it_c0593ed0",
+						"it_e7da2de3",
+						"it_762b5b8f",
+						"it_91e17ff8",
+						"it_c1bda0b5"
+					]
+				}
+			]
+		},
+		{
+			"id": "fruit",
+			"name": "水果",
+			"sheets": [
+				{
+					"file": "images/sprites/fruit.webp",
+					"rev": "3f7f1847",
+					"rows": 7,
+					"cols": 6,
+					"tile": 340
+				}
+			],
+			"voiceRev": "29ed2dd4",
+			"items": [
+				{
+					"id": "it_de073e3a",
+					"name": "蘋果"
+				},
+				{
+					"id": "it_bc098b15",
+					"name": "香蕉"
+				},
+				{
+					"id": "it_69b2e07c",
+					"name": "橘子"
+				},
+				{
+					"id": "it_df9eaffa",
+					"name": "葡萄"
+				},
+				{
+					"id": "it_6a589fa6",
+					"name": "西瓜"
+				},
+				{
+					"id": "it_cee0fca9",
+					"name": "芒果"
+				},
+				{
+					"id": "it_48348ad9",
+					"name": "鳳梨"
+				},
+				{
+					"id": "it_54658e47",
+					"name": "草莓"
+				},
+				{
+					"id": "it_64348294",
+					"name": "奇異果"
+				},
+				{
+					"id": "it_0e5b9519",
+					"name": "木瓜"
+				},
+				{
+					"id": "it_2154a7fc",
+					"name": "芭樂"
+				},
+				{
+					"id": "it_dbbcbba1",
+					"name": "水蜜桃"
+				},
+				{
+					"id": "it_1a47a9c2",
+					"name": "火龍果"
+				},
+				{
+					"id": "it_23aa04d2",
+					"name": "蓮霧"
+				},
+				{
+					"id": "it_5a3a6f44",
+					"name": "櫻桃"
+				},
+				{
+					"id": "it_118fac8e",
+					"name": "小番茄"
+				},
+				{
+					"id": "it_bfaa1046",
+					"name": "荔枝"
+				},
+				{
+					"id": "it_82998991",
+					"name": "椰子"
+				},
+				{
+					"id": "it_982cd1c8",
+					"name": "哈密瓜"
+				},
+				{
+					"id": "it_93b0bb4f",
+					"name": "藍莓"
+				},
+				{
+					"id": "it_4f93c0e8",
+					"name": "西洋梨"
+				},
+				{
+					"id": "it_2a5165d0",
+					"name": "水梨"
+				},
+				{
+					"id": "it_89be7ad5",
+					"name": "柚子"
+				},
+				{
+					"id": "it_9811ab8b",
+					"name": "檸檬"
+				},
+				{
+					"id": "it_8580a209",
+					"name": "酪梨"
+				},
+				{
+					"id": "it_5b2876cb",
+					"name": "楊桃"
+				},
+				{
+					"id": "it_3c633649",
+					"name": "柿子"
+				},
+				{
+					"id": "it_7b544a9b",
+					"name": "李子"
+				},
+				{
+					"id": "it_2a0ed6b5",
+					"name": "百香果"
+				},
+				{
+					"id": "it_4909cc95",
+					"name": "酸梅"
+				},
+				{
+					"id": "it_3482f4b4",
+					"name": "釋迦"
+				},
+				{
+					"id": "it_2f06bf80",
+					"name": "山竹"
+				},
+				{
+					"id": "it_b5972cb3",
+					"name": "榴槤"
+				},
+				{
+					"id": "it_631af319",
+					"name": "桑葚"
+				},
+				{
+					"id": "it_499ca097",
+					"name": "覆盆子"
+				},
+				{
+					"id": "it_f93ef1ad",
+					"name": "枇杷"
+				},
+				{
+					"id": "it_81ed23a2",
+					"name": "無花果"
+				},
+				{
+					"id": "it_5613b17c",
+					"name": "紅毛丹"
+				},
+				{
+					"id": "it_969df358",
+					"name": "波羅蜜"
+				}
+			]
+		}
+	]
+}

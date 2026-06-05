@@ -4,7 +4,9 @@
 	"description": "幼兒益智遊戲的工具腳本（目前只有 service worker build）",
 	"type": "module",
 	"scripts": {
-		"dev:web": "flutter run -d chrome --wasm --web-hostname=0.0.0.0 --web-port=49985 --web-launch-url=http://localhost:49985/",
+		"dev:sm": "flutter run -d SM",
+		"dev:web": "flutter run -d chrome --web-port=49985",
+		"dev:wasm": "flutter run -d chrome --wasm --web-hostname=0.0.0.0 --web-port=49985 --web-launch-url=http://localhost:49985/",
 		"build:sw": "rsbuild build --config service/rsbuild.config.ts",
 		"build:web": "pnpm build:sw && flutter build web --no-wasm-dry-run --release --pwa-strategy=none --base-href /kid-puzzle/",
 		"preview": "node tools/preview.mjs"

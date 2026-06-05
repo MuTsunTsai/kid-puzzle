@@ -1,8 +1,9 @@
 # 本專案支援的瀏覽器基準。
 #
-# 下限是 WebAssembly.compileStreaming 的最早支援版本（Safari 15 / Chrome 61 /
-# Firefox 58）—— 比這更舊的 [web/index.html](web/index.html) 會直接顯示「瀏覽器
-# 版本過舊」遮罩、不嘗試載 Flutter。
+# 下限同時受 WebAssembly.compileStreaming（Safari 15 / Chrome 61 / Firefox 58）
+# 與 webp 解碼支援（Safari 16 / Chrome 32 / Firefox 65）兩條限制制約，取交集
+# 後為 Safari 16 / Chrome 61 / Firefox 65。比這更舊的 [web/index.html](web/index.html)
+# 會直接顯示「瀏覽器版本過舊」遮罩、不嘗試載 Flutter。
 #
 # 用途：service/ 內 Rsbuild build SW 時、會依此自動決定 swc transform target
 # （避免對已支援的語法做不必要的 polyfill / downlevel）。
@@ -10,10 +11,10 @@
 # 沒列入 IE / 舊 Edge / 早期 Android browser —— 行動端用 Safari iOS / Chrome
 # Android 兩個就夠涵蓋。
 
-Safari >= 15
+Safari >= 16
 iOS >= 15
 Chrome >= 61
 ChromeAndroid >= 61
 Edge >= 79
-Firefox >= 58
+Firefox >= 65
 not dead

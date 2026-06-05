@@ -1,17 +1,10 @@
 {
-	"editor.insertSpaces": false,
-	"editor.tabSize": 2,
-	"editor.detectIndentation": false,
 	"[dart]": {
-		"editor.insertSpaces": false,
-		"editor.tabSize": 2,
 		"editor.formatOnSave": false,
-		"editor.formatOnType": false
+		"editor.formatOnType": false,
+		"editor.insertSpaces": false,
+		"editor.tabSize": 2
 	},
-	"dart.enableSdkFormatter": false,
-	"dart.lineLength": 100,
-	"files.eol": "\n",
-	"files.encoding": "utf8",
 	"cSpell.words": [
 		"credentialless",
 		"precache",
@@ -19,5 +12,17 @@
 		"rsbuild",
 		"voronoi",
 		"workbox"
-	]
+	],
+	"dart.enableSdkFormatter": false,
+	"dart.lineLength": 100,
+	"editor.detectIndentation": false,
+	"editor.insertSpaces": false,
+	"editor.tabSize": 2,
+	"files.exclude": {
+		".idea/": true,
+		".dart_tool/": true,
+		".flutter-plugins-dependencies": true
+	},
+	"files.encoding": "utf8",
+	"files.eol": "\n"
 }
