@@ -3,11 +3,12 @@
 // 動機：兩個（含未來更多）遊戲模式都有「多指拖曳 piece / group」的需求、
 // session lifecycle 邏輯應該共用一份。同時統一處理一個棘手的 web 邊角：
 //
-// **stale session sweep**：Flutter web 多指場景下、`pointerup` 偶爾不會 fire
-// （iOS Safari 與 Android Chrome 皆有回報），導致 endDrag 沒被呼叫、session
-// 殘留、該片之後在 [beginDrag] 被 [canBeginDragOn] 擋住、卡死無法再被拖。
-// 解法是 dragBy 進來時先檢查 session 是否已過期、若是則 silently 清掉、再
-// 用當前絕對位置 fallback 重新 beginDrag、玩家無感繼續操作。
+// **stale session sweep**：iOS 多指場景下偶有回報「拼片卡在邊緣不能動」、
+// 根因疑似 `pointerup` 沒 fire 導致 endDrag 沒被呼叫、session 殘留、該片
+// 之後在 [beginDrag] 被 [canBeginDragOn] 擋住、卡死無法再被拖。實測無法
+// 復現、源碼推理也找不到具體漏 path、採取架構層防呆：dragBy 進來時先檢查
+// session 是否已過期、若是則 silently 清掉、再用當前絕對位置 fallback 重新
+// beginDrag、玩家無感繼續操作。
 //
 // subclass 必須實作幾個 hook：[hitTest] / [canBeginDragOn] /
 // [onDragMove] / [onDragFinalize] / [onDragPickup]。base 完全不認得任何

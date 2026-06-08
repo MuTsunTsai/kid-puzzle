@@ -545,7 +545,7 @@ class PuzzleCutter {
 		required EdgeShape edgeShape,
 	}) {
 		// 把每條 segment 採樣成多邊形點 + 對應的 segment index + isTab 標記。
-		// isTab=true 表示「該採樣點落在耳朵兩段 cubic 上」，反之為 baseline。
+		// isTab=true 表示「該採樣點落在耳朵本體的內側 cubic 段上」，反之為 baseline。
 		final List<Offset> poly = <Offset>[];
 		final List<int> segIdx = <int>[];
 		final List<bool> isTab = <bool>[];
@@ -1035,9 +1035,10 @@ class PuzzleCutter {
 		// 端點 C1 平滑：
 		// - 無耳朵段（abs 只有一個 cubic / line）：直接 replace 成一條
 		//   端點切線受 tangent override 控制的 cubic。
-		// - 有耳朵段（abs 有 4 個指令、第 1 與第 4 是進耳前 / 出耳後 baseline
-		//   cubic）：只 patch cubic1 的第一控制點（起點切線）與 cubic4 的第
-		//   二控制點（終點切線）；耳朵本體（cubic2、cubic3）不動。
+		// - 有耳朵段（abs 首段是進耳前 baseline cubic、末段是出耳後 baseline
+		//   cubic、中間若干段是耳朵本體）：只 patch 首 cubic 的第一控制點
+		//   （起點切線）與末 cubic 的第二控制點（終點切線）；耳朵本體不動。
+		//   不依賴中間段數、EdgeShape 改變內部結構也不影響這裡。
 		final bool isPureBaseline =
 				seg.forceFlat || seg.type == EdgeType.flat;
 		if ((seg.tangentAtA != null || seg.tangentAtB != null)) {
@@ -1065,12 +1066,12 @@ class PuzzleCutter {
 				}
 				abs.clear();
 				abs.add(CubicToCmd(c1.dx, c1.dy, c2.dx, c2.dy, seg.b.dx, seg.b.dy));
-			} else if (!isPureBaseline && abs.length == 4) {
-				// 有耳朵段：cubic1 是進耳前 baseline、cubic4 是出耳後 baseline。
-				// cubic1: (seg.a) → (..., y1)、其第一控制點影響「在 seg.a 的起點切線」。
-				// cubic4: (..., y7) → (seg.b)、其第二控制點影響「在 seg.b 的終點切線」。
-				if (seg.tangentAtA != null) {
-					final CubicToCmd cubic1 = abs[0] as CubicToCmd;
+			} else if (!isPureBaseline && abs.length >= 2) {
+				// 有耳朵段：首段是進耳前 baseline、末段是出耳後 baseline
+				// （中間段是耳朵本體、不動）。EdgeShape 內部段數變更不影響這裡：
+				// 永遠取首尾 cubic 的「外側」控制點來貼合 tangentAtA / tangentAtB。
+				if (seg.tangentAtA != null && abs.first is CubicToCmd) {
+					final CubicToCmd head = abs.first as CubicToCmd;
 					final Offset newC1 = Offset(
 						seg.a.dx + seg.tangentAtA!.dx * seg.tangentLenAtA,
 						seg.a.dy + seg.tangentAtA!.dy * seg.tangentLenAtA,
@@ -1078,27 +1079,27 @@ class PuzzleCutter {
 					abs[0] = CubicToCmd(
 						newC1.dx,
 						newC1.dy,
-						cubic1.c2x,
-						cubic1.c2y,
-						cubic1.x,
-						cubic1.y,
-						isTab: cubic1.isTab,
+						head.c2x,
+						head.c2y,
+						head.x,
+						head.y,
+						isTab: head.isTab,
 					);
 				}
-				if (seg.tangentAtB != null) {
-					final CubicToCmd cubic4 = abs[3] as CubicToCmd;
+				if (seg.tangentAtB != null && abs.last is CubicToCmd) {
+					final CubicToCmd tail = abs.last as CubicToCmd;
 					final Offset newC2 = Offset(
 						seg.b.dx + seg.tangentAtB!.dx * seg.tangentLenAtB,
 						seg.b.dy + seg.tangentAtB!.dy * seg.tangentLenAtB,
 					);
-					abs[3] = CubicToCmd(
-						cubic4.c1x,
-						cubic4.c1y,
+					abs[abs.length - 1] = CubicToCmd(
+						tail.c1x,
+						tail.c1y,
 						newC2.dx,
 						newC2.dy,
-						cubic4.x,
-						cubic4.y,
-						isTab: cubic4.isTab,
+						tail.x,
+						tail.y,
+						isTab: tail.isTab,
 					);
 				}
 			}
