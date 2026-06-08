@@ -11,7 +11,7 @@ import "../domain/services/cell_planner.dart";
 import "../domain/services/puzzle_cutter.dart";
 import "../domain/services/snap_detector.dart";
 import "../domain/services/triangle_planner.dart";
-import "../../shared/drag_speed_tracker.dart";
+import "../../shared/draggable_controller.dart";
 import "../../shared/scatter_layout.dart";
 import "../../shared/touch_vote_hit.dart";
 import "painters/bevel_painter.dart";
@@ -81,7 +81,7 @@ class PuzzleStageLayout {
 ///
 /// 持有當前 layout、所有 piece 的位置；
 /// 拖曳期間透過 [repaintTick] 觸發 painter 重繪而不 rebuild widget tree。
-class PuzzleController extends ChangeNotifier {
+class PuzzleController extends DraggableController<PuzzlePiece> {
 	PuzzleController({
 		required this.stageLayout,
 		required this.boardImage,
@@ -90,6 +90,13 @@ class PuzzleController extends ChangeNotifier {
 	}) {
 		_repaintTick = ValueNotifier<int>(0);
 	}
+
+	/// 嚴格鎖定模式（= 沒開提示線）。每關由 widget 端設一次、不會在 drag
+	/// 過程中改變、所以放 controller field 而非 session。
+	///
+	/// false（有提示線）→ 寬鬆：拼片接近正確位置就鎖定
+	/// true（無提示線）→ 嚴格：要碰到已 locked 拼片 / 邊框才鎖定
+	bool strictLocking = false;
 
 	final PuzzleStageLayout stageLayout;
 
@@ -174,17 +181,16 @@ class PuzzleController extends ChangeNotifier {
 
 	/// 目前正在拖曳的群組 ID 集合（空表示沒有任何拖曳）。
 	///
-	/// 支援多指同時拖曳：每個 pointer 認領一個群組。同一群組不允許被兩指搶。
-	final Set<int> _draggingGroupIds = <int>{};
-	Set<int> get draggingGroupIds => _draggingGroupIds;
-
-	/// 每個 pointer 對應的拖曳狀態。key 是 pointer id。
-	final Map<int, _DragSession> _dragSessions = <int, _DragSession>{};
+	/// 從 base 的 [sessions] 衍生 — 多指同時拖時、每個 pointer 認領一個群組、
+	/// 此 set 就是這些群組 id 的去重集合。同一群組不允許被兩指搶（見
+	/// [canBeginDragOn]）。
+	Set<int> get draggingGroupIds =>
+			<int>{for (final DragSession<PuzzlePiece> s in sessions.values) s.piece.groupId};
 
 	/// 給 canvas 用：查詢某 pointer 正在拖曳哪個群組。沒有對應 session 時回 null。
 	/// 用於旋轉模式中、找出第二指應依附的群組 — 比 hitTest 第一指位置更可靠
 	/// （第一指此刻可能落在 piece 邊框 1~2 px 之外、命中失敗導致旋轉手勢被吞）。
-	int? groupIdForPointer(int pointerId) => _dragSessions[pointerId]?.groupId;
+	int? groupIdForPointer(int pointerId) => sessions[pointerId]?.piece.groupId;
 
 	// === 旋轉模式 ===
 
@@ -377,19 +383,12 @@ class PuzzleController extends ChangeNotifier {
 	SnapResult? _lastSnapResult;
 	SnapResult? get lastSnapResult => _lastSnapResult;
 
-	/// 過關回呼（鎖定最後一片時觸發一次）。
-	VoidCallback? onCompleted;
+	// onCompleted / onPickup / onDrop 在 base 上、不重複宣告。
 
 	/// 吸附 / 鎖定發生時的回呼（給音效用）。
 	///
 	/// 參數：[merged] 是否發生融合、[locked] 是否發生鎖定。
 	void Function(bool merged, bool locked)? onSnap;
-
-	/// 抓起 piece 時觸發（命中、開始拖曳）。
-	VoidCallback? onPickup;
-
-	/// 結束拖曳但沒發生融合也沒鎖定時觸發（單純放開）。
-	VoidCallback? onDrop;
 
 	/// 群組目標旋轉角度跨過一個 step 時觸發（給音效用「咔」一聲提示）。
 	/// 兩指旋轉手勢與滾輪步進都會吃到；scatter / 融合時的 immediate set 不會。
@@ -413,6 +412,7 @@ class PuzzleController extends ChangeNotifier {
 	/// [fuzzy] = false（滑鼠）：嚴格精準命中，由 z 高到低找第一個命中的 piece。
 	///
 	/// 找不到回傳 null。
+	@override
 	PuzzlePiece? hitTest(ui.Offset localPos, {bool fuzzy = false}) {
 		final List<PuzzlePiece> active = layout.pieces
 				.where((PuzzlePiece p) => !p.locked)
@@ -474,92 +474,76 @@ class PuzzleController extends ChangeNotifier {
 		return rotated - p.currentPosition;
 	}
 
-	/// 開始拖曳：把命中的 piece 所屬群組標為 dragging、提升 z-index。
+	/// 同一群組不允許被兩指同時拖曳——多指可各自拖**不同**群組、但同一群組
+	/// 必須單指獨佔。
 	///
-	/// [pointerId] 由呼叫端帶入，多指可同時各自拖曳不同群組。同一群組若已被
-	/// 另一個 pointer 拖曳中，此次 beginDrag 直接失敗（false），避免兩指搶同片。
-	/// [fuzzy] = true 用觸控的半圓投票命中；false 用滑鼠的精準命中。
-	/// [strictLocking] 記下、給 [dragBy] 的「自動 snap」與 [endDrag] 共用判定。
-	/// 回傳是否成功啟動拖曳（false 表示沒命中任何 piece、或群組已被佔用）。
-	bool beginDrag(
-		int pointerId,
-		ui.Offset localPos, {
-		bool fuzzy = false,
-		bool strictLocking = false,
-	}) {
-		// 不設並行 drag 上限：幼兒操作時手掌可能貼著螢幕、若限制兩指就會把「真的
-		// 想動拼片的那指」擋掉。同一群組不能被兩指同時搶（下方 _draggingGroupIds
-		// 檢查），但「不同群組可以同時被多指各自拖」是允許的。
-		final PuzzlePiece? hit = hitTest(localPos, fuzzy: fuzzy);
-		if (hit == null) return false;
-		// 同一群組不允許被兩指同時拖曳
-		if (_draggingGroupIds.contains(hit.groupId)) return false;
+	/// 不設並行 drag 上限：幼兒操作時手掌可能貼著螢幕、若限制兩指就會把
+	/// 「真的想動拼片的那指」擋掉。
+	@override
+	bool canBeginDragOn(PuzzlePiece piece) =>
+			!draggingGroupIds.contains(piece.groupId);
 
-		_dragSessions[pointerId] = _DragSession(
-			groupId: hit.groupId,
-			strictLocking: strictLocking,
-		);
-		_draggingGroupIds.add(hit.groupId);
-		_bringGroupToFront(hit.groupId);
-		onPickup?.call();
+	@override
+	void onDragPickup(PuzzlePiece piece) {
+		_bringGroupToFront(piece.groupId);
 		bumpRepaint();
-		return true;
 	}
 
-	/// 拖曳中：把 delta 套到指定 pointer 對應 dragging 群組所有成員。
+	/// 把 delta 套到 session 對應群組的所有成員、回傳實際套用的 clamped delta。
 	///
-	/// 邊界限制：拖曳群組「任一片的中心」都必須留在畫面（含 padding）內，避免
-	/// 幼兒不小心把拼片拋到畫面外、找不回來。實作上算每一軸的「最大允許 delta」、
-	/// 把實際 delta 夾擠之後再套用。
-	///
-	/// 自動 snap：每次 update 後若視窗平均速度低於
-	/// [PuzzleDimens.autoSnapSpeedThreshold]，試算 snap 結果；若會 merge / lock
-	/// 就直接執行、結束此次拖曳。
-	void dragBy(int pointerId, ui.Offset delta) {
-		final _DragSession? session = _dragSessions[pointerId];
-		if (session == null) return;
-		final int gid = session.groupId;
+	/// 邊界限制：拖曳群組「任一片的中心」都必須留在畫面（含 padding）內、
+	/// 避免幼兒不小心把拼片拋到畫面外找不回來。
+	@override
+	ui.Offset onDragMove(
+		DragSession<PuzzlePiece> session,
+		ui.Offset delta,
+	) {
+		final int gid = session.piece.groupId;
 		final ui.Offset clamped = _clampGroupDelta(gid, delta);
 		for (final PuzzlePiece p in layout.pieces) {
 			if (p.groupId == gid) {
 				p.currentPosition = p.currentPosition + clamped;
 			}
 		}
-
-		// 用實際套到 piece 的 clamped delta 餵速度追蹤器（邊界 clamp 後距離 0
-		// = 視同停止）；達 warmup + 視窗滿 + 平均速度低就嘗試自動 snap。
-		if (session.speed.recordAndCheckSlow(distance: clamped.distance)) {
-			_tryAutoSnap(pointerId);
-		}
 		bumpRepaint();
+		return clamped;
 	}
 
-	/// 嘗試自動 snap：用相同的 [SnapDetector.resolve] 判定，成功就執行同 endDrag
-	/// 的後續邏輯，並直接移除該 pointer 的 session — 後續 dragBy / endDrag 因為
-	/// 找不到 session 都會 no-op，避免 `onSnap` 被同一次黏合反覆觸發、把音效
-	/// 切掉自己。
-	void _tryAutoSnap(int pointerId) {
-		final _DragSession? session = _dragSessions[pointerId];
-		if (session == null) return;
-		final int gid = session.groupId;
+	/// 統一處理「拖曳結束 → SnapDetector 嘗試融合 / 鎖定」的核心邏輯。
+	/// 手動 endDrag 與 auto-snap（速度低觸發）共用此入口。
+	///
+	/// 回傳 [DragOutcome.didSomething] = true 時表示有效 snap（merged 或 locked）、
+	/// base 會自動 remove session、且不呼叫 `onDrop`。auto-snap 沒命中時回
+	/// [DragOutcome.none]、base 不 remove session、玩家繼續拖。
+	@override
+	DragOutcome onDragFinalize(
+		DragSession<PuzzlePiece> session, {
+		required bool isAutoSnap,
+	}) {
+		final int gid = session.piece.groupId;
 		final SnapResult result = SnapDetector.resolve(
 			layout: layout,
 			draggingGroupId: gid,
 			boardOrigin: stageLayout.boardOrigin,
-			requireNeighborContact: session.strictLocking,
+			requireNeighborContact: strictLocking,
 			groupRotationDeg:
 					rotationEnabled ? _groupTargetRotation : const <int, int>{},
 		);
-		if (!result.merged && !result.locked) return;
+		_lastSnapResult = result;
+
+		if (!result.merged && !result.locked) {
+			// 沒 snap：手動 endDrag 由 base 觸發 onDrop；auto-snap 由 base 跳過、
+			// 繼續保留 session 給玩家繼續拖。
+			return DragOutcome.none;
+		}
+
+		onSnap?.call(result.merged, result.locked);
 
 		// 融合後新群組沿用「拖曳群」的角度（必然等於目標群、見 _findBestMerge）。
 		if (result.merged && rotationEnabled) {
 			final double rot = groupCurrentRotation(gid);
 			setGroupRotationImmediate(result.finalGroupId, rot);
 		}
-
-		_lastSnapResult = result;
-		onSnap?.call(result.merged, result.locked);
 		if (result.merged) {
 			_bringGroupToFront(result.finalGroupId);
 		}
@@ -572,17 +556,15 @@ class PuzzleController extends ChangeNotifier {
 			}
 			_lockBump.value = _lockBump.value + 1;
 		}
-		if (!_completed && _checkCompleted()) {
+
+		final bool nowCompleted = !_completed && _checkCompleted();
+		if (nowCompleted) {
 			_completed = true;
 			_completedNotifier.value = true;
-			onCompleted?.call();
 		}
 
-		// 結束此次拖曳：直接把 session 移除，後續 dragBy 找不到就 no-op，
-		// 避免拼塊已 snap 之後 dragBy 又進入 SnapDetector 重複觸發 `onSnap`
-		// 而把音效不斷 stop+restart 切掉自己。endDrag 同樣找不到就 no-op。
-		_draggingGroupIds.remove(gid);
-		_dragSessions.remove(pointerId);
+		bumpRepaint();
+		return DragOutcome(didSomething: true, completed: nowCompleted);
 	}
 
 	/// 拼片中心必須距畫面邊緣至少這麼多 px，避免幼兒拖到看不見。
@@ -624,66 +606,8 @@ class PuzzleController extends ChangeNotifier {
 		return ui.Offset(allowedDx, allowedDy);
 	}
 
-	/// 結束拖曳：執行吸附 / 鎖定判定，必要時觸發過關。
-	///
-	/// [pointerId] 對應 [beginDrag] 時帶入的 pointer。若該 pointer 沒有 active
-	/// session（例如已被自動 snap 提前結束），只清理 session 就 return。
-	void endDrag(int pointerId) {
-		final _DragSession? session = _dragSessions.remove(pointerId);
-		if (session == null) {
-			// 沒有 session：要嘛是 pointer 從未被 beginDrag 接管，要嘛是自動 snap
-			// 已在 dragBy 中提早把 session 清掉。兩種情況都直接 no-op。
-			bumpRepaint();
-			return;
-		}
-		final int gid = session.groupId;
-		_draggingGroupIds.remove(gid);
-
-		final SnapResult result = SnapDetector.resolve(
-			layout: layout,
-			draggingGroupId: gid,
-			boardOrigin: stageLayout.boardOrigin,
-			requireNeighborContact: session.strictLocking,
-			groupRotationDeg:
-					rotationEnabled ? _groupTargetRotation : const <int, int>{},
-		);
-		_lastSnapResult = result;
-		if (result.merged || result.locked) {
-			onSnap?.call(result.merged, result.locked);
-			// 融合後新群組沿用「拖曳群」的角度（必然等於目標群、見 _findBestMerge）。
-			if (result.merged && rotationEnabled) {
-				final double rot = groupCurrentRotation(gid);
-				setGroupRotationImmediate(result.finalGroupId, rot);
-			}
-			// 融合後把整個合併群組的 z-index 提到最高，避免被其他散落塊蓋住造成
-			// 奇怪的層級錯亂（融合是把 other group 拉過來，那群可能 z 較低）。
-			if (result.merged) {
-				_bringGroupToFront(result.finalGroupId);
-			}
-			// 記錄此次鎖定的 piece 們供動畫使用，並 bump 訊號
-			if (result.locked) {
-				_lastLockedPieces.clear();
-				for (final PuzzlePiece p in layout.pieces) {
-					if (p.groupId == result.finalGroupId && p.locked) {
-						_lastLockedPieces.add(p.id);
-					}
-				}
-				_lockBump.value = _lockBump.value + 1;
-			}
-		} else {
-			// 純放開（沒融合也沒鎖定）
-			onDrop?.call();
-		}
-
-		// 過關檢查：所有 piece 都鎖定 → 觸發一次
-		if (!_completed && _checkCompleted()) {
-			_completed = true;
-			_completedNotifier.value = true;
-			onCompleted?.call();
-		}
-
-		bumpRepaint();
-	}
+	// beginDrag / dragBy / endDrag 由 base 提供、subclass 不再 override。
+	// 行為差異全部走 hook：[canBeginDragOn] / [onDragMove] / [onDragFinalize]。
 
 	/// 過關條件：所有 piece 都 locked。
 	bool _checkCompleted() {
@@ -715,8 +639,7 @@ class PuzzleController extends ChangeNotifier {
 	/// 還大就讓它對稱溢出。
 	Future<void> scatterPiecesToRight({int seed = 0}) async {
 		// 換關卡時把所有拖曳 / 旋轉狀態清掉，避免舊 pointer 事件留下殘留 session。
-		_dragSessions.clear();
-		_draggingGroupIds.clear();
+		clearAllSessions();
 		_rotateSessions.clear();
 		_groupTargetRotation.clear();
 		_groupCurrentRotation.clear();
@@ -1064,21 +987,4 @@ class _RotateSession {
 	double prevDeltaDeg = 0.0;
 }
 
-/// 單一 pointer 的拖曳狀態。每根手指各自獨立。
-class _DragSession {
-	_DragSession({
-		required this.groupId,
-		required this.strictLocking,
-	}) : speed = DragSpeedTracker(
-				slowThreshold: PuzzleDimens.autoSnapSpeedThreshold,
-			)..start();
-
-	/// 此 pointer 正在拖曳的群組 ID。
-	final int groupId;
-
-	/// 進入時記下的「無提示線」嚴格鎖定旗標，給 dragBy / 自動 snap 共用。
-	final bool strictLocking;
-
-	/// 拖曳速度追蹤（warmup + 滑動視窗 + 平均速度）。
-	final DragSpeedTracker speed;
-}
+// PuzzleController 的 per-pointer 拖曳狀態已搬到 base [DragSession]。

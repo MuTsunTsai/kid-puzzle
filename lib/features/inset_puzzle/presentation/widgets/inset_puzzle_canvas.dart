@@ -96,7 +96,7 @@ class _InsetPuzzleCanvasState extends State<InsetPuzzleCanvas>
 
 	void _onPointerMove(PointerMoveEvent e) {
 		if (!_activePointers.contains(e.pointer)) return;
-		widget.controller.dragBy(e.pointer, e.delta);
+		widget.controller.dragBy(e.pointer, e.localPosition, e.delta);
 	}
 
 	void _onPointerUp(PointerUpEvent e) {

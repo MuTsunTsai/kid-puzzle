@@ -7,7 +7,7 @@ import "package:flutter/material.dart" show Color;
 import "../../../core/sprites/sprite_manifest.dart";
 import "../../../core/sprites/sprite_registry.dart";
 import "../../puzzle/presentation/puzzle_controller.dart" show PuzzleStageLayout;
-import "../../shared/drag_speed_tracker.dart";
+import "../../shared/draggable_controller.dart";
 import "../../shared/macaron_color.dart";
 import "../../shared/scatter_layout.dart";
 import "../../shared/touch_vote_hit.dart";
@@ -20,7 +20,7 @@ import "../domain/profanity_filter.dart";
 /// - 每片在 board 上有一個 [InsetPiece.slotRect]（凹槽位置）
 /// - snap 用「片中心 vs slot 中心距離 < tolerance」判定；鎖定後無法再拖
 /// - 全鎖定 → onCompleted
-class InsetPuzzleController extends ChangeNotifier {
+class InsetPuzzleController extends DraggableController<InsetPiece> {
 	InsetPuzzleController({
 		required this.stageLayout,
 		required this.registry,
@@ -49,24 +49,14 @@ class InsetPuzzleController extends ChangeNotifier {
 	ui.Rect boardRect = ui.Rect.zero;
 
 	// ───────── 回呼 ─────────
-
-	VoidCallback? onPickup;
-	VoidCallback? onDrop;
+	// onPickup / onDrop / onCompleted 在 base 上、不重複宣告。
 
 	/// 一片 snap 成功（鎖定）時觸發。引數是被鎖定的 piece。
 	/// 呼叫端可用來播該物件名稱語音（缺語音 fallback 到 snap.mp3）。
 	void Function(InsetPiece piece)? onSnap;
 
-	/// 全部 piece 鎖定（過關）時觸發一次。
-	VoidCallback? onCompleted;
-
 	bool _completed = false;
 	bool get completed => _completed;
-
-	// ───────── 拖曳狀態 ─────────
-
-	/// pointer id → 拖曳 session。每根手指各自獨立；同一片不能被兩指搶。
-	final Map<int, _DragSession> _sessions = <int, _DragSession>{};
 
 	// ───────── HitTest ─────────
 
@@ -76,8 +66,10 @@ class InsetPuzzleController extends ChangeNotifier {
 	/// [fuzzy] = true（觸控）：走 [touchVoteHit] — 在點上方半圓內取樣投票，
 	/// 票數最高的 candidate 勝出。對應「使用者把手指對在物件下緣」的習慣。
 	/// [fuzzy] = false（滑鼠）：嚴格單點命中。
-	InsetPiece? hitTest(ui.Offset stagePos,
+	@override
+	InsetPiece? hitTest(ui.Offset pos,
 			{bool fuzzy = false, int alphaThreshold = 32}) {
+		final ui.Offset stagePos = pos;
 		final List<InsetPiece> active = pieces.where((InsetPiece p) => !p.locked).toList()
 			..sort((InsetPiece a, InsetPiece b) {
 				final int byZ = b.zIndex.compareTo(a.zIndex);
@@ -127,54 +119,59 @@ class InsetPuzzleController extends ChangeNotifier {
 		return best;
 	}
 
-	// ───────── 拖曳 API ─────────
+	// ───────── 拖曳 API （走 base [DraggableController] 統一管理 session） ─────────
 
-	bool beginDrag(int pointerId, ui.Offset stagePos, {bool fuzzy = false}) {
-		final InsetPiece? hit = hitTest(stagePos, fuzzy: fuzzy);
-		if (hit == null) return false;
-		for (final _DragSession s in _sessions.values) {
-			if (s.pieceId == hit.id) return false;
+	/// 同一片不能被兩指搶；已 locked 的片也不可再被拖。
+	@override
+	bool canBeginDragOn(InsetPiece piece) {
+		if (piece.locked) return false;
+		for (final DragSession<InsetPiece> s in sessions.values) {
+			if (s.piece.id == piece.id) return false;
 		}
-		_sessions[pointerId] = _DragSession(pieceId: hit.id);
-		_bringToFront(hit);
-		onPickup?.call();
-		bumpRepaint();
 		return true;
 	}
 
-	void dragBy(int pointerId, ui.Offset delta) {
-		final _DragSession? session = _sessions[pointerId];
-		if (session == null) return;
-		final InsetPiece? p = _pieceById(session.pieceId);
-		if (p == null || p.locked) return;
-		final ui.Offset clamped = _clampPieceDelta(p, delta);
-		p.currentPosition = p.currentPosition + clamped;
-		// 拖很慢 + 位置已符合 snap 條件 → 直接 snap（免放開）
-		if (session.speed.recordAndCheckSlow(distance: clamped.distance)) {
-			if (_trySnap(p)) {
-				// snap 成功 → 結束此次拖曳，避免後續 dragBy / endDrag 重複觸發
-				_sessions.remove(pointerId);
-			}
-		}
+	@override
+	void onDragPickup(InsetPiece piece) {
+		_bringToFront(piece);
 		bumpRepaint();
 	}
 
-	void endDrag(int pointerId) {
-		final _DragSession? session = _sessions.remove(pointerId);
-		if (session == null) return;
-		final InsetPiece? p = _pieceById(session.pieceId);
-		if (p == null || p.locked) {
-			bumpRepaint();
-			return;
-		}
-		if (!_trySnap(p)) {
-			onDrop?.call();
-		}
+	/// 套 delta 到 piece、回 clamped。base 用 clamped 餵 speed tracker。
+	@override
+	ui.Offset onDragMove(
+		DragSession<InsetPiece> session,
+		ui.Offset delta,
+	) {
+		final InsetPiece p = session.piece;
+		if (p.locked) return ui.Offset.zero;
+		final ui.Offset clamped = _clampPieceDelta(p, delta);
+		p.currentPosition = p.currentPosition + clamped;
 		bumpRepaint();
+		return clamped;
+	}
+
+	/// 嘗試 snap（auto-snap 與手動 endDrag 共用入口）。
+	/// 沒 snap 成功時回 [DragOutcome.none]、base 在手動 endDrag 路徑會觸發
+	/// `onDrop`、在 auto-snap 路徑會保留 session 給玩家繼續拖。
+	@override
+	DragOutcome onDragFinalize(
+		DragSession<InsetPiece> session, {
+		required bool isAutoSnap,
+	}) {
+		final InsetPiece p = session.piece;
+		if (p.locked) return DragOutcome.none;
+		if (!_trySnap(p)) {
+			return DragOutcome.none;
+		}
+		final bool nowCompleted = !_completed && _allLocked();
+		if (nowCompleted) _completed = true;
+		bumpRepaint();
+		return DragOutcome(didSomething: true, completed: nowCompleted);
 	}
 
 	/// 嘗試把 [p] snap 到自己的 slot。回傳是否 snap 成功。
-	/// 給 endDrag 與「拖很慢的自動 snap」共用。
+	/// 給 [onDragFinalize]（手動 endDrag 與 auto-snap 都呼叫它）使用。
 	bool _trySnap(InsetPiece p) {
 		final ui.Offset pieceCenter = p.currentPosition +
 				ui.Offset(p.displaySize.width / 2, p.displaySize.height / 2);
@@ -185,10 +182,8 @@ class InsetPuzzleController extends ChangeNotifier {
 		p.currentPosition = p.slotRect.topLeft;
 		p.locked = true;
 		onSnap?.call(p);
-		if (!_completed && _allLocked()) {
-			_completed = true;
-			onCompleted?.call();
-		}
+		// 過關判定統一在 [onDragFinalize] 內處理（用 DragOutcome.completed 通知 base
+		// 觸發 onCompleted、避免重複）。這裡只 snap 與 lock。
 		return true;
 	}
 
@@ -197,13 +192,6 @@ class InsetPuzzleController extends ChangeNotifier {
 			if (!p.locked) return false;
 		}
 		return true;
-	}
-
-	InsetPiece? _pieceById(String id) {
-		for (final InsetPiece p in pieces) {
-			if (p.id == id) return p;
-		}
-		return null;
 	}
 
 	void _bringToFront(InsetPiece p) {
@@ -810,14 +798,5 @@ class InsetPuzzleController extends ChangeNotifier {
 	}
 }
 
-/// 嵌入拼圖單一 pointer 拖曳狀態。
-class _DragSession {
-	_DragSession({required this.pieceId})
-		: speed = DragSpeedTracker(slowThreshold: _autoSnapSpeedThreshold)..start();
-
-	final String pieceId;
-	final DragSpeedTracker speed;
-}
-
-/// 拖曳速度低於這個值（px/sec）視為「慢」，會嘗試自動 snap。
-const double _autoSnapSpeedThreshold = 30.0;
+// 嵌入拼圖的 per-pointer 拖曳狀態已搬到 base [DragSession]。
+// auto-snap 速度門檻沿用 base 的 [defaultAutoSnapSpeedThreshold]。

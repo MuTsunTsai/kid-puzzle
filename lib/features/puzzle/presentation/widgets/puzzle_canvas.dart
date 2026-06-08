@@ -206,6 +206,10 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 		_pointerPositions[event.pointer] = event.localPosition;
 		// 觸控用半圓投票（fuzzy）；滑鼠 / 觸控筆走嚴格精準命中。
 		final bool isTouch = event.kind == PointerDeviceKind.touch;
+		// strictLocking 從 widget setting 同步到 controller field。
+		// 整關內 widget.showCutLineHint 通常不變；每次 down 都寫一次便宜、
+		// 且即便家長中途切設定也能即時反映。
+		widget.controller.strictLocking = !widget.showCutLineHint;
 
 		// 非旋轉模式：保留原行為 —— 命中未拖的拼片開新 drag、其他一律忽略。
 		// （beginDrag 內已處理「同片不能兩指搶」、「不限制並行數」。）
@@ -214,7 +218,6 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 				event.pointer,
 				event.localPosition,
 				fuzzy: isTouch,
-				strictLocking: !widget.showCutLineHint,
 			);
 			if (started) _activePointerIds.add(event.pointer);
 			return;
@@ -251,7 +254,6 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 					event.pointer,
 					event.localPosition,
 					fuzzy: isTouch,
-					strictLocking: !widget.showCutLineHint,
 				);
 				if (started) _activePointerIds.add(event.pointer);
 				return;
@@ -317,7 +319,11 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 	void _onPointerMove(PointerMoveEvent event) {
 		_pointerPositions[event.pointer] = event.localPosition;
 		if (_activePointerIds.contains(event.pointer)) {
-			widget.controller.dragBy(event.pointer, event.delta);
+			widget.controller.dragBy(
+				event.pointer,
+				event.localPosition,
+				event.delta,
+			);
 			// 第一指在動：若它身上有第二指附著，要重算旋轉目標（用兩指當下位置）
 			final int? secondPointer = _findSecondPointerForFirst(event.pointer);
 			if (secondPointer != null) {
@@ -354,7 +360,6 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 						secondPointer,
 						sp,
 						fuzzy: true,
-						strictLocking: !widget.showCutLineHint,
 					);
 					if (started) {
 						_activePointerIds.add(secondPointer);
