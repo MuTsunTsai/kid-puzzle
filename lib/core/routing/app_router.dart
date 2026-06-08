@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 
+import "../constants/feature_flags.dart";
 import "../../features/home/presentation/home_page.dart";
 import "../../features/inset_puzzle/presentation/inset_puzzle_page.dart";
 import "../../features/inset_puzzle/presentation/inset_puzzle_setup_page.dart";
@@ -36,22 +37,27 @@ class AppRoutes {
 class AppRouter {
 	AppRouter._();
 
+	/// kEnableInsetPuzzle = false 時不註冊 inset / sprites 相關 route，
+	/// 任何 hash URL deep link 進去都會落到 [onUnknownRoute]、無法繞過首頁
+	/// 隱藏的按鈕進入未準備好的頁面。route 名稱常數仍保留（其他地方還引用）。
 	static final Map<String, WidgetBuilder> routes = <String, WidgetBuilder>{
 		AppRoutes.home: (BuildContext context) => const HomePage(),
 		AppRoutes.puzzleSetup: (BuildContext context) => const PuzzleSetupPage(),
 		AppRoutes.puzzle: (BuildContext context) => const PuzzlePage(),
-		AppRoutes.insetPuzzleSetup: (BuildContext context) =>
-				const InsetPuzzleSetupPage(),
-		AppRoutes.insetPuzzle: (BuildContext context) => const InsetPuzzlePage(),
 		AppRoutes.parentHome: (BuildContext context) => const ParentHomePage(),
 		AppRoutes.parentGallery: (BuildContext context) => const GalleryPage(),
 		AppRoutes.parentGalleryDetail: (BuildContext context) =>
 				const GalleryDetailPage(),
 		AppRoutes.parentImageCrop: (BuildContext context) => const ImageCropPage(),
-		AppRoutes.parentSprites: (BuildContext context) => const SpritesPage(),
-		AppRoutes.parentSpritesDetail: (BuildContext context) =>
-				const SpritesDetailPage(),
 		AppRoutes.parentBackup: (BuildContext context) => const BackupPage(),
+		if (kEnableInsetPuzzle) ...<String, WidgetBuilder>{
+			AppRoutes.insetPuzzleSetup: (BuildContext context) =>
+					const InsetPuzzleSetupPage(),
+			AppRoutes.insetPuzzle: (BuildContext context) => const InsetPuzzlePage(),
+			AppRoutes.parentSprites: (BuildContext context) => const SpritesPage(),
+			AppRoutes.parentSpritesDetail: (BuildContext context) =>
+					const SpritesDetailPage(),
+		},
 	};
 
 	/// 未知路由 fallback

@@ -5,6 +5,7 @@ import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
 
 import "../../../core/constants/app_colors.dart";
+import "../../../core/constants/feature_flags.dart";
 import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/routing/route_observer.dart";
@@ -150,23 +151,27 @@ class _HomePageState extends State<HomePage> with RouteAware {
 									),
 								),
 							),
-							// 中央：兩個模式按鈕（嵌入拼圖 / 多片拼圖），左右並排。
-							// 教學氣泡仍掛在「多片拼圖」這顆上，沿用既有 startTutorial 文案
-							// （首版教學只介紹多片拼圖；嵌入拼圖之後再加 step）。
+							// 中央：模式按鈕。
+							// kEnableInsetPuzzle = true → 兩顆並排（嵌入拼圖 / 多片拼圖）
+							// kEnableInsetPuzzle = false → 只顯示一顆、label 用單一模式時代
+							//   的「開始拼圖」（與 main 既有 UX 一致）。
+							// 教學氣泡掛在「多片拼圖」這顆上、沿用既有 startTutorial 文案。
 							Center(
 								child: Row(
 									mainAxisSize: MainAxisSize.min,
 									children: <Widget>[
-										_StartButton(
-											label: HomeStrings.startInsetPuzzle,
-											onPressed: () async {
-												await requestFullscreenLandscape();
-												if (!context.mounted) return;
-												unawaited(Navigator.of(context)
-														.pushNamed(AppRoutes.insetPuzzleSetup));
-											},
-										),
-										const SizedBox(width: 24),
+										if (kEnableInsetPuzzle) ...<Widget>[
+											_StartButton(
+												label: HomeStrings.startInsetPuzzle,
+												onPressed: () async {
+													await requestFullscreenLandscape();
+													if (!context.mounted) return;
+													unawaited(Navigator.of(context)
+															.pushNamed(AppRoutes.insetPuzzleSetup));
+												},
+											),
+											const SizedBox(width: 24),
+										],
 										Showcase.withWidget(
 											key: _startKey,
 											container: TutorialBubble(
@@ -174,7 +179,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
 												onTap: _showcase.next,
 											),
 											child: _StartButton(
-												label: HomeStrings.startMultiPuzzle,
+												label: kEnableInsetPuzzle
+														? HomeStrings.startMultiPuzzle
+														: HomeStrings.startButton,
 												onPressed: () async {
 													await requestFullscreenLandscape();
 													if (!context.mounted) return;

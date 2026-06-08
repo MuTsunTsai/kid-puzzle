@@ -7,6 +7,7 @@ import "../../../core/analytics/analytics_service.dart";
 import "../../../core/audio/audio_service.dart";
 import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
+import "../../../core/constants/feature_flags.dart";
 import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/sprites/sprite_registry.dart";
@@ -59,16 +60,19 @@ class _ParentHomePageState extends State<ParentHomePage> {
 						padding: const EdgeInsets.symmetric(vertical: 8),
 						children: <Widget>[
 							_SectionTitle(text: ParentStrings.sectionContent),
-							ListTile(
-								leading: const Icon(Icons.category_outlined),
-								title: const Text(ParentStrings.sprites),
-								subtitle: const Text(ParentStrings.spritesSubtitle),
-								trailing: const Icon(Icons.chevron_right),
-								onTap: ClickSound.wrap(
-									context,
-									() => Navigator.of(context).pushNamed(AppRoutes.parentSprites),
+							// 素材管理只在嵌入拼圖開啟時顯示——它的內容（sprite 類別 /
+							// 子類別勾選）只服務嵌入拼圖。
+							if (kEnableInsetPuzzle)
+								ListTile(
+									leading: const Icon(Icons.category_outlined),
+									title: const Text(ParentStrings.sprites),
+									subtitle: const Text(ParentStrings.spritesSubtitle),
+									trailing: const Icon(Icons.chevron_right),
+									onTap: ClickSound.wrap(
+										context,
+										() => Navigator.of(context).pushNamed(AppRoutes.parentSprites),
+									),
 								),
-							),
 							ListTile(
 								leading: const Icon(Icons.collections),
 								title: const Text(ParentStrings.gallery),
