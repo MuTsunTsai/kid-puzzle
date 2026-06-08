@@ -89,6 +89,16 @@ class PuzzleCutter {
 		//     attr、供 [_buildSegmentAbsoluteCommands] 使用。
 		_smoothChainEndpointTangents(cells: cells, segments: segments);
 
+		// 2.3 T 字交會點 C1 平滑：3+ 條 segment 交會於 v、其中有兩條的夾角接近
+		//     180°（視覺上像「一條直線穿過 v、其他段從旁分岔」）時、讓那兩條
+		//     在 v 處切線平行。boundary 上的頂點不檢查（在 boundary 附近能符
+		//     合條件的只會是真正的外圈直邊、本來就是直線）。
+		_smoothCollinearTangentsAtJunctions(
+			segments: segments,
+			innerBounds: cellLayout.innerBounds,
+			random: random,
+		);
+
 		// 2.5 計算每個 cell 的鄰居集合（共享至少一條邊的其他 cell idx）。
 		final List<Set<int>> neighbors = _computeNeighbors(cells);
 
@@ -400,6 +410,153 @@ class PuzzleCutter {
 			} else {
 				segB.tangentAtB = tangentForB;
 				segB.tangentLenAtB = tangentLen;
+			}
+		}
+	}
+
+	/// 「共線兩鄰段」最大允許夾角誤差（degree）。
+	///
+	/// 在 3+ 條 segment 交會的頂點上、若兩條段「視為穿過該點的單一鏈」時夾角
+	/// 接近 180°（誤差 ≤ 此值）、就視為共線、寫入共同切線、讓視覺上是一條
+	/// 平滑曲線穿過 T 字交叉點。5° 是手感調出來的：太小很少觸發、太大會把
+	/// 視覺上明顯彎折的段也視為共線。
+	static const double _kCollinearToleranceDeg = 5.0;
+
+	/// 共線 pair 的切線方向隨機擾動上限（degree、±）。
+	/// 每對共用同一個擾動角、兩段切線仍平行；避免所有 T 字交點切線都剛好正交、
+	/// 讓視覺微微帶有不規則感。
+	static const double _kCollinearJitterDeg = 10.0;
+
+	/// 對 3+ 條 segment 交會的頂點 v：若其中兩條的「鏈接夾角」接近 180°、
+	/// 就讓它們在 v 處切線平行（兩條段視為一條平滑曲線穿過 T 字交叉點）。
+	///
+	/// 規則：
+	/// - 該頂點需接 3 條以上 segment（剛好 2 條已由 [_smoothChainEndpointTangents]
+	///   處理）。
+	/// - 在所有 pair 中找「兩段視為直線時的接縫角度」最接近 180° 的、且誤差
+	///   ≤ [_kCollinearToleranceDeg]；其他 pair 不處理。
+	/// - 與 [_smoothChainEndpointTangents] 同樣保留「兩條都有耳朵就不動」的
+	///   保守規則、避免影響耳朵段視覺。
+	/// - 切線長度 = `min(兩段長度) / 3`。
+	static void _smoothCollinearTangentsAtJunctions({
+		required List<_EdgeSegment> segments,
+		required Rect innerBounds,
+		required Random random,
+	}) {
+		final double jitterRad = _kCollinearJitterDeg * pi / 180.0;
+		String vkey(Offset o) =>
+				"${o.dx.toStringAsFixed(2)},${o.dy.toStringAsFixed(2)}";
+		final Map<String, List<int>> vertexToSegs = <String, List<int>>{};
+		for (int i = 0; i < segments.length; i++) {
+			vertexToSegs.putIfAbsent(vkey(segments[i].a), () => <int>[]).add(i);
+			vertexToSegs.putIfAbsent(vkey(segments[i].b), () => <int>[]).add(i);
+		}
+
+		final double cosThreshold =
+				cos((180.0 - _kCollinearToleranceDeg) * pi / 180.0);
+
+		// 判定頂點是否落在外圈 boundary 上（誤差 _epsilon）：在 boundary 上的
+		// 共線 pair 一定是「沿著外圈邊的兩段直邊」、本來就是直線、不需處理。
+		bool onBoundary(Offset p) {
+			return (p.dx - innerBounds.left).abs() < _epsilon ||
+					(p.dx - innerBounds.right).abs() < _epsilon ||
+					(p.dy - innerBounds.top).abs() < _epsilon ||
+					(p.dy - innerBounds.bottom).abs() < _epsilon;
+		}
+
+		for (final MapEntry<String, List<int>> entry in vertexToSegs.entries) {
+			final List<int> segIdxs = entry.value;
+			if (segIdxs.length < 3) continue;
+
+			// 共用頂點位置（取任一 segment 對應端）
+			final _EdgeSegment first = segments[segIdxs.first];
+			final Offset vPos =
+					(vkey(first.a) == entry.key) ? first.a : first.b;
+			if (onBoundary(vPos)) continue;
+
+			// 每條 segment「指向 v 外側」的單位向量 + 段長。
+			// 注意：用 vkey 比對而非 raw Offset.==、避免浮點誤差判錯哪端是 v、
+			// 結果回退到 fallback 方向造成共線誤判。
+			final List<Offset> outDirs = <Offset>[];
+			final List<double> lens = <double>[];
+			for (final int idx in segIdxs) {
+				final _EdgeSegment seg = segments[idx];
+				final Offset far = (vkey(seg.a) == entry.key) ? seg.b : seg.a;
+				outDirs.add(_normalize(far - vPos));
+				lens.add((seg.b - seg.a).distance);
+			}
+
+			// 找出所有「夾角接近 180°」的 pair：兩段視為穿過 v 的鏈時、接縫角度
+			// 為 180° - angle(outI, outJ)。夾角越接近 180°、outI · outJ 越接近 -1。
+			// 一個頂點上可能有多對共線（例如 4 段交會的十字、上下與左右各一對）、
+			// 所以全部處理、不能只挑「最佳一對」。
+			//
+			// 已被寫入過切線的 segment 不再覆寫：避免「同一段在不同 pair 都被
+			// 選中時、後寫的方向蓋掉先寫的」造成方向衝突。
+			final Set<int> alreadyWritten = <int>{};
+			for (int i = 0; i < segIdxs.length; i++) {
+				for (int j = i + 1; j < segIdxs.length; j++) {
+					final double dot =
+							outDirs[i].dx * outDirs[j].dx + outDirs[i].dy * outDirs[j].dy;
+					if (dot > cosThreshold) continue;
+
+					final int idxA = segIdxs[i];
+					final int idxB = segIdxs[j];
+					if (alreadyWritten.contains(idxA) ||
+							alreadyWritten.contains(idxB)) {
+						continue;
+					}
+
+					final _EdgeSegment segA = segments[idxA];
+					final _EdgeSegment segB = segments[idxB];
+
+					// 不對「兩條都有耳朵」設保守限制：_buildSegmentAbsoluteCommands
+					// 只 patch 首尾 cubic 的外側控制點、耳朵本體不會受影響。
+
+					final Offset outA = outDirs[i];
+					final Offset outB = outDirs[j];
+					final double lenA = lens[i];
+					final double lenB = lens[j];
+
+					final Offset avgDir = _normalize(outA - outB);
+					final double tangentLen = (lenA < lenB ? lenA : lenB) / 3.0;
+
+					// 對共線方向加一個 ±_kCollinearJitterDeg 的隨機擾動。
+					// 兩段共用同一個擾動角、旋轉同方向、結果仍然平行（差個負號）。
+					final double jitter = (random.nextDouble() * 2 - 1) * jitterRad;
+					final double cj = cos(jitter);
+					final double sj = sin(jitter);
+					final Offset jitteredDir = Offset(
+						avgDir.dx * cj - avgDir.dy * sj,
+						avgDir.dx * sj + avgDir.dy * cj,
+					);
+
+					final double sgnA =
+							outA.dx * jitteredDir.dx + outA.dy * jitteredDir.dy >= 0 ? 1 : -1;
+					final double sgnB =
+							outB.dx * jitteredDir.dx + outB.dy * jitteredDir.dy >= 0 ? 1 : -1;
+					final Offset tangentForA =
+							Offset(jitteredDir.dx * sgnA, jitteredDir.dy * sgnA);
+					final Offset tangentForB =
+							Offset(jitteredDir.dx * sgnB, jitteredDir.dy * sgnB);
+
+					if (vkey(segA.a) == entry.key) {
+						segA.tangentAtA = tangentForA;
+						segA.tangentLenAtA = tangentLen;
+					} else {
+						segA.tangentAtB = tangentForA;
+						segA.tangentLenAtB = tangentLen;
+					}
+					if (vkey(segB.a) == entry.key) {
+						segB.tangentAtA = tangentForB;
+						segB.tangentLenAtA = tangentLen;
+					} else {
+						segB.tangentAtB = tangentForB;
+						segB.tangentLenAtB = tangentLen;
+					}
+					alreadyWritten.add(idxA);
+					alreadyWritten.add(idxB);
+				}
 			}
 		}
 	}
