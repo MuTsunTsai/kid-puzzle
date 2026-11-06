@@ -13,7 +13,7 @@
 					"tile": 340
 				}
 			],
-			"voiceRev": "b208b7e5",
+			"voiceRev": "4ac443ff",
 			"items": [
 				{
 					"id": "it_b6589fc6",
@@ -579,13 +579,13 @@
 			"sheets": [
 				{
 					"file": "images/sprites/zhuyin.webp",
-					"rev": "07c21590",
+					"rev": "af6cf993",
 					"rows": 7,
 					"cols": 6,
 					"tile": 340
 				}
 			],
-			"voiceRev": "55ef04b7",
+			"voiceRev": "26d68063",
 			"items": [
 				{
 					"id": "it_208d0914",
@@ -596,12 +596,12 @@
 					"name": "ㄆ"
 				},
 				{
-					"id": "it_0ee3e6c1",
-					"name": "ㄈ"
-				},
-				{
 					"id": "it_80c6bcac",
 					"name": "ㄇ"
+				},
+				{
+					"id": "it_0ee3e6c1",
+					"name": "ㄈ"
 				},
 				{
 					"id": "it_67c7fc35",
@@ -759,8 +759,8 @@
 					"itemIds": [
 						"it_208d0914",
 						"it_5781b493",
-						"it_0ee3e6c1",
 						"it_80c6bcac",
+						"it_0ee3e6c1",
 						"it_67c7fc35",
 						"it_1e9dc4b8",
 						"it_c1736813",
@@ -1104,13 +1104,13 @@
 			"sheets": [
 				{
 					"file": "images/sprites/animal.webp",
-					"rev": "9572d7b8",
-					"rows": 7,
+					"rev": "9506806f",
+					"rows": 17,
 					"cols": 6,
 					"tile": 340
 				}
 			],
-			"voiceRev": "82fc1a3e",
+			"voiceRev": "9f22c527",
 			"items": [
 				{
 					"id": "it_043c2196",
@@ -1169,16 +1169,8 @@
 					"name": "麻雀"
 				},
 				{
-					"id": "it_0a6196e7",
-					"name": "燕子"
-				},
-				{
 					"id": "it_303a5868",
 					"name": "鴿子"
-				},
-				{
-					"id": "it_6f999113",
-					"name": "斑鳩"
 				},
 				{
 					"id": "it_4588f365",
@@ -1209,8 +1201,12 @@
 					"name": "松鼠"
 				},
 				{
-					"id": "it_7f1a2264",
-					"name": "鹿"
+					"id": "it_5601a7fa",
+					"name": "貓熊"
+				},
+				{
+					"id": "it_4dc6f87c",
+					"name": "老虎"
 				},
 				{
 					"id": "it_67bcd687",
@@ -1221,16 +1217,16 @@
 					"name": "猴子"
 				},
 				{
+					"id": "it_44897c15",
+					"name": "老鼠"
+				},
+				{
+					"id": "it_76cdb81b",
+					"name": "青蛙"
+				},
+				{
 					"id": "it_34a1ca41",
 					"name": "企鵝"
-				},
-				{
-					"id": "it_5601a7fa",
-					"name": "貓熊"
-				},
-				{
-					"id": "it_4dc6f87c",
-					"name": "老虎"
 				},
 				{
 					"id": "it_6f8eeaee",
@@ -1241,12 +1237,124 @@
 					"name": "無尾熊"
 				},
 				{
-					"id": "it_76cdb81b",
-					"name": "青蛙"
+					"id": "it_b893dc37",
+					"name": "袋鼠"
 				},
 				{
-					"id": "it_44897c15",
-					"name": "老鼠"
+					"id": "it_10730c01",
+					"name": "貓頭鷹"
+				},
+				{
+					"id": "it_34508423",
+					"name": "蝙蝠"
+				},
+				{
+					"id": "it_74512a43",
+					"name": "熊"
+				},
+				{
+					"id": "it_38b81df1",
+					"name": "駱駝"
+				},
+				{
+					"id": "it_0a6196e7",
+					"name": "燕子"
+				},
+				{
+					"id": "it_6f999113",
+					"name": "斑鳩"
+				},
+				{
+					"id": "it_3da9ebbb",
+					"name": "鴕鳥"
+				},
+				{
+					"id": "it_b1d7d7b7",
+					"name": "禿鷹"
+				},
+				{
+					"id": "it_acdcf0a5",
+					"name": "紅鶴"
+				},
+				{
+					"id": "it_bf5945ae",
+					"name": "獵豹"
+				},
+				{
+					"id": "it_8ec6a4e5",
+					"name": "樹懶"
+				},
+				{
+					"id": "it_02e0e45e",
+					"name": "山羊"
+				},
+				{
+					"id": "it_ad28b46b",
+					"name": "鵝"
+				},
+				{
+					"id": "it_dde634a3",
+					"name": "天鵝"
+				},
+				{
+					"id": "it_3789c68a",
+					"name": "大嘴鳥"
+				},
+				{
+					"id": "it_8ffc3d9e",
+					"name": "金剛鸚鵡"
+				},
+				{
+					"id": "it_5fca156a",
+					"name": "河貍"
+				},
+				{
+					"id": "it_aa124bec",
+					"name": "羚羊"
+				},
+				{
+					"id": "it_6ebf6cd7",
+					"name": "野豬"
+				},
+				{
+					"id": "it_48320c54",
+					"name": "豪豬"
+				},
+				{
+					"id": "it_da136877",
+					"name": "刺蝟"
+				},
+				{
+					"id": "it_62a12dc8",
+					"name": "美洲野牛"
+				},
+				{
+					"id": "it_223a1808",
+					"name": "浣熊"
+				},
+				{
+					"id": "it_7f1a2264",
+					"name": "鹿"
+				},
+				{
+					"id": "it_6b10c4ed",
+					"name": "穿山甲"
+				},
+				{
+					"id": "it_d77a0177",
+					"name": "蟾蜍"
+				},
+				{
+					"id": "it_32fe7d2b",
+					"name": "黑猩猩"
+				},
+				{
+					"id": "it_0d9222f2",
+					"name": "小貓熊"
+				},
+				{
+					"id": "it_c4309351",
+					"name": "食蟻獸"
 				},
 				{
 					"id": "it_7cccbf9e",
@@ -1257,24 +1365,277 @@
 					"name": "狐狸"
 				},
 				{
-					"id": "it_74512a43",
-					"name": "熊"
-				},
-				{
-					"id": "it_10730c01",
-					"name": "貓頭鷹"
-				},
-				{
 					"id": "it_273321c4",
 					"name": "北極熊"
 				},
 				{
-					"id": "it_34508423",
-					"name": "蝙蝠"
+					"id": "it_6799ecf5",
+					"name": "海獺"
 				},
 				{
-					"id": "it_b893dc37",
-					"name": "袋鼠"
+					"id": "it_dd092a8d",
+					"name": "海象"
+				},
+				{
+					"id": "it_ad160b01",
+					"name": "海豹"
+				},
+				{
+					"id": "it_4ef72080",
+					"name": "臭鼬"
+				},
+				{
+					"id": "it_75b71526",
+					"name": "犀牛"
+				},
+				{
+					"id": "it_a0972c37",
+					"name": "紅毛猩猩"
+				},
+				{
+					"id": "it_bd74c3c5",
+					"name": "馬來貘"
+				},
+				{
+					"id": "it_fe5a8e3e",
+					"name": "變色龍"
+				},
+				{
+					"id": "it_4a770c0a",
+					"name": "狐猴"
+				},
+				{
+					"id": "it_f7b45058",
+					"name": "水豚"
+				},
+				{
+					"id": "it_b9c65dc3",
+					"name": "土撥鼠"
+				},
+				{
+					"id": "it_c650a82c",
+					"name": "狐獴"
+				},
+				{
+					"id": "it_7c90aebb",
+					"name": "絨鼠"
+				},
+				{
+					"id": "it_93f68c49",
+					"name": "海豚"
+				},
+				{
+					"id": "it_d6911c2f",
+					"name": "虎鯨"
+				},
+				{
+					"id": "it_b87fbf57",
+					"name": "藍鯨"
+				},
+				{
+					"id": "it_528532b6",
+					"name": "抹香鯨"
+				},
+				{
+					"id": "it_6e26500a",
+					"name": "鯨鯊"
+				},
+				{
+					"id": "it_6346c29a",
+					"name": "大白鯊"
+				},
+				{
+					"id": "it_61d3ee35",
+					"name": "魟魚"
+				},
+				{
+					"id": "it_2004a436",
+					"name": "鮪魚"
+				},
+				{
+					"id": "it_8a558370",
+					"name": "旗魚"
+				},
+				{
+					"id": "it_0cb71899",
+					"name": "鯛魚"
+				},
+				{
+					"id": "it_991ce1bd",
+					"name": "翻車魚"
+				},
+				{
+					"id": "it_94d31999",
+					"name": "飛魚"
+				},
+				{
+					"id": "it_ea9e1a5b",
+					"name": "比目魚"
+				},
+				{
+					"id": "it_9de82419",
+					"name": "小丑魚"
+				},
+				{
+					"id": "it_42659541",
+					"name": "水母"
+				},
+				{
+					"id": "it_f6aa271c",
+					"name": "章魚"
+				},
+				{
+					"id": "it_065570e6",
+					"name": "龍蝦"
+				},
+				{
+					"id": "it_b81dd8f2",
+					"name": "螃蟹"
+				},
+				{
+					"id": "it_df27e1bb",
+					"name": "海龜"
+				},
+				{
+					"id": "it_937641b7",
+					"name": "鮟鱇魚"
+				},
+				{
+					"id": "it_ed375d55",
+					"name": "海馬"
+				},
+				{
+					"id": "it_28c54c12",
+					"name": "海龍"
+				},
+				{
+					"id": "it_d38a010f",
+					"name": "海蛇"
+				},
+				{
+					"id": "it_ca7b023d",
+					"name": "珍珠蚌"
+				}
+			],
+			"subcategories": [
+				{
+					"id": "basic-animal",
+					"name": "常見動物",
+					"itemIds": [
+						"it_043c2196",
+						"it_2fcbe72f",
+						"it_5299eeeb",
+						"it_a22e5018",
+						"it_dc2a2ea3",
+						"it_3daaa92b",
+						"it_a4f49fc3",
+						"it_ae3bc43a",
+						"it_de06440f",
+						"it_6c7f2bc1",
+						"it_e5380405",
+						"it_889a34d0",
+						"it_580adaff",
+						"it_367c56dd",
+						"it_303a5868",
+						"it_4588f365",
+						"it_2d808ebf",
+						"it_6dab6d2b",
+						"it_b28bd16d",
+						"it_7dcf9fb9",
+						"it_a75288af",
+						"it_f8c988c0",
+						"it_5601a7fa",
+						"it_4dc6f87c",
+						"it_67bcd687",
+						"it_165a48ed",
+						"it_44897c15",
+						"it_76cdb81b",
+						"it_34a1ca41",
+						"it_6f8eeaee",
+						"it_f4cec40e",
+						"it_b893dc37",
+						"it_10730c01",
+						"it_34508423",
+						"it_74512a43",
+						"it_38b81df1"
+					]
+				},
+				{
+					"id": "more-animal",
+					"name": "更多動物",
+					"itemIds": [
+						"it_0a6196e7",
+						"it_6f999113",
+						"it_3da9ebbb",
+						"it_b1d7d7b7",
+						"it_acdcf0a5",
+						"it_bf5945ae",
+						"it_8ec6a4e5",
+						"it_02e0e45e",
+						"it_ad28b46b",
+						"it_dde634a3",
+						"it_3789c68a",
+						"it_8ffc3d9e",
+						"it_5fca156a",
+						"it_aa124bec",
+						"it_6ebf6cd7",
+						"it_48320c54",
+						"it_da136877",
+						"it_62a12dc8",
+						"it_223a1808",
+						"it_7f1a2264",
+						"it_6b10c4ed",
+						"it_d77a0177",
+						"it_32fe7d2b",
+						"it_0d9222f2",
+						"it_c4309351",
+						"it_7cccbf9e",
+						"it_7f1efc3b",
+						"it_273321c4",
+						"it_6799ecf5",
+						"it_dd092a8d",
+						"it_ad160b01",
+						"it_4ef72080",
+						"it_75b71526",
+						"it_a0972c37",
+						"it_bd74c3c5",
+						"it_fe5a8e3e",
+						"it_4a770c0a",
+						"it_f7b45058",
+						"it_b9c65dc3",
+						"it_c650a82c",
+						"it_7c90aebb"
+					]
+				},
+				{
+					"id": "sea-life",
+					"name": "海洋生物",
+					"itemIds": [
+						"it_93f68c49",
+						"it_d6911c2f",
+						"it_b87fbf57",
+						"it_528532b6",
+						"it_6e26500a",
+						"it_6346c29a",
+						"it_61d3ee35",
+						"it_2004a436",
+						"it_8a558370",
+						"it_0cb71899",
+						"it_991ce1bd",
+						"it_94d31999",
+						"it_ea9e1a5b",
+						"it_9de82419",
+						"it_42659541",
+						"it_f6aa271c",
+						"it_065570e6",
+						"it_b81dd8f2",
+						"it_df27e1bb",
+						"it_937641b7",
+						"it_ed375d55",
+						"it_28c54c12",
+						"it_d38a010f",
+						"it_ca7b023d"
+					]
 				}
 			]
 		},
@@ -1290,7 +1651,7 @@
 					"tile": 340
 				}
 			],
-			"voiceRev": "149759d0",
+			"voiceRev": "e5ac9489",
 			"items": [
 				{
 					"id": "it_948305fc",
@@ -1744,7 +2105,7 @@
 			"sheets": [
 				{
 					"file": "images/sprites/food.webp",
-					"rev": "4c5de45a",
+					"rev": "45550b77",
 					"rows": 18,
 					"cols": 6,
 					"tile": 340
@@ -2691,13 +3052,13 @@
 			"sheets": [
 				{
 					"file": "images/sprites/fruit.webp",
-					"rev": "3f7f1847",
-					"rows": 7,
+					"rev": "99ce7b97",
+					"rows": 8,
 					"cols": 6,
 					"tile": 340
 				}
 			],
-			"voiceRev": "29ed2dd4",
+			"voiceRev": "c601b502",
 			"items": [
 				{
 					"id": "it_de073e3a",
@@ -2720,16 +3081,16 @@
 					"name": "西瓜"
 				},
 				{
-					"id": "it_cee0fca9",
-					"name": "芒果"
-				},
-				{
 					"id": "it_48348ad9",
 					"name": "鳳梨"
 				},
 				{
 					"id": "it_54658e47",
 					"name": "草莓"
+				},
+				{
+					"id": "it_cee0fca9",
+					"name": "芒果"
 				},
 				{
 					"id": "it_64348294",
@@ -2752,22 +3113,6 @@
 					"name": "火龍果"
 				},
 				{
-					"id": "it_23aa04d2",
-					"name": "蓮霧"
-				},
-				{
-					"id": "it_5a3a6f44",
-					"name": "櫻桃"
-				},
-				{
-					"id": "it_118fac8e",
-					"name": "小番茄"
-				},
-				{
-					"id": "it_bfaa1046",
-					"name": "荔枝"
-				},
-				{
 					"id": "it_82998991",
 					"name": "椰子"
 				},
@@ -2776,12 +3121,52 @@
 					"name": "哈密瓜"
 				},
 				{
-					"id": "it_93b0bb4f",
-					"name": "藍莓"
+					"id": "it_118fac8e",
+					"name": "小番茄"
+				},
+				{
+					"id": "it_9811ab8b",
+					"name": "檸檬"
+				},
+				{
+					"id": "it_5a3a6f44",
+					"name": "櫻桃"
+				},
+				{
+					"id": "it_8580a209",
+					"name": "酪梨"
+				},
+				{
+					"id": "it_5b2876cb",
+					"name": "楊桃"
+				},
+				{
+					"id": "it_bfaa1046",
+					"name": "荔枝"
 				},
 				{
 					"id": "it_4f93c0e8",
 					"name": "西洋梨"
+				},
+				{
+					"id": "it_23aa04d2",
+					"name": "蓮霧"
+				},
+				{
+					"id": "it_cdf2e1bb",
+					"name": "龍眼"
+				},
+				{
+					"id": "it_93b0bb4f",
+					"name": "藍莓"
+				},
+				{
+					"id": "it_a8f29957",
+					"name": "青蘋果"
+				},
+				{
+					"id": "it_c1759283",
+					"name": "棗子"
 				},
 				{
 					"id": "it_2a5165d0",
@@ -2792,16 +3177,8 @@
 					"name": "柚子"
 				},
 				{
-					"id": "it_9811ab8b",
-					"name": "檸檬"
-				},
-				{
-					"id": "it_8580a209",
-					"name": "酪梨"
-				},
-				{
-					"id": "it_5b2876cb",
-					"name": "楊桃"
+					"id": "it_db2bf582",
+					"name": "葡萄柚"
 				},
 				{
 					"id": "it_3c633649",
@@ -2840,8 +3217,16 @@
 					"name": "覆盆子"
 				},
 				{
+					"id": "it_cc3f2b6e",
+					"name": "蔓越莓"
+				},
+				{
 					"id": "it_f93ef1ad",
 					"name": "枇杷"
+				},
+				{
+					"id": "it_bcf527c0",
+					"name": "石榴"
 				},
 				{
 					"id": "it_81ed23a2",
@@ -2854,6 +3239,80 @@
 				{
 					"id": "it_969df358",
 					"name": "波羅蜜"
+				},
+				{
+					"id": "it_bb3d8633",
+					"name": "仙桃"
+				},
+				{
+					"id": "it_e1e0e54b",
+					"name": "金棗"
+				},
+				{
+					"id": "it_04d86889",
+					"name": "楊梅"
+				}
+			],
+			"subcategories": [
+				{
+					"id": "basic-fruit",
+					"name": "常見水果",
+					"itemIds": [
+						"it_de073e3a",
+						"it_bc098b15",
+						"it_69b2e07c",
+						"it_df9eaffa",
+						"it_6a589fa6",
+						"it_48348ad9",
+						"it_54658e47",
+						"it_cee0fca9",
+						"it_64348294",
+						"it_0e5b9519",
+						"it_2154a7fc",
+						"it_dbbcbba1",
+						"it_1a47a9c2",
+						"it_82998991",
+						"it_982cd1c8",
+						"it_118fac8e",
+						"it_9811ab8b",
+						"it_5a3a6f44",
+						"it_8580a209",
+						"it_5b2876cb",
+						"it_bfaa1046"
+					]
+				},
+				{
+					"id": "more-fruit",
+					"name": "更多水果",
+					"itemIds": [
+						"it_4f93c0e8",
+						"it_23aa04d2",
+						"it_cdf2e1bb",
+						"it_93b0bb4f",
+						"it_a8f29957",
+						"it_c1759283",
+						"it_2a5165d0",
+						"it_89be7ad5",
+						"it_db2bf582",
+						"it_3c633649",
+						"it_7b544a9b",
+						"it_2a0ed6b5",
+						"it_4909cc95",
+						"it_3482f4b4",
+						"it_2f06bf80",
+						"it_b5972cb3",
+						"it_631af319",
+						"it_499ca097",
+						"it_cc3f2b6e",
+						"it_f93ef1ad",
+						"it_bcf527c0",
+						"it_81ed23a2",
+						"it_5613b17c",
+						"it_969df358",
+						"it_bb3d8633",
+						"it_e1e0e54b",
+						"it_04d86889"
+					]
 				}
 			]
 		}

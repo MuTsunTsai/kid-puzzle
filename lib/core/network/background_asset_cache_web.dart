@@ -2,9 +2,9 @@
 //
 // 兩條 sub-queue：
 // - _puzzleQueue：多片拼圖內建圖 asset path（不含 query；SW 寫到 cache name
-//   "runtime"、走 StaleWhileRevalidate）
+//   "kid-puzzle-runtime"、走 StaleWhileRevalidate）
 // - _spriteQueue：sprite 資源完整 URL（含 ?rev=...；SW 寫到 cache name
-//   "sprite-revisioned-v1"、走自製 reconcile）
+//   "kid-puzzle-sprite-revisioned-v1"、走自製 reconcile）
 //
 // Worker 每次取下一個任務時依當下 [DownloadPriority] 決定先取哪條：
 // - puzzle  → puzzle 空了才拿 sprite
@@ -21,13 +21,16 @@ import "background_asset_cache.dart";
 
 BackgroundAssetCache createBackgroundAssetCache() => _WebBackgroundAssetCache();
 
+// Cache Storage 是同一個 origin（mutsuntsai.github.io）底下所有網站共用的，
+// 所以 cache 名稱要加上 "kid-puzzle-" 前綴。
+
 /// SW 內 StaleWhileRevalidate 用的 cache 名稱（與 [service/src/sw.ts] 內
 /// 預設 handler 的 cacheName 一致）。多片拼圖內建圖走這條。
-const String _kRuntimeCacheName = "runtime";
+const String _kRuntimeCacheName = "kid-puzzle-runtime";
 
 /// SW 內 sprite reconcile handler 用的 cache 名稱（與 sw.ts 內
 /// `SPRITE_CACHE` 常數一致）。sprite 資源走這條。
-const String _kSpriteCacheName = "sprite-revisioned-v1";
+const String _kSpriteCacheName = "kid-puzzle-sprite-revisioned-v1";
 
 class _WebBackgroundAssetCache extends BackgroundAssetCache {
 	// === Puzzle ===

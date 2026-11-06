@@ -293,7 +293,8 @@
         startBootstrap();
       });
 
-      var RELOAD_KEY = "__isolatedReloadCount";
+      // sessionStorage 是同 origin（mutsuntsai.github.io）所有網站共用的，key 要加前綴
+      var RELOAD_KEY = "kid-puzzle:isolatedReloadCount";
       var MAX_RELOADS = 2;
 
       // sessionStorage 在隱私模式 / 嚴格隱私設定下 set/get 可能 throw；

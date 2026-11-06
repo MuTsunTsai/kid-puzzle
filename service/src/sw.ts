@@ -34,6 +34,13 @@ import { PRECACHE_MANIFEST } from "./precache-manifest.generated";
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Cache Storage 是同一個 origin（mutsuntsai.github.io）底下所有網站共用的，
+// 自訂的 Workbox cacheName 也會原樣使用（不會自動加上 scope），所以要自己加前綴。
+// Dart 端（lib/core/network/background_asset_cache_web.dart）的 cache 名稱要一致。
+function cacheName(name: string): string {
+	return `kid-puzzle-${name}`;
+}
+
 // 對所有 Workbox handler 出來的 response 補 COOP/COEP headers，並對 wasm
 // 回應額外處理 transfer encoding。
 //
@@ -88,7 +95,7 @@ const headersPlugin: WorkboxPlugin = {
 
 // 1. precache：手動掌控 install / activate，每個 cache 都掛 headersPlugin。
 const precacheController = new PrecacheController({
-	cacheName: "precache",
+	cacheName: cacheName("precache"),
 	plugins: [headersPlugin],
 });
 precacheController.addToCacheList(PRECACHE_MANIFEST);
@@ -115,7 +122,7 @@ registerRoute(new PrecacheRoute(precacheController, {
 // route handler 接管 respondWith 後仍要保留 COOP/COEP headers，因此手動
 // 透過 headersPlugin.handlerWillRespond 處理（與其它 handler 一致）。
 
-const SPRITE_CACHE = "sprite-revisioned-v1";
+const SPRITE_CACHE = cacheName("sprite-revisioned-v1");
 
 async function handleSpriteFetch(request: Request): Promise<Response> {
 	const url = new URL(request.url);
@@ -186,10 +193,39 @@ registerRoute(
 );
 
 // 3. 其它一律 stale-while-revalidate（同 cache 名稱避免與 precache 衝突）。
+const RUNTIME_CACHE = cacheName("runtime");
+
 setDefaultHandler(new StaleWhileRevalidate({
-	cacheName: "runtime",
+	cacheName: RUNTIME_CACHE,
 	plugins: [headersPlugin],
 }));
+
+// 從舊版沒有前綴的 cache 名稱遷移：把已下載的 runtime 與 sprite 資源複製到新名稱
+// （省去重新下載），再刪掉舊 cache。precache 不需複製，install 時已重新填好。
+//
+// 遷移程式碼：一年以後（2027-10）可以拿掉。
+async function migrateCache(oldName: string, newName: string): Promise<void> {
+	if (!(await caches.has(oldName))) return;
+	const oldCache = await caches.open(oldName);
+	const newCache = await caches.open(newName);
+	for (const request of await oldCache.keys()) {
+		if (await newCache.match(request)) continue;
+		const response = await oldCache.match(request);
+		if (response) await newCache.put(request, response);
+	}
+	await caches.delete(oldName);
+}
+
+async function migrateCaches(): Promise<void> {
+	try {
+		await caches.delete("precache");
+		await migrateCache("runtime", RUNTIME_CACHE);
+		await migrateCache("sprite-revisioned-v1", SPRITE_CACHE);
+	} catch (err) {
+		// 遷移失敗頂多是重新下載，不影響運作
+		console.warn("cache migration failed", err);
+	}
+}
 
 self.addEventListener("install", (event) => {
 	self.skipWaiting();
@@ -198,4 +234,5 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
 	precacheController.activate(event);
+	event.waitUntil(migrateCaches());
 });

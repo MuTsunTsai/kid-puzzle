@@ -19,5 +19,5 @@
 /// 修拖曳卡死 bug 需先發 production、暫時關掉這個模式。
 const bool kEnableInsetPuzzle = bool.fromEnvironment(
 	"ENABLE_INSET",
-	defaultValue: false,
+	defaultValue: true,
 );

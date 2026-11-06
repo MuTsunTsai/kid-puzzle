@@ -5,9 +5,20 @@ import "dart:math";
 /// 對 N 個候選項目維護「上次被抽中的關卡序號」，每次抽樣時：
 /// - 計算每個項目 i 的「距離」`d_i = currentLevel - lastShown[i]`，從未抽中
 ///   過視為 d=∞ → 權重 1
-/// - 若 `d_i ≤ cooldown`（預設 `0.4 × N`）權重強制為 0，**保證冷卻期內絕不
-///   重複**
+/// - 若 `d_i ≤ cooldown` 權重強制為 0，**保證冷卻期內絕不重複**——前提是
+///   候選池夠大、湊得出所需個數
 /// - 否則權重 = `min(1, d_i / N)`，距離 N 關後達上限 1
+///
+/// **Cooldown 公式**：`ceil(N / K * 0.4)`、K = 每關抽幾個（`pickMany` /
+/// `pickManyWhere` 的 `count`、`pick` 視為 1）。
+///
+/// 直覺：每關抽 K 個 → N/K 關會循環一次 → cooldown 設成 40% 個循環。
+/// N=32、K=7 → cooldown=2；N=32、K=1 → cooldown=13。
+///
+/// **Fallback**：cooldown 期內候選不夠湊出 K 個時（典型情境：呼叫端額外
+/// 用 [pickManyWhere] 的 accept 丟掉很多候選、剩餘 weight>0 的不夠），改用
+/// 「`min(1, d_i / N)`、不套 cooldown 硬切」的權重再抽——剛抽過的仍有最低
+/// 機率、最久沒出現的最高、但不會均勻拋光所有歷史。
 ///
 /// 多片拼圖選圖、嵌入拼圖選類別、選類別內 items 都用這套，行為一致。
 ///
@@ -21,8 +32,28 @@ class CooldownPicker<K> {
 	final Map<K, int> _lastShownLevel = <K, int>{};
 	int _levelCounter = 0;
 
-	/// 自冷卻佔總數的比例。預設 0.4 即 puzzle_page 原行為。
+	/// 自冷卻佔「一個循環」的比例。0.4 = 一個循環的前 40% 不可重複。
 	static const double _cooldownRatio = 0.4;
+
+	/// Cooldown 公式：`ceil(N / K * 0.4)`、保底至少 1。
+	static int _cooldownFor(int n, int itemsPerLevel) {
+		final int k = itemsPerLevel > 0 ? itemsPerLevel : 1;
+		final int raw = (n / k * _cooldownRatio).ceil();
+		return raw > 0 ? raw : 1;
+	}
+
+	/// 給定 `distance` 與 `n` 的權重：`min(1, distance/n)^2`。
+	/// `last == null`（從未抽過）視為 distance = ∞ → 權重 1。
+	///
+	/// 平方而非線性的理由：fallback 路徑（cooldown 期內候選不夠時）若用線性
+	/// `distance/n`、N=32 / d=1 = 1/32、d=3 = 3/32、d=∞ = 1、在 5~10 個的小
+	/// 池子裡抽到 d=1 的機率仍偏高。平方後 d=1 = 1/1024、d=3 = 9/1024、
+	/// d=∞ = 1、剛抽過幾乎不會被選。
+	static double _distanceWeight(int distance, int n) {
+		final double w = distance / n;
+		final double clipped = w > 1.0 ? 1.0 : w;
+		return clipped * clipped;
+	}
 
 	/// 從 [candidates] 中加權隨機抽一個並記錄。candidates 為空時回 null。
 	///
@@ -44,35 +75,46 @@ class CooldownPicker<K> {
 			_levelCounter++;
 			return list[0];
 		}
-		final int cooldown = (n * _cooldownRatio).floor();
-		final List<double> weights = List<double>.generate(n, (int i) {
-			final K key = list[i];
-			final int? last = _lastShownLevel[key];
-			double base;
-			if (last == null) {
-				base = 1.0;
-			} else {
-				final int distance = _levelCounter - last;
-				if (distance <= cooldown) {
-					return 0.0;
+		final int cooldown = _cooldownFor(n, 1);
+		// useFallback：cooldown 期內所有候選都 weight=0 時、改用「不套 cooldown
+		// 硬切」的 distance/n 權重再抽一次。剛抽過的有最低機率、最久沒抽過最高。
+		List<double> computeWeights(bool useFallback) {
+			return List<double>.generate(n, (int i) {
+				final K key = list[i];
+				final int? last = _lastShownLevel[key];
+				double base;
+				if (last == null) {
+					base = 1.0;
+				} else {
+					final int distance = _levelCounter - last;
+					if (!useFallback && distance <= cooldown) {
+						return 0.0;
+					}
+					base = _distanceWeight(distance, n);
 				}
-				base = distance / n;
-				if (base > 1.0) base = 1.0;
-			}
-			if (weightMultiplier != null) {
-				final double m = weightMultiplier(key);
-				if (m <= 0) return 0.0;
-				return base * m;
-			}
-			return base;
-		});
+				if (weightMultiplier != null) {
+					final double m = weightMultiplier(key);
+					if (m <= 0) return 0.0;
+					base *= m;
+				}
+				return base;
+			});
+		}
+
+		List<double> weights = computeWeights(false);
 		double total = 0;
 		for (final double w in weights) {
 			total += w;
 		}
+		if (total <= 0) {
+			weights = computeWeights(true);
+			for (final double w in weights) {
+				total += w;
+			}
+		}
 		final K picked;
 		if (total <= 0) {
-			// 極端保險：所有權重 0（理論上 cooldown < n 時不可能）→ 均勻抽
+			// 真的什麼都湊不到（例如 weightMultiplier 把所有候選砍 0）→ 均勻抽
 			picked = list[_random.nextInt(n)];
 		} else {
 			final double r = _random.nextDouble() * total;
@@ -112,36 +154,49 @@ class CooldownPicker<K> {
 		final int n = list.length;
 		if (n == 0 || count <= 0) return <K>[];
 		final int k = count > n ? n : count;
-		final int cooldown = (n * _cooldownRatio).floor();
+		final int cooldown = _cooldownFor(n, count);
 		final List<K> result = <K>[];
 		final Set<K> taken = <K>{};   // 已接受（會記錄到 lastShown）
 		final Set<K> rejected = <K>{}; // 本輪 reject、之後不再抽
 		while (result.length < k && taken.length + rejected.length < n) {
-			final List<int> idx = <int>[];
-			final List<double> weights = <double>[];
-			for (int i = 0; i < n; i++) {
-				final K key = list[i];
-				if (taken.contains(key) || rejected.contains(key)) continue;
-				final int? last = _lastShownLevel[key];
-				double w;
-				if (last == null) {
-					w = 1.0;
-				} else {
-					final int distance = _levelCounter - last;
-					if (distance <= cooldown) {
-						w = 0.0;
+			// 第一回合用 cooldown 硬切、若全 0 fallback 改用「不套 cooldown 的
+			// distance/n」再算一次；taken/rejected 一律排除。
+			List<int> idx = <int>[];
+			List<double> weights = <double>[];
+			void fillWeights(bool useFallback) {
+				idx = <int>[];
+				weights = <double>[];
+				for (int i = 0; i < n; i++) {
+					final K key = list[i];
+					if (taken.contains(key) || rejected.contains(key)) continue;
+					final int? last = _lastShownLevel[key];
+					double w;
+					if (last == null) {
+						w = 1.0;
 					} else {
-						w = distance / n;
-						if (w > 1.0) w = 1.0;
+						final int distance = _levelCounter - last;
+						if (!useFallback && distance <= cooldown) {
+							w = 0.0;
+						} else {
+							w = _distanceWeight(distance, n);
+						}
 					}
+					idx.add(i);
+					weights.add(w);
 				}
-				idx.add(i);
-				weights.add(w);
 			}
+			fillWeights(false);
 			if (idx.isEmpty) break;
 			double total = 0;
 			for (final double w in weights) {
 				total += w;
+			}
+			if (total <= 0) {
+				fillWeights(true);
+				total = 0;
+				for (final double w in weights) {
+					total += w;
+				}
 			}
 			final int chosen;
 			if (total <= 0) {
@@ -184,36 +239,47 @@ class CooldownPicker<K> {
 		final int n = list.length;
 		if (n == 0 || count <= 0) return <K>[];
 		final int k = count > n ? n : count;
-		final int cooldown = (n * _cooldownRatio).floor();
+		final int cooldown = _cooldownFor(n, count);
 		final List<K> result = <K>[];
 		// 同一輪內已抽中的不再進候選，但其它候選的權重仍以「進入本輪前」的
 		// lastShown 為基準計算 — 避免單一輪內後抽的權重被同輪先抽影響。
 		final Set<K> taken = <K>{};
 		for (int round = 0; round < k; round++) {
-			final List<int> idx = <int>[];
-			final List<double> weights = <double>[];
-			for (int i = 0; i < n; i++) {
-				if (taken.contains(list[i])) continue;
-				final int? last = _lastShownLevel[list[i]];
-				double w;
-				if (last == null) {
-					w = 1.0;
-				} else {
-					final int distance = _levelCounter - last;
-					if (distance <= cooldown) {
-						w = 0.0;
+			List<int> idx = <int>[];
+			List<double> weights = <double>[];
+			void fillWeights(bool useFallback) {
+				idx = <int>[];
+				weights = <double>[];
+				for (int i = 0; i < n; i++) {
+					if (taken.contains(list[i])) continue;
+					final int? last = _lastShownLevel[list[i]];
+					double w;
+					if (last == null) {
+						w = 1.0;
 					} else {
-						w = distance / n;
-						if (w > 1.0) w = 1.0;
+						final int distance = _levelCounter - last;
+						if (!useFallback && distance <= cooldown) {
+							w = 0.0;
+						} else {
+							w = _distanceWeight(distance, n);
+						}
 					}
+					idx.add(i);
+					weights.add(w);
 				}
-				idx.add(i);
-				weights.add(w);
 			}
+			fillWeights(false);
 			if (idx.isEmpty) break;
 			double total = 0;
 			for (final double w in weights) {
 				total += w;
+			}
+			if (total <= 0) {
+				fillWeights(true);
+				total = 0;
+				for (final double w in weights) {
+					total += w;
+				}
 			}
 			final int chosen;
 			if (total <= 0) {

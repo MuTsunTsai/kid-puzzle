@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # 確認 tag 是基於 main 分支的 commit
       # （避免在其他分支誤打 tag 也觸發 release）
@@ -34,7 +34,7 @@ jobs:
           fi
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -52,11 +52,11 @@ jobs:
       # 第一次 cold ~5-10 分鐘，cache hit 後通常壓到 ~2-3 分鐘。
       # gradle/gradle-build-action 會自動處理 cache key + 智慧 invalidate。
       - name: Setup Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       # Flutter build 中間產物（dill / kernel / 生成檔）；pubspec.lock 變就 invalidate。
       - name: Cache .dart_tool
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .dart_tool
           key: dart-tool-android-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
@@ -101,7 +101,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/kid-puzzle-${{ github.ref_name }}.apk
           generate_release_notes: false
