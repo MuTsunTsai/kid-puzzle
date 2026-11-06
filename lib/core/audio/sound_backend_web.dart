@@ -1,3 +1,4 @@
+import "dart:async";
 import "dart:js_interop";
 
 import "package:flutter/foundation.dart";
@@ -109,6 +110,44 @@ class _WebSoundBackend implements SoundBackend {
 		} catch (e) {
 			debugPrint("SoundBackend (web) play failed for $assetPath: $e");
 		}
+	}
+
+	@override
+	Future<bool> loadBytes(String key, Uint8List bytes) async {
+		try {
+			// decodeAudioData 會 detach 傳入的 ArrayBuffer，複製一份避免動到呼叫端
+			// 持有的 bytes（例如語音 zip 解出來的 clip 仍要留著）。
+			final JSArrayBuffer ab = Uint8List.fromList(bytes).buffer.toJS;
+			final web.AudioBuffer buf = await _context.decodeAudioData(ab).toDart;
+			_buffers[key] = buf;
+			return true;
+		} catch (e) {
+			debugPrint("SoundBackend (web) loadBytes failed for $key: $e");
+			return false;
+		}
+	}
+
+	@override
+	Future<void> playAndWait(String key) {
+		final web.AudioBuffer? buf = _buffers[key];
+		if (buf == null) return Future<void>.value();
+		if (_context.state == "suspended") {
+			_context.resume();
+		}
+		final Completer<void> done = Completer<void>();
+		try {
+			final web.AudioBufferSourceNode source = _context.createBufferSource();
+			source.buffer = buf;
+			source.connect(_context.destination);
+			source.onended = (web.Event _) {
+				if (!done.isCompleted) done.complete();
+			}.toJS;
+			source.start();
+		} catch (e) {
+			debugPrint("SoundBackend (web) playAndWait failed for $key: $e");
+			if (!done.isCompleted) done.complete();
+		}
+		return done.future;
 	}
 
 	@override

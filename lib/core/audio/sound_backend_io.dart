@@ -114,6 +114,14 @@ class _IoSoundBackend implements SoundBackend {
 		}
 	}
 
+	// io 平台的物件名稱語音由 SpriteVoicePlayer 直接用 audioplayers 播放，
+	// 不經過這兩個方法。
+	@override
+	Future<bool> loadBytes(String key, Uint8List bytes) async => false;
+
+	@override
+	Future<void> playAndWait(String key) async {}
+
 	@override
 	Future<void> dispose() async {
 		_channelLastPlayer.clear();

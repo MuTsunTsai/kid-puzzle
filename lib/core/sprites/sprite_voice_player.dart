@@ -2,7 +2,9 @@ import "dart:async";
 
 import "package:archive/archive.dart";
 import "package:audioplayers/audioplayers.dart";
-import "package:flutter/services.dart";
+import "package:flutter/foundation.dart";
+
+import "../audio/sound_backend.dart";
 
 import "sprite_asset_loader.dart";
 import "sprite_manifest.dart";
@@ -67,6 +69,56 @@ class SpriteVoicePlayer {
 			clips[id] = f.readBytes() ?? Uint8List(0);
 		}
 		_clips[category.id] = clips;
+		// Web：背景依序解碼成 Web Audio buffer，玩家 snap / 配對時就能瞬發。
+		if (kIsWeb) unawaited(_predecodeWeb(category.id, clips));
+	}
+
+	// ───────── Web：走 Web Audio（AudioBuffer）而非 <audio> element ─────────
+	//
+	// audioplayers 在 web 上每段都新建 <audio> + data: URI。手機瀏覽器對「非
+	// user gesture 當下、新建的 media element」第一次 play 常被自動播放政策
+	// 擋下（play() reject、靜默沒聲音），第二次才成功；第一次播放也有啟動
+	// 延遲。改用與音效 / 鼓勵語共用的 AudioContext（已被點擊音效解鎖），
+	// 播放瞬發、onended 也可靠。
+
+	SoundBackend? _webBackendInstance;
+	SoundBackend get _webBackend => _webBackendInstance ??= SoundBackend();
+
+	/// 已解碼完成的 key（見 [_webKey]）。
+	final Set<String> _webDecoded = <String>{};
+
+	/// 解碼中的 key → future（同一段不重複解碼）。
+	final Map<String, Future<bool>> _webDecoding = <String, Future<bool>>{};
+
+	static String _webKey(String categoryId, String itemId) =>
+			"sprite-voice:$categoryId/$itemId";
+
+	Future<bool> _ensureWebDecoded(String categoryId, String itemId, Uint8List data) {
+		final String key = _webKey(categoryId, itemId);
+		if (_webDecoded.contains(key)) return Future<bool>.value(true);
+		return _webDecoding.putIfAbsent(key, () async {
+			final bool ok = await _webBackend.loadBytes(key, data);
+			if (ok) _webDecoded.add(key);
+			unawaited(_webDecoding.remove(key));
+			return ok;
+		});
+	}
+
+	Future<void> _predecodeWeb(String categoryId, Map<String, Uint8List> clips) async {
+		for (final MapEntry<String, Uint8List> e in clips.entries) {
+			await _ensureWebDecoded(categoryId, e.key, e.value);
+		}
+	}
+
+	Future<void> _playWeb(SpriteCategory category, SpriteItem item, Uint8List data) async {
+		final bool ok = await _ensureWebDecoded(category.id, item.id, data);
+		if (!ok) return;
+		// 保險：onended 理論上可靠，仍加上限避免呼叫端永久等待。
+		try {
+			await _webBackend
+					.playAndWait(_webKey(category.id, item.id))
+					.timeout(_maxClipDuration);
+		} catch (_) {}
 	}
 
 	/// 進行中 player → 它的 done completer。throttle 時要 resolve 舊的、
@@ -85,6 +137,7 @@ class SpriteVoicePlayer {
 		final Map<String, Uint8List>? clips = _clips[category.id];
 		final Uint8List? data = clips?[item.id];
 		if (data == null) return;
+		if (kIsWeb) return _playWeb(category, item, data);
 
 		// Throttle：若已達上限、砍最舊的 player、resolve 其 future。新 player
 		// 在 _active 加入前先砍、保持 _active 始終 ≤ _maxConcurrent。

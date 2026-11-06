@@ -1,6 +1,8 @@
 // 注意：條件必須用 dart.library.js_interop，不能用 dart.library.html——
 // wasm（dart2wasm）沒有 dart:html，用 html 判斷時 wasm 版會悄悄退回
 // audioplayers 後端（<audio> 第一次播放才下載，過關語音明顯延遲）。
+import "dart:typed_data";
+
 import "sound_backend_io.dart"
 		if (dart.library.js_interop) "sound_backend_web.dart";
 
@@ -42,6 +44,14 @@ abstract class SoundBackend {
 	///
 	/// [volume] 0.0 ~ 1.0；預設 1.0（原音量）。
 	void play(String assetPath, {String? channel, double volume = 1.0});
+
+	/// 把記憶體中的音訊 [bytes]（mp3 等）解碼，以 [key] 存起來供 [playAndWait]。
+	/// 成功回 true。目前只有 web 實作（Web Audio）；io 後端回 false。
+	Future<bool> loadBytes(String key, Uint8List bytes);
+
+	/// 播放 [loadBytes] 存好的 [key]，回傳的 Future 在播完時完成；
+	/// 找不到 key 或播放失敗時立即完成。目前只有 web 實作。
+	Future<void> playAndWait(String key);
 
 	/// 清理底層資源。
 	Future<void> dispose();
