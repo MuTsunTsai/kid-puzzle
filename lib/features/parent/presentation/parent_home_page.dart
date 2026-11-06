@@ -60,9 +60,9 @@ class _ParentHomePageState extends State<ParentHomePage> {
 						padding: const EdgeInsets.symmetric(vertical: 8),
 						children: <Widget>[
 							_SectionTitle(text: ParentStrings.sectionContent),
-							// 素材管理只在嵌入拼圖開啟時顯示——它的內容（sprite 類別 /
-							// 子類別勾選）只服務嵌入拼圖。
-							if (kEnableInsetPuzzle)
+							// 素材管理只在 sprite 遊戲模式（嵌入拼圖 / 記憶遊戲）開啟時顯示——它的內容（sprite 類別 /
+							// 子類別勾選）只服務這些模式。
+							if (kEnableSpriteFeatures)
 								ListTile(
 									leading: const Icon(Icons.category_outlined),
 									title: const Text(ParentStrings.sprites),

@@ -28,7 +28,8 @@ class HomePage extends StatefulWidget {
 	const HomePage({super.key});
 
 	/// 首頁教學「當前版本」。更新教學內容時 bump 此值，舊使用者會重看一次。
-	static const int _homeTutorialVersion = 1;
+	/// v2：新增記憶遊戲、「開始」步驟改為高亮整排模式按鈕並更新文案。
+	static const int _homeTutorialVersion = 2;
 
 	@override
 	State<HomePage> createState() => _HomePageState();
@@ -152,45 +153,44 @@ class _HomePageState extends State<HomePage> with RouteAware {
 								),
 							),
 							// 中央：模式按鈕。
-							// kEnableInsetPuzzle = true → 兩顆並排（嵌入拼圖 / 多片拼圖）
-							// kEnableInsetPuzzle = false → 只顯示一顆、label 用單一模式時代
-							//   的「開始拼圖」（與 main 既有 UX 一致）。
-							// 教學氣泡掛在「多片拼圖」這顆上、沿用既有 startTutorial 文案。
+							// 嵌入拼圖 / 記憶遊戲各自看 feature flag 決定是否顯示；
+							// 兩者都關閉 → 只顯示一顆、label 用單一模式時代的「開始拼圖」
+							//   （與 main 既有 UX 一致）。
+							// 教學氣泡高亮整排按鈕、文案不綁特定模式。
 							Center(
-								child: Row(
-									mainAxisSize: MainAxisSize.min,
-									children: <Widget>[
-										if (kEnableInsetPuzzle) ...<Widget>[
+								child: Showcase.withWidget(
+									key: _startKey,
+									targetBorderRadius:
+											const BorderRadius.all(Radius.circular(48)),
+									container: TutorialBubble(
+										text: HomeStrings.startTutorial,
+										onTap: _showcase.next,
+									),
+									child: Row(
+										mainAxisSize: MainAxisSize.min,
+										children: <Widget>[
+											if (kEnableInsetPuzzle) ...<Widget>[
+												_StartButton(
+													label: HomeStrings.startInsetPuzzle,
+													onPressed: () => _openMode(AppRoutes.insetPuzzleSetup),
+												),
+												const SizedBox(width: 24),
+											],
 											_StartButton(
-												label: HomeStrings.startInsetPuzzle,
-												onPressed: () async {
-													await requestFullscreenLandscape();
-													if (!context.mounted) return;
-													unawaited(Navigator.of(context)
-															.pushNamed(AppRoutes.insetPuzzleSetup));
-												},
-											),
-											const SizedBox(width: 24),
-										],
-										Showcase.withWidget(
-											key: _startKey,
-											container: TutorialBubble(
-												text: HomeStrings.startTutorial,
-												onTap: _showcase.next,
-											),
-											child: _StartButton(
-												label: kEnableInsetPuzzle
+												label: kEnableInsetPuzzle || kEnableMemoryGame
 														? HomeStrings.startMultiPuzzle
 														: HomeStrings.startButton,
-												onPressed: () async {
-													await requestFullscreenLandscape();
-													if (!context.mounted) return;
-													unawaited(Navigator.of(context)
-															.pushNamed(AppRoutes.puzzleSetup));
-												},
+												onPressed: () => _openMode(AppRoutes.puzzleSetup),
 											),
-										),
-									],
+											if (kEnableMemoryGame) ...<Widget>[
+												const SizedBox(width: 24),
+												_StartButton(
+													label: HomeStrings.startMemoryGame,
+													onPressed: () => _openMode(AppRoutes.memoryGameSetup),
+												),
+											],
+										],
+									),
 								),
 							),
 							// 底部標題
@@ -241,6 +241,13 @@ class _HomePageState extends State<HomePage> with RouteAware {
 				),
 			),
 		);
+	}
+
+	/// 進入某個遊戲模式的設定頁：先在 user gesture 內請求全螢幕橫向。
+	Future<void> _openMode(String routeName) async {
+		await requestFullscreenLandscape();
+		if (!mounted) return;
+		unawaited(Navigator.of(context).pushNamed(routeName));
 	}
 
 	Future<void> _enterParent(BuildContext context) async {

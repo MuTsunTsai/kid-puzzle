@@ -69,11 +69,11 @@ Future<void> main() async {
 	// 「語音」開關同時控制：(1) VoiceService 的關卡鼓勵語、(2) 嵌入拼圖
 	// snap 上去的物件名稱朗讀。兩條都是預錄人聲、語意一致。
 	sprites.voiceEnabled = settings.voiceEnabled;
-	// kEnableInsetPuzzle = false 時跳過 sprite manifest 載入與背景下載——
+	// kEnableSpriteFeatures = false 時跳過 sprite manifest 載入與背景下載——
 	// SpriteRegistry 物件仍會放進 Provider（家長頁「語音」switch 會無條件
 	// 寫入 voiceEnabled、保持 wiring 一致），但不載 manifest 也不 prefetch
 	// sprite 資源、節省啟動時間與頻寬。
-	final Future<void>? spritesLoading = kEnableInsetPuzzle
+	final Future<void>? spritesLoading = kEnableSpriteFeatures
 			? sprites.load().catchError((_) {})
 			: null;
 	if (spritesLoading != null) unawaited(spritesLoading);
@@ -90,7 +90,7 @@ Future<void> main() async {
 	// Sprite manifest 載完後註冊 sprite 資源到背景下載服務。
 	// 順序：使用者已選取的類別在前、未選的在後；確保剛開 app 就先 prefetch
 	// 玩家最可能進去的類別。
-	// kEnableInsetPuzzle = false 時 spritesLoading 為 null、整段略過。
+	// kEnableSpriteFeatures = false 時 spritesLoading 為 null、整段略過。
 	if (spritesLoading != null) {
 		unawaited(spritesLoading.then((_) {
 			_registerSpriteAssetsToCache(

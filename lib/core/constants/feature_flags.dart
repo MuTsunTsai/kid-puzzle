@@ -21,3 +21,17 @@ const bool kEnableInsetPuzzle = bool.fromEnvironment(
 	"ENABLE_INSET",
 	defaultValue: true,
 );
+
+/// 是否啟用「記憶遊戲」模式（翻牌配對、素材來自 sprite 系統）。
+///
+/// 切換方式同 [kEnableInsetPuzzle]：`--dart-define=ENABLE_MEMORY=false` 可關閉。
+const bool kEnableMemoryGame = bool.fromEnvironment(
+	"ENABLE_MEMORY",
+	defaultValue: true,
+);
+
+/// 是否有任一使用 sprite 素材的遊戲模式啟用。
+///
+/// 控制 sprite manifest 載入 / 背景下載、家長頁「素材管理」入口、
+/// sprites 相關路由。個別遊戲模式的按鈕 / 路由仍各自看自己的 flag。
+const bool kEnableSpriteFeatures = kEnableInsetPuzzle || kEnableMemoryGame;

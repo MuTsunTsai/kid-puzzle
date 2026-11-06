@@ -35,6 +35,10 @@ class SettingsRepository {
 	static const String _kInsetAllowSimilarSilhouette =
 			"insetAllowSimilarSilhouette";
 
+	/// 記憶遊戲：每關「配對組數」範圍上下界（一組 = 兩張相同卡片）。
+	static const String _kMemoryMinPairs = "memoryMinPairs";
+	static const String _kMemoryMaxPairs = "memoryMaxPairs";
+
 	/// 各畫面教學流程「最後看過的版本」存檔。
 	/// key 形如 "tutorialVersion.home"、"tutorialVersion.setup"。
 	/// 新版教學流程要強制重播時、把對應畫面常數 bump 即可。
@@ -258,6 +262,33 @@ class SettingsRepository {
 		} catch (e) {
 			debugPrint(
 					"SettingsRepository.setInsetAllowSimilarSilhouette failed: $e");
+		}
+	}
+
+	/// 記憶遊戲：每關配對組數下界（slider 範圍 2~10）。
+	int get memoryMinPairs {
+		final Object? raw = _box.get(_kMemoryMinPairs);
+		if (raw is num) return raw.toInt();
+		return 3;
+	}
+
+	int get memoryMaxPairs {
+		final Object? raw = _box.get(_kMemoryMaxPairs);
+		if (raw is num) return raw.toInt();
+		return 6;
+	}
+
+	Future<void> setMemoryPairRange({
+		required int minPairs,
+		required int maxPairs,
+	}) async {
+		try {
+			await _box.putAll(<String, Object?>{
+				_kMemoryMinPairs: minPairs,
+				_kMemoryMaxPairs: maxPairs,
+			});
+		} catch (e) {
+			debugPrint("SettingsRepository.setMemoryPairRange failed: $e");
 		}
 	}
 

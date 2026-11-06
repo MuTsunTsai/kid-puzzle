@@ -48,6 +48,8 @@ class BackgroundPriorityRouteObserver
 				return DownloadPriority.puzzle;
 			case AppRoutes.insetPuzzle:
 			case AppRoutes.insetPuzzleSetup:
+			case AppRoutes.memoryGame:
+			case AppRoutes.memoryGameSetup:
 			case AppRoutes.parentSprites:
 			case AppRoutes.parentSpritesDetail:
 				return DownloadPriority.sprite;

@@ -19,14 +19,15 @@ class HomeStrings {
 	static const String startButton = "開始拼圖";
 	static const String startInsetPuzzle = "嵌入拼圖";
 	static const String startMultiPuzzle = "多片拼圖";
+	static const String startMemoryGame = "記憶遊戲";
 
 	// 教學 ----
 	static const String welcomeMessage = "歡迎來到《幼兒益智遊戲》！"
 			"本應用程式特別針對幼兒進行開發，"
 			"在操作上特別考慮到幼兒的手部協調特性，"
 			"搭配精心製作的可愛風格插畫，喜歡大小朋友都喜歡！";
-	static const String startTutorial = "目前本遊戲只提供拼圖，"
-			"我們未來會再加入更多內容，敬請期待！";
+	static const String startTutorial = "點選想玩的遊戲就可以開始囉！"
+			"我們未來還會再加入更多內容，敬請期待！";
 	static const String gearTutorial = "從這邊可以進入設定頁；"
 			"為了避免小朋友誤觸，這個要長壓一秒喔！";
 
@@ -86,6 +87,28 @@ class PuzzleStrings {
 	/// 斷網 + 已下載內建圖 < 20 張 時、進入拼圖前提示（每 session 一次）。
 	static const String needNetworkTitle = "目前是離線模式";
 	static const String needNetworkBody = "請開啟網路，以載入更多圖片喔！";
+}
+
+/// 記憶遊戲。
+class MemoryStrings {
+	const MemoryStrings._();
+
+	static const String rangeTitle = "選擇配對組數範圍";
+	static const String screenLockLabel = "鎖定畫面";
+	static const String startButton = "開始";
+	static const String noCategoryTitle = "沒有可用的素材";
+	static const String noCategoryDesc = "請先在「家長區 → 素材管理」"
+			"勾選至少一個素材類別。";
+	static const String ok = "好";
+
+	// 教學 ----
+	static const String rangeTutorial = "在這邊可以選擇每一關有幾組卡片要配對，"
+			"會隨機從範圍中選一個～";
+	static const String screenLockTutorial = SetupStrings.screenLockTutorial;
+	static const String gameTutorial = "每次翻開兩張卡片，"
+			"如果圖案一樣就會唸出名稱並消失；不一樣的話會自動翻回去。"
+			"把卡片全部消掉就過關囉！"
+			"長壓右上角的關閉圖示即可退出。";
 }
 
 /// 家長區。
@@ -247,6 +270,7 @@ String _buildPreheatCharSet() {
 		HomeStrings.startButton,
 		HomeStrings.startInsetPuzzle,
 		HomeStrings.startMultiPuzzle,
+		HomeStrings.startMemoryGame,
 		HomeStrings.welcomeMessage,
 		HomeStrings.startTutorial,
 		HomeStrings.gearTutorial,
@@ -275,6 +299,15 @@ String _buildPreheatCharSet() {
 		PuzzleStrings.nextLevel,
 		PuzzleStrings.needNetworkTitle,
 		PuzzleStrings.needNetworkBody,
+		// MemoryStrings
+		MemoryStrings.rangeTitle,
+		MemoryStrings.screenLockLabel,
+		MemoryStrings.startButton,
+		MemoryStrings.noCategoryTitle,
+		MemoryStrings.noCategoryDesc,
+		MemoryStrings.ok,
+		MemoryStrings.rangeTutorial,
+		MemoryStrings.gameTutorial,
 		// ParentStrings
 		ParentStrings.homeTitle,
 		ParentStrings.sectionContent,
