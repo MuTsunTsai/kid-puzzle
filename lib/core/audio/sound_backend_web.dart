@@ -6,6 +6,13 @@ import "package:web/web.dart" as web;
 
 import "sound_backend.dart";
 
+/// 所有 backend instance（音效、語音…）共用的 AudioContext。
+///
+/// iOS Safari 的 context 要在 user gesture 內 resume 才會出聲；語音多半在
+/// 非 gesture 的時機播（關卡載入完、過關後），共用後點擊音效的 resume
+/// 會順便解鎖語音。
+web.AudioContext? _sharedContext;
+
 /// Web 平台用 Web Audio API 實作 [SoundBackend]。
 ///
 /// **流程**：
@@ -22,12 +29,12 @@ import "sound_backend.dart";
 /// **首次 user gesture 解鎖**：iOS Safari / 部分 Android Chrome 會把
 /// AudioContext 開始於 `suspended` 狀態，必須在 user gesture handler 內呼叫
 /// `resume()` 才能播音。[play] 每次都會試著呼叫 `resume()`（已 running 是 no-op）。
+///
+/// **共用 AudioContext**：見 [_sharedContext]。
 class _WebSoundBackend implements SoundBackend {
-	_WebSoundBackend() {
-		_context = web.AudioContext();
-	}
+	_WebSoundBackend() : _context = _sharedContext ??= web.AudioContext();
 
-	late final web.AudioContext _context;
+	final web.AudioContext _context;
 	final Map<String, web.AudioBuffer> _buffers = <String, web.AudioBuffer>{};
 
 	/// channel → 該 channel 最近一次仍在播的 source node（停掉舊的用）。
@@ -108,9 +115,7 @@ class _WebSoundBackend implements SoundBackend {
 	Future<void> dispose() async {
 		_buffers.clear();
 		_channelLastSource.clear();
-		try {
-			await _context.close().toDart;
-		} catch (_) {}
+		// AudioContext 是共用的（見 [_sharedContext]），這裡不關閉。
 	}
 }
 

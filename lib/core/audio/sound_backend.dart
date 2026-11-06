@@ -1,5 +1,8 @@
+// 注意：條件必須用 dart.library.js_interop，不能用 dart.library.html——
+// wasm（dart2wasm）沒有 dart:html，用 html 判斷時 wasm 版會悄悄退回
+// audioplayers 後端（<audio> 第一次播放才下載，過關語音明顯延遲）。
 import "sound_backend_io.dart"
-		if (dart.library.html) "sound_backend_web.dart";
+		if (dart.library.js_interop) "sound_backend_web.dart";
 
 /// 音訊後端抽象：給定 asset 路徑能載入並重複觸發播放。
 ///
