@@ -47,3 +47,10 @@ String? pwaInstallHint() => pwaInstallHintImpl();
 /// Web 走 `window.open` + noopener；其他平台走 url_launcher 的
 /// `externalApplication` 模式（Android/iOS 都會跳出系統瀏覽器）。
 void openExternalUrl(String url) => openExternalUrlImpl(url);
+
+/// Web 的啟動模式：`"pwa"`（已安裝、standalone）或 `"browser"`；非 web 回 null。
+String? webLaunchMode() => webLaunchModeImpl();
+
+/// Web 頁面從開始載入（navigation start）到現在的毫秒數，以及頁面是否由
+/// Service Worker 提供（通常代表有快取、非首次造訪）；非 web 回 null。
+({int elapsedMs, bool swControlled})? webLoadTiming() => webLoadTimingImpl();

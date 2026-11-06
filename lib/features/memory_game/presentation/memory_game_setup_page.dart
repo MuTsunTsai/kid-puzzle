@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
@@ -43,6 +44,8 @@ class _MemoryGameSetupPageState extends State<MemoryGameSetupPage> {
 		_showcase = ShowcaseView.register(
 			scope: "memorySetup",
 			disableMovingAnimation: true,
+			onFinish: () => unawaited(
+					AnalyticsService.instance.logTutorialComplete("memorySetup")),
 		);
 		WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartTutorial());
 	}
@@ -65,6 +68,7 @@ class _MemoryGameSetupPageState extends State<MemoryGameSetupPage> {
 			_tutorialRangeKey,
 			if (showScreenLockOption) _tutorialScreenLockKey,
 		]);
+		unawaited(AnalyticsService.instance.logTutorialBegin("memorySetup"));
 		unawaited(
 				repo.setTutorialVersionSeen("memorySetup", _setupTutorialVersion));
 	}

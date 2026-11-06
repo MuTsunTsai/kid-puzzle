@@ -1,6 +1,7 @@
 import "dart:async";
 
 import "package:firebase_core/firebase_core.dart";
+import "package:flutter/foundation.dart" show defaultTargetPlatform;
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:hive_ce_flutter/hive_flutter.dart";
@@ -61,6 +62,7 @@ Future<void> main() async {
 	// 把已保存的音效/語音 開關套用到 service
 	audio.enabled = settings.audioEnabled;
 	voice.enabled = settings.voiceEnabled;
+	_setAnalyticsUserProperties(settings);
 
 	// Sprite manifest：fire-and-forget 載入。實際進嵌入拼圖時若還沒 ready，
 	// 該頁的 _bootstrap 會自己 await registry.load()。
@@ -112,6 +114,35 @@ Future<void> main() async {
 			),
 		),
 	);
+
+	// Web 載入效能：頁面開始載入 → Flutter 第一個畫面。
+	WidgetsBinding.instance.addPostFrameCallback((_) {
+		final ({int elapsedMs, bool swControlled})? t = webLoadTiming();
+		if (t == null) return;
+		unawaited(AnalyticsService.instance.logAppLoad(
+			loadMs: t.elapsedMs,
+			swControlled: t.swControlled,
+		));
+	});
+}
+
+/// 啟動時設定 Analytics 使用者屬性（家長頁切換開關時另行更新）。
+void _setAnalyticsUserProperties(SettingsRepository settings) {
+	final AnalyticsService a = AnalyticsService.instance;
+	final String launchMode = webLaunchMode() ??
+			switch (defaultTargetPlatform) {
+				TargetPlatform.android => "android_app",
+				TargetPlatform.iOS => "ios_app",
+				_ => "native_app",
+			};
+	unawaited(a.setUserProperty(
+			"big_kid_mode", AnalyticsService.flag(settings.bigKidMode)));
+	unawaited(a.setUserProperty(
+			"audio_enabled", AnalyticsService.flag(settings.audioEnabled)));
+	unawaited(a.setUserProperty(
+			"voice_enabled", AnalyticsService.flag(settings.voiceEnabled)));
+	unawaited(a.setUserProperty("launch_mode", launchMode));
+	unawaited(a.setUserProperty("renderer", AnalyticsService.renderer));
 }
 
 /// Sprite manifest 載入完成後呼叫：算出每個類別的 sheet / voice URL（含

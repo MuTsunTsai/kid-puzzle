@@ -182,3 +182,21 @@ bool _isSafari() {
 	}
 	return ua.contains("Safari");
 }
+
+// ===== Analytics 用的環境資訊 =====
+
+String? webLaunchModeImpl() => _isStandalone() ? "pwa" : "browser";
+
+({int elapsedMs, bool swControlled})? webLoadTimingImpl() {
+	try {
+		final int elapsed = web.window.performance.now().round();
+		bool controlled = false;
+		try {
+			// 非 secure context（例如區網 http）沒有 navigator.serviceWorker。
+			controlled = web.window.navigator.serviceWorker.controller != null;
+		} catch (_) {}
+		return (elapsedMs: elapsed, swControlled: controlled);
+	} catch (_) {
+		return null;
+	}
+}

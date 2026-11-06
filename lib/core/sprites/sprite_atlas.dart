@@ -1,7 +1,9 @@
+import "dart:async";
 import "dart:ui" as ui;
 
-import "package:flutter/services.dart";
+import "package:flutter/foundation.dart";
 
+import "../analytics/analytics_service.dart";
 import "sprite_asset_loader.dart";
 import "sprite_manifest.dart";
 
@@ -67,6 +69,10 @@ class SpriteAtlas {
 				decoded.data.lengthInBytes == image.width * image.height * 4) {
 			_pixelCache[sheet.file] = decoded.data;
 			return decoded.data;
+		}
+		// web 走到這裡代表 canvas 解碼失敗 / 尺寸不符，記錄下來觀察裝置相容性。
+		if (kIsWeb) {
+			unawaited(AnalyticsService.instance.logTechFallback("pixel_to_byte_data"));
 		}
 		final ByteData? data =
 				await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba);

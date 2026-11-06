@@ -1,8 +1,11 @@
+import "dart:async";
+
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:image_picker/image_picker.dart";
 import "package:provider/provider.dart";
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/ui_strings.dart";
 import "../../../core/network/background_asset_cache.dart";
@@ -255,6 +258,11 @@ class _GalleryDetailPageState extends State<GalleryDetailPage> {
 				saved++;
 			}
 
+			unawaited(AnalyticsService.instance.logGalleryImport(
+				imported: saved,
+				skipped: skipped,
+				aborted: aborted,
+			));
 			if (!context.mounted) return;
 			if (total > 1 || aborted) {
 				final String msg = aborted

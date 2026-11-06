@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
@@ -54,6 +55,8 @@ class _HomePageState extends State<HomePage> with RouteAware {
 		_showcase = ShowcaseView.register(
 			scope: "home",
 			disableMovingAnimation: true,
+			onFinish: () => unawaited(
+					AnalyticsService.instance.logTutorialComplete("home")),
 		);
 		// 等第一幀畫完才能取得各 widget 的實際 rect、再啟動教學
 		WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartTutorial());
@@ -110,6 +113,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
 			_gearKey,
 		];
 		_showcase.startShowCase(steps);
+		unawaited(AnalyticsService.instance.logTutorialBegin("home"));
 		// 不等使用者真的看完，直接記為「已看過」— 避免使用者中途離開又每次都被
 		// 強塞同一輪教學。要重看請從家長區提供入口（後續實作）。
 		unawaited(

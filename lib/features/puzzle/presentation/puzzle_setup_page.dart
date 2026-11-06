@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/audio/audio_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/ui_strings.dart";
@@ -60,6 +61,8 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 		_showcase = ShowcaseView.register(
 			scope: "puzzleSetup",
 			disableMovingAnimation: true,
+			onFinish: () => unawaited(
+					AnalyticsService.instance.logTutorialComplete("puzzleSetup")),
 		);
 		WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartTutorial());
 	}
@@ -83,6 +86,7 @@ class _PuzzleSetupPageState extends State<PuzzleSetupPage> {
 			_tutorialCutModeKey,
 		];
 		_showcase.startShowCase(sequence);
+		unawaited(AnalyticsService.instance.logTutorialBegin("puzzleSetup"));
 		unawaited(
 				repo.setTutorialVersionSeen("puzzleSetup", _setupTutorialVersion));
 	}

@@ -19,3 +19,7 @@ void openExternalUrlImpl(String url) {
 	if (uri == null) return;
 	launchUrl(uri, mode: LaunchMode.externalApplication).catchError((_) => false);
 }
+
+String? webLaunchModeImpl() => null;
+
+({int elapsedMs, bool swControlled})? webLoadTimingImpl() => null;

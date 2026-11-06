@@ -6,6 +6,7 @@ import "package:flutter/material.dart";
 import "package:flutter/scheduler.dart";
 import "package:provider/provider.dart";
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/audio/audio_service.dart";
 import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
@@ -58,6 +59,12 @@ class _InsetPuzzlePageState extends State<InsetPuzzlePage>
 	bool _screenLockEnabled = false;
 	final Random _random = Random();
 
+	/// 當前關卡的 Analytics 追蹤；null 表示尚未開始任何關卡。
+	LevelTracker? _tracker;
+
+	/// 這次進入嵌入拼圖後已開始的關卡數（Analytics 的 level_index）。
+	int _levelCount = 0;
+
 	/// 是否還沒抽過任何關卡（用來決定「第一關只選已 cache 類別」）。
 	bool _firstLevel = true;
 
@@ -95,6 +102,8 @@ class _InsetPuzzlePageState extends State<InsetPuzzlePage>
 
 	@override
 	void dispose() {
+		// 離開時若有未完成的關卡 → 送 level_exit（已完成的不會重複送）。
+		unawaited(_tracker?.exit());
 		_controller?.dispose();
 		_boardCache.dispose();
 		// 解除 app pinning；非 Android / 未啟用都 no-op。
@@ -280,7 +289,22 @@ class _InsetPuzzlePageState extends State<InsetPuzzlePage>
 			return;
 		}
 		c.onPickup = () => audio.play(SfxKind.pickup);
-		c.onDrop = () => audio.play(SfxKind.drop);
+		final LevelTracker tracker = LevelTracker(
+			gameMode: AnalyticsService.gameModeInset,
+			pieceCount: c.pieces.length,
+			levelIndex: _levelCount + 1,
+			rangeMin: _minPieces,
+			rangeMax: _maxPieces,
+			screenLock: _screenLockEnabled,
+			extra: <String, Object?>{
+				"category": c.category.id,
+				"similar_allowed": _allowSimilarSilhouette,
+			},
+		);
+		c.onDrop = () {
+			tracker.dropMissCount++;
+			audio.play(SfxKind.drop);
+		};
 		// 最後一片 snap 觸發的語音 future；onCompleted await 它確保語音念完才出過關畫面。
 		Future<void>? lastVoiceFuture;
 		c.onSnap = (piece) {
@@ -301,6 +325,8 @@ class _InsetPuzzlePageState extends State<InsetPuzzlePage>
 			}
 		};
 		c.onCompleted = () async {
+			// 完成時間點以最後一片放好為準（不含等語音念完）。
+			unawaited(tracker.complete());
 			// 過關時最後一片可能正在念名稱語音 → 等它念完、再放過關音 + setState。
 			// 沒語音的物件 fallback 立刻接過關音、不卡幼兒。
 			final Future<void>? voiceFut = lastVoiceFuture;
@@ -308,6 +334,9 @@ class _InsetPuzzlePageState extends State<InsetPuzzlePage>
 			if (voiceFut != null) {
 				try {
 					await voiceFut.timeout(const Duration(seconds: 4));
+				} on TimeoutException {
+					unawaited(AnalyticsService.instance
+							.logTechFallback("voice_wait_timeout"));
 				} catch (_) {}
 			}
 			if (!mounted) return;
@@ -335,6 +364,9 @@ class _InsetPuzzlePageState extends State<InsetPuzzlePage>
 			// 清掉 debug overlay，不要疊到實際遊戲畫面
 			_debugSnapshot = null;
 		});
+		_levelCount++;
+		_tracker = tracker;
+		unawaited(tracker.start());
 		voice.speakLevelStart();
 		old?.dispose();
 	}

@@ -1,9 +1,11 @@
+import "dart:async";
 import "dart:math";
 import "dart:ui" as ui;
 
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart" show Color;
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/sprites/sprite_manifest.dart";
 import "../../../core/sprites/sprite_registry.dart";
 import "../../puzzle/presentation/puzzle_controller.dart" show PuzzleStageLayout;
@@ -691,6 +693,14 @@ class InsetPuzzleController extends DraggableController<InsetPiece> {
 				_anyOverlap(gapMasks, centers, tile)) {
 			tile *= _finalShrinkRate;
 			shrinkRounds++;
+		}
+		if (shrinkRounds > 0) {
+			// 物理模擬殘留重疊、靠縮小 tile 解決；到上限仍重疊另記一種。
+			final bool stillOverlap = _anyOverlap(gapMasks, centers, tile);
+			unawaited(AnalyticsService.instance.logTechFallback(
+				stillOverlap ? "inset_layout_overlap" : "inset_layout_shrink",
+				value: shrinkRounds,
+			));
 		}
 		return (centers, tile);
 	}

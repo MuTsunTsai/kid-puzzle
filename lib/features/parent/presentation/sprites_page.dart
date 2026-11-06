@@ -1,6 +1,9 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/constants/app_colors.dart";
 import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
@@ -34,6 +37,11 @@ class _SpritesPageState extends State<SpritesPage> {
 
 	bool _loaded = false;
 
+	/// 這次進頁面後是否改過勾選（離開時才送一次 Analytics）。
+	bool _changed = false;
+
+	late SpriteRegistry _registry;
+
 	@override
 	void didChangeDependencies() {
 		super.didChangeDependencies();
@@ -41,6 +49,7 @@ class _SpritesPageState extends State<SpritesPage> {
 		_loaded = true;
 		final SettingsRepository repo = context.read<SettingsRepository>();
 		final SpriteRegistry reg = context.read<SpriteRegistry>();
+		_registry = reg;
 		_stored = Map<String, bool>.from(repo.spriteSelections);
 		_selected = SpriteSelection.resolveSelected(
 			stored: _stored,
@@ -49,7 +58,21 @@ class _SpritesPageState extends State<SpritesPage> {
 	}
 
 	void _persist() {
+		_changed = true;
 		context.read<SettingsRepository>().setSpriteSelections(_stored);
+	}
+
+	@override
+	void dispose() {
+		if (_changed) {
+			// 有可用物件的類別才算「啟用」（父選但子類別全關的不算）。
+			final List<String> enabled = <String>[
+				for (final SpriteCategory c in _registry.categories)
+					if (SpriteSelection.usableItemIds(c, _selected).isNotEmpty) c.id,
+			];
+			unawaited(AnalyticsService.instance.logSpriteSelection(enabled));
+		}
+		super.dispose();
 	}
 
 	bool _isCategoryOn(SpriteCategory c) => _selected.contains(c.id);

@@ -4,6 +4,7 @@ import "package:archive/archive.dart";
 import "package:audioplayers/audioplayers.dart";
 import "package:flutter/foundation.dart";
 
+import "../analytics/analytics_service.dart";
 import "../audio/sound_backend.dart";
 
 import "sprite_asset_loader.dart";
@@ -118,6 +119,8 @@ class SpriteVoicePlayer {
 			await _webBackend
 					.playAndWait(_webKey(category.id, item.id))
 					.timeout(_maxClipDuration);
+		} on TimeoutException {
+			unawaited(AnalyticsService.instance.logTechFallback("voice_watchdog"));
 		} catch (_) {}
 	}
 
@@ -186,7 +189,12 @@ class SpriteVoicePlayer {
 		);
 		// 保險：完成事件遺失（瀏覽器沒送 ended 等）時也不會讓呼叫端永久等待。
 		// 名稱語音都在數秒內，給足餘裕。
-		watchdog = Timer(_maxClipDuration, () => unawaited(finish()));
+		watchdog = Timer(_maxClipDuration, () {
+			if (!done.isCompleted) {
+				unawaited(AnalyticsService.instance.logTechFallback("voice_watchdog"));
+			}
+			unawaited(finish());
+		});
 		try {
 			await player.play(BytesSource(data));
 		} catch (_) {

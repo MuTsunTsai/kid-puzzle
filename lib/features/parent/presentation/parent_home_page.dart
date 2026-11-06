@@ -87,6 +87,8 @@ class _ParentHomePageState extends State<ParentHomePage> {
 								onChanged: (bool v) {
 									setState(() => _bigKidMode = v);
 									context.read<SettingsRepository>().setBigKidMode(v);
+									unawaited(AnalyticsService.instance
+											.setUserProperty("big_kid_mode", AnalyticsService.flag(v)));
 									AnalyticsService.instance
 											.logBigKidModeToggled(enabled: v);
 								},
@@ -102,6 +104,8 @@ class _ParentHomePageState extends State<ParentHomePage> {
 									setState(() => _audioEnabled = v);
 									context.read<AudioService>().enabled = v;
 									context.read<SettingsRepository>().setAudioEnabled(v);
+									unawaited(AnalyticsService.instance
+											.setUserProperty("audio_enabled", AnalyticsService.flag(v)));
 								},
 							),
 							SwitchListTile(
@@ -114,6 +118,8 @@ class _ParentHomePageState extends State<ParentHomePage> {
 									context.read<VoiceService>().enabled = v;
 									context.read<SpriteRegistry>().voiceEnabled = v;
 									context.read<SettingsRepository>().setVoiceEnabled(v);
+									unawaited(AnalyticsService.instance
+											.setUserProperty("voice_enabled", AnalyticsService.flag(v)));
 								},
 							),
 							ListTile(

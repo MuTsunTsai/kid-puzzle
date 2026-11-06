@@ -7,6 +7,7 @@ import "package:flutter_animate/flutter_animate.dart";
 import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
 
+import "../../../core/analytics/analytics_service.dart";
 import "../../../core/audio/audio_service.dart";
 import "../../../core/audio/voice_service.dart";
 import "../../../core/constants/app_colors.dart";
@@ -84,6 +85,9 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 	_MemoryLevel? _level;
 	bool _completed = false;
 
+	/// 這次進入記憶遊戲後已開始的關卡數（Analytics 的 level_index）。
+	int _levelCount = 0;
+
 	/// 切下一關期間：spinner overlay + 任何 _goNextLevel 重入皆 no-op。
 	bool _loadingNext = false;
 
@@ -104,6 +108,8 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 		_showcase = ShowcaseView.register(
 			scope: "memory",
 			disableMovingAnimation: true,
+			onFinish: () =>
+					unawaited(AnalyticsService.instance.logTutorialComplete("memory")),
 		);
 	}
 
@@ -123,6 +129,8 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 
 	@override
 	void dispose() {
+		// 離開時若有未完成的關卡 → 送 level_exit（已完成的不會重複送）。
+		unawaited(_level?.tracker.exit());
 		_showcase.unregister();
 		// 解除 app pinning；非 Android / 未啟用都 no-op。
 		disableScreenLockGuard();
@@ -161,6 +169,7 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 		if (!mounted) return;
 		setState(() => _tutorialActive = true);
 		_showcase.startShowCase(<GlobalKey>[_tutorialKey]);
+		unawaited(AnalyticsService.instance.logTutorialBegin("memory"));
 		unawaited(repo.setTutorialVersionSeen("memory", _tutorialVersion));
 	}
 
@@ -254,11 +263,24 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 			image: image,
 			backColor: macaronColor(_random),
 			board: MemoryBoard<String>.shuffled(byId.keys.toList(), _random),
+			tracker: LevelTracker(
+				gameMode: AnalyticsService.gameModeMemory,
+				pieceCount: byId.length * 2,
+				levelIndex: ++_levelCount,
+				rangeMin: _minPairs,
+				rangeMax: _maxPairs,
+				screenLock: _screenLockEnabled,
+				extra: <String, Object?>{
+					"category": category.id,
+					"pair_count": byId.length,
+				},
+			),
 		);
 		setState(() {
 			_level = level;
 			_completed = false;
 		});
+		unawaited(level.tracker.start());
 		voice.speakLevelStart();
 	}
 
@@ -281,13 +303,17 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 			case FlipIgnored():
 				return;
 			case FlipFirst():
+				level.tracker.flipCount++;
 				audio.play(SfxKind.click);
 				setState(() {});
 			case FlipMatch(:final int first, :final int second):
+				level.tracker.flipCount++;
 				audio.play(SfxKind.click);
 				setState(() {});
 				unawaited(_handleMatch(level, first, second));
 			case FlipMismatch():
+				level.tracker.flipCount++;
+				level.tracker.mismatchCount++;
 				audio.play(SfxKind.click);
 				setState(() {});
 				unawaited(_handleMismatch(level));
@@ -330,12 +356,17 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 	}
 
 	Future<void> _completeLevel(_MemoryLevel level) async {
+		// 完成時間點以最後一組消失為準（不含等語音念完）。
+		unawaited(level.tracker.complete());
 		// 最後一組可能還在唸名稱 → 念完再放過關音效與鼓勵語。
 		// 語音 future 出錯或逾時都不能擋住過關（否則畫面停在空盤面）。
 		final Future<void>? voiceFut = level.lastVoice;
 		if (voiceFut != null) {
 			try {
 				await voiceFut.timeout(_voiceWaitLimit);
+			} on TimeoutException {
+				unawaited(AnalyticsService.instance
+						.logTechFallback("voice_wait_timeout"));
 			} catch (_) {}
 		}
 		if (!mounted || _level != level) return;
@@ -465,6 +496,7 @@ class _MemoryLevel {
 		required this.image,
 		required this.backColor,
 		required this.board,
+		required this.tracker,
 	});
 
 	final int id;
@@ -480,6 +512,9 @@ class _MemoryLevel {
 
 	/// 消失特效已播完的張數。
 	int removedCount = 0;
+
+	/// 這一關的 Analytics 追蹤（含翻牌 / 配對失敗計數）。
+	final LevelTracker tracker;
 
 	/// 最近一次配對成功的名稱語音；過關前要等它念完。
 	Future<void>? lastVoice;
