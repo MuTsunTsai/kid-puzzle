@@ -108,28 +108,42 @@ class SpriteVoicePlayer {
 		final Completer<void> done = Completer<void>();
 		_doneByPlayer[player] = done;
 		late final StreamSubscription<void> sub;
-		sub = player.onPlayerComplete.listen((_) async {
-			await sub.cancel();
+		Timer? watchdog;
+		// 收尾（播完 / 出錯 / 逾時 共用）：只會實際執行一次。
+		Future<void> finish() async {
+			if (done.isCompleted) return;
+			done.complete();
+			watchdog?.cancel();
+			_active.remove(player);
+			_doneByPlayer.remove(player);
+			try {
+				await sub.cancel();
+			} catch (_) {}
 			try {
 				await player.dispose();
 			} catch (_) {}
-			_active.remove(player);
-			_doneByPlayer.remove(player);
-			if (!done.isCompleted) done.complete();
-		});
+		}
+
+		// 播放途中的錯誤（例如 web audio element 解碼 / 播放失敗）會經由 event
+		// stream 以 error 形式傳到 onPlayerComplete；沒接 onError 的話 done 永遠
+		// 不會 complete、呼叫端 await 卡死（記憶遊戲曾因此全部消掉後不過關）。
+		sub = player.onPlayerComplete.listen(
+			(_) => unawaited(finish()),
+			onError: (Object _) => unawaited(finish()),
+		);
+		// 保險：完成事件遺失（瀏覽器沒送 ended 等）時也不會讓呼叫端永久等待。
+		// 名稱語音都在數秒內，給足餘裕。
+		watchdog = Timer(_maxClipDuration, () => unawaited(finish()));
 		try {
 			await player.play(BytesSource(data));
 		} catch (_) {
-			await sub.cancel();
-			try {
-				await player.dispose();
-			} catch (_) {}
-			_active.remove(player);
-			_doneByPlayer.remove(player);
-			if (!done.isCompleted) done.complete();
+			await finish();
 		}
 		return done.future;
 	}
+
+	/// 單段名稱語音最長等待時間；超過視為完成（見 [play] 的 watchdog）。
+	static const Duration _maxClipDuration = Duration(seconds: 6);
 
 	Future<void> dispose() async {
 		for (final AudioPlayer p in _active.toList()) {

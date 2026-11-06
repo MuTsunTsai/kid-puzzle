@@ -304,8 +304,11 @@ class _InsetPuzzlePageState extends State<InsetPuzzlePage>
 			// 過關時最後一片可能正在念名稱語音 → 等它念完、再放過關音 + setState。
 			// 沒語音的物件 fallback 立刻接過關音、不卡幼兒。
 			final Future<void>? voiceFut = lastVoiceFuture;
+			// 語音 future 出錯或逾時都不能擋住過關。
 			if (voiceFut != null) {
-				await voiceFut;
+				try {
+					await voiceFut.timeout(const Duration(seconds: 4));
+				} catch (_) {}
 			}
 			if (!mounted) return;
 			audio.play(SfxKind.complete);

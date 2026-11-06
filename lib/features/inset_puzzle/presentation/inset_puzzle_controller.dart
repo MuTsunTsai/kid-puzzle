@@ -472,6 +472,18 @@ class InsetPuzzleController extends DraggableController<InsetPiece> {
 	/// 迭代上限。
 	static const int _maxIters = 100;
 
+	/// 斥力參數調校時的參考 tile 尺寸（stage-pixel）。實際位移 = 重疊格數 ×
+	/// 斥力增益 × (tile / 此值)，讓物理行為與畫面大小無關。
+	static const double _repulsionRefTile = 200.0;
+
+	/// 最終重疊檢查用的擴張比例（占 tile）。比 [_dilateRatio] 小：物理模擬
+	/// 追求寬鬆間距、這裡只保證「凹槽之間看得到縫」。
+	static const double _finalGapRatio = 0.025;
+
+	/// 最終重疊修正：每輪 tile 縮小的倍率與輪數上限。
+	static const double _finalShrinkRate = 0.97;
+	static const int _finalShrinkMaxRounds = 80;
+
 	/// 斥力增益：把 alpha 重疊像素數轉成位移量（stage-pixel）的係數。
 	/// 模擬退火：起點大（積極推開）、終點小（細修微抖）。線性插值。
 	/// 太小 → 片彼此推不動、tile 直接縮到沒重疊；太大 → 抖動發散。
@@ -591,7 +603,11 @@ class InsetPuzzleController extends DraggableController<InsetPiece> {
 						dist = 1;
 					}
 					final ui.Offset unit = dir / dist;
-					final double mag = overlap * repulsionGain;
+					// 位移與 tile 等比例：overlap 是 mask 格數（與畫面尺寸無關），
+					// 直接當 stage-pixel 用的話，小畫面（手機 logical 尺寸小）相對
+					// 推力會大好幾倍、片來回彈跳不收斂。
+					final double mag =
+							overlap * repulsionGain * (tile / _repulsionRefTile);
 					forces[i] = forces[i] - unit * mag;
 					forces[j] = forces[j] + unit * mag;
 					// 雙向各算一次的位移量都計入「壓力」
@@ -662,7 +678,43 @@ class InsetPuzzleController extends DraggableController<InsetPiece> {
 				await Future<void>.delayed(Duration.zero);
 			}
 		}
+
+		// 最終保證：物理模擬可能在 maxIters 內沒收斂、殘留重疊。固定中心、
+		// 逐步縮小 tile 直到任兩片都不重疊——中心不動時 tile 越小重疊只會越少，
+		// 必定收斂。之後 _fitAndCenter 等比例放大不會再產生重疊。
+		final List<DilatedMask?> gapMasks = <DilatedMask?>[
+			for (final SpriteItem item in items)
+				registry.dilatedMaskOf(item, _finalGapRatio),
+		];
+		int shrinkRounds = 0;
+		while (shrinkRounds < _finalShrinkMaxRounds &&
+				_anyOverlap(gapMasks, centers, tile)) {
+			tile *= _finalShrinkRate;
+			shrinkRounds++;
+		}
 		return (centers, tile);
+	}
+
+	/// 任兩片的 mask 是否有重疊。
+	static bool _anyOverlap(
+		List<DilatedMask?> masks,
+		List<ui.Offset> centers,
+		double tile,
+	) {
+		final int n = centers.length;
+		for (int i = 0; i < n; i++) {
+			for (int j = i + 1; j < n; j++) {
+				if (_maskOverlapCount(
+							maskA: masks[i], aCenter: centers[i],
+							maskB: masks[j], bCenter: centers[j],
+							tile: tile,
+						) >
+						0) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 

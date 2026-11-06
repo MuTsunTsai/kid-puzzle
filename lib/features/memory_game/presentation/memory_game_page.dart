@@ -55,6 +55,9 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 	/// 配對成功後、兩張保持正面多久才開始消失特效（從翻牌動畫結束起算）。
 	static const Duration _matchHold = Duration(milliseconds: 350);
 
+	/// 過關前等最後一句名稱語音的上限；超過就直接過關。
+	static const Duration _voiceWaitLimit = Duration(seconds: 4);
+
 	/// 網格左右各保留的寬度：右上關閉按鈕（56 + 12 邊距）不擋到卡片，
 	/// 左側對稱保留、讓盤面視覺置中。
 	static const double _sideGutter = 84;
@@ -328,8 +331,13 @@ class _MemoryGamePageState extends State<MemoryGamePage> {
 
 	Future<void> _completeLevel(_MemoryLevel level) async {
 		// 最後一組可能還在唸名稱 → 念完再放過關音效與鼓勵語。
+		// 語音 future 出錯或逾時都不能擋住過關（否則畫面停在空盤面）。
 		final Future<void>? voiceFut = level.lastVoice;
-		if (voiceFut != null) await voiceFut;
+		if (voiceFut != null) {
+			try {
+				await voiceFut.timeout(_voiceWaitLimit);
+			} catch (_) {}
+		}
 		if (!mounted || _level != level) return;
 		context.read<AudioService>().play(SfxKind.complete);
 		context.read<VoiceService>().speakLevelComplete();
