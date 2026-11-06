@@ -27,6 +27,18 @@ Future<Uint8List> loadSpriteBytes(String assetPath, {String? rev}) async {
 	return platform.fetchSpriteBytes(assetPath, rev: rev);
 }
 
+/// 把編碼過的 sprite 圖片解成 RGBA pixel buffer（不經 GPU 讀回）。
+///
+/// Web 走瀏覽器 2D canvas（見 `sprite_asset_loader_web.dart` 的說明：手機
+/// wasm 的 `toByteData` 讀回不可靠）；非 web 回 null，呼叫端用 toByteData。
+Future<({ByteData data, int width, int height})?> decodeSpritePixels(
+		Uint8List encoded) {
+	if (!kIsWeb) {
+		return Future<({ByteData data, int width, int height})?>.value(null);
+	}
+	return platform.decodeRgbaPixels(encoded);
+}
+
 /// 給只需要文字內容的呼叫端用（例如 sprites.json）。
 ///
 /// 一律 UTF-8 解碼。**不要**用 `String.fromCharCodes(bytes)` — 那會把每個

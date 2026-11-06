@@ -8,3 +8,9 @@ Future<Uint8List> fetchSpriteBytes(String assetPath, {String? rev}) {
 		"非 web 平台請使用 loadSpriteBytes(...) 自動走 rootBundle。",
 	);
 }
+
+/// 非 web 平台不需要：`ui.Image.toByteData` 可靠，回 null 讓呼叫端走原路徑。
+Future<({ByteData data, int width, int height})?> decodeRgbaPixels(
+		Uint8List encoded) async {
+	return null;
+}

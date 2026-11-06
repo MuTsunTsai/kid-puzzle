@@ -47,12 +47,27 @@ class SpriteAtlas {
 	/// 取得已 cache 的 ui.Image（沒 cache 回 null，呼叫端應已先 await [load]）。
 	ui.Image? cachedImage(String file) => _cache[file];
 
-	/// 取得 sheet 的 RGBA byte buffer。第一次呼叫會做 [toByteData] 解碼
+	/// 取得 sheet 的 RGBA byte buffer。第一次呼叫才解碼
 	/// （比 instantiateImageCodec 更花時間，因此延後到真的有人要查像素時才做）。
+	///
+	/// Web 優先用瀏覽器 2D canvas 解碼（[decodeSpritePixels]）：手機 wasm 上
+	/// `toByteData` 的 GPU 讀回會得到全 0 / 不完整資料，嵌入拼圖因此把物件
+	/// 當透明、凹槽大量重疊（0.3.2 修正）。canvas 結果尺寸與 ui.Image 不一致、
+	/// 或解碼失敗時才退回 toByteData。
 	Future<ByteData> loadPixels(SpriteSheet sheet) async {
 		final ByteData? cached = _pixelCache[sheet.file];
 		if (cached != null) return cached;
 		final ui.Image image = await load(sheet);
+		final Uint8List encoded = await loadSpriteBytes(sheet.file, rev: sheet.rev);
+		final ({ByteData data, int width, int height})? decoded =
+				await decodeSpritePixels(encoded);
+		if (decoded != null &&
+				decoded.width == image.width &&
+				decoded.height == image.height &&
+				decoded.data.lengthInBytes == image.width * image.height * 4) {
+			_pixelCache[sheet.file] = decoded.data;
+			return decoded.data;
+		}
 		final ByteData? data =
 				await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba);
 		if (data == null) {
