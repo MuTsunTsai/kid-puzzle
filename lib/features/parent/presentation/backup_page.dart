@@ -110,18 +110,17 @@ class _BackupPageState extends State<BackupPage> {
 		// .kpb 這類未註冊副檔名沒有對應 MIME type、會把它一律變灰不可選；改成
 		// any 後使用者可任選、我們在拿到 bytes 後再自行驗證內容是不是合法
 		// backup（BackupService.readBackup 失敗會丟 FormatException）。
-		final FilePickerResult? picked = await FilePicker.platform.pickFiles(
-			type: FileType.any,
-			withData: true,
-		);
-		if (picked == null || picked.files.isEmpty) return;
-		final PlatformFile file = picked.files.first;
-		final Uint8List? bytes = file.bytes;
-		if (bytes == null) {
+		final PlatformFile? file = await FilePicker.pickFile(type: FileType.any);
+		if (file == null) return;
+		Uint8List bytes;
+		try {
+			bytes = await file.readAsBytes();
+		} catch (_) {
 			if (!mounted) return;
 			_showSnack(ParentStrings.backupImportFailedNoBytes);
 			return;
 		}
+		if (!mounted) return;
 
 		setState(() => _busy = true);
 		try {

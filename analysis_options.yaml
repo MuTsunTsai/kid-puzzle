@@ -31,6 +31,10 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
   errors:
     # generator 產生的 deprecated 警告會被排除（已在 exclude）
     invalid_annotation_target: ignore
