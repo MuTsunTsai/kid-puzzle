@@ -5,7 +5,6 @@ import "package:provider/provider.dart";
 import "package:showcaseview/showcaseview.dart";
 
 import "../../../core/constants/app_colors.dart";
-import "../../../core/constants/feature_flags.dart";
 import "../../../core/constants/ui_strings.dart";
 import "../../../core/routing/app_router.dart";
 import "../../../core/routing/route_observer.dart";
@@ -22,7 +21,7 @@ import "widgets/gear_button.dart";
 
 /// 首頁：大「開始」按鈕、右上長按齒輪進家長區。
 ///
-/// 首次進入時自動播放教學流程（依序高亮「開始拼圖」按鈕、齒輪按鈕）。
+/// 首次進入時自動播放教學流程（依序高亮遊戲模式按鈕列、齒輪按鈕）。
 /// 每次更新教學內容把 [_homeTutorialVersion] +1，讓所有舊使用者重新看一次。
 class HomePage extends StatefulWidget {
 	const HomePage({super.key});
@@ -152,11 +151,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
 									),
 								),
 							),
-							// 中央：模式按鈕。
-							// 嵌入拼圖 / 記憶遊戲各自看 feature flag 決定是否顯示；
-							// 兩者都關閉 → 只顯示一顆、label 用單一模式時代的「開始拼圖」
-							//   （與 main 既有 UX 一致）。
-							// 教學氣泡高亮整排按鈕、文案不綁特定模式。
+							// 中央：模式按鈕。教學氣泡高亮整排按鈕、文案不綁特定模式。
 							Center(
 								child: Showcase.withWidget(
 									key: _startKey,
@@ -169,26 +164,20 @@ class _HomePageState extends State<HomePage> with RouteAware {
 									child: Row(
 										mainAxisSize: MainAxisSize.min,
 										children: <Widget>[
-											if (kEnableInsetPuzzle) ...<Widget>[
-												_StartButton(
-													label: HomeStrings.startInsetPuzzle,
-													onPressed: () => _openMode(AppRoutes.insetPuzzleSetup),
-												),
-												const SizedBox(width: 24),
-											],
 											_StartButton(
-												label: kEnableInsetPuzzle || kEnableMemoryGame
-														? HomeStrings.startMultiPuzzle
-														: HomeStrings.startButton,
+												label: HomeStrings.startInsetPuzzle,
+												onPressed: () => _openMode(AppRoutes.insetPuzzleSetup),
+											),
+											const SizedBox(width: 24),
+											_StartButton(
+												label: HomeStrings.startMultiPuzzle,
 												onPressed: () => _openMode(AppRoutes.puzzleSetup),
 											),
-											if (kEnableMemoryGame) ...<Widget>[
-												const SizedBox(width: 24),
-												_StartButton(
-													label: HomeStrings.startMemoryGame,
-													onPressed: () => _openMode(AppRoutes.memoryGameSetup),
-												),
-											],
+											const SizedBox(width: 24),
+											_StartButton(
+												label: HomeStrings.startMemoryGame,
+												onPressed: () => _openMode(AppRoutes.memoryGameSetup),
+											),
 										],
 									),
 								),

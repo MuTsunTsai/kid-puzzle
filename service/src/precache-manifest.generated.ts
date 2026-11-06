@@ -29,10 +29,10 @@ export const PRECACHE_MANIFEST: PrecacheEntry[] = [
 	},
 	{
 		"url": "index.html",
-		"revision": "97ef06d540c0e2ea5657d2fa5905287b5e13ad02e06259cf0951299ebb0a9d1b"
+		"revision": "cc996d61cf78b56e02744409a5b4b9e9b247efca8f1c97899fef159dc75c6ed2"
 	},
 	{
 		"url": "manifest.json",
-		"revision": "1b3d571a8a4ecdf80517aac091a317d5b83af9b9f4633c829c08ae91060c1ea0"
+		"revision": "69491822c76a82f173cf9e323b9ce1eea7f46d5366c0d37fc5571ab8fee929d1"
 	}
 ];

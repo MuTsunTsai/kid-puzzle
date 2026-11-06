@@ -1,7 +1,7 @@
 name: kid_puzzle
-description: "幼兒益智遊戲 - 拼圖"
+description: "幼兒益智遊戲"
 publish_to: "none"
-version: 0.2.5+9
+version: 0.3.0+10
 
 environment:
   sdk: ^3.11.5
@@ -46,6 +46,7 @@ dependencies:
   # Firebase Analytics（跨平台事件追蹤；Android/iOS/Web 共用同一 API）
   firebase_core: ^4.9.0
   firebase_analytics: ^12.4.1
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:

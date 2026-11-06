@@ -16,7 +16,6 @@ class HomeStrings {
 	const HomeStrings._();
 
 	static const String appTitle = "幼兒益智遊戲";
-	static const String startButton = "開始拼圖";
 	static const String startInsetPuzzle = "嵌入拼圖";
 	static const String startMultiPuzzle = "多片拼圖";
 	static const String startMemoryGame = "記憶遊戲";
@@ -144,7 +143,7 @@ class ParentStrings {
 
 	static const String bigKidMode = "大朋友模式";
 	static const String bigKidModeSubtitle =
-			"片數 20~300、邊框變細、不再需要長按";
+			"拼圖片數 20~300、邊框變細、不再需要長按";
 
 	static const String tipJar = "請作者喝咖啡";
 	static const String tipJarSubtitle = "自由打賞～";
@@ -267,7 +266,6 @@ String _buildPreheatCharSet() {
 	const List<String> all = <String>[
 		// HomeStrings
 		HomeStrings.appTitle,
-		HomeStrings.startButton,
 		HomeStrings.startInsetPuzzle,
 		HomeStrings.startMultiPuzzle,
 		HomeStrings.startMemoryGame,

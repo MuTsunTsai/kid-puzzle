@@ -45,7 +45,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: "3.44.0"
+          flutter-version: "3.47.9"
           cache: true
 
       # Gradle cache：Android build 最大宗（AGP、Kotlin、依賴 jar、transforms）。

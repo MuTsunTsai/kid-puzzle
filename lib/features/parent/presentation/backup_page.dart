@@ -2,6 +2,7 @@ import "dart:typed_data";
 
 import "package:file_picker/file_picker.dart";
 import "package:flutter/material.dart";
+import "package:package_info_plus/package_info_plus.dart";
 import "package:provider/provider.dart";
 
 import "../../../core/constants/app_colors.dart";
@@ -75,11 +76,12 @@ class _BackupPageState extends State<BackupPage> {
 		final GalleryRepository gallery = context.read<GalleryRepository>();
 		setState(() => _busy = true);
 		try {
+			// 版本字串取自 pubspec.yaml 的 version（build 時寫進 app）
+			final PackageInfo info = await PackageInfo.fromPlatform();
 			final Uint8List bytes = await BackupService.exportBackup(
 				settings: settings,
 				gallery: gallery,
-				// 寫死當前版本字串；之後改在 main 注入更好但目前夠用。
-				appVersion: "0.2.2+6",
+				appVersion: "${info.version}+${info.buildNumber}",
 			);
 			final DateTime now = DateTime.now();
 			final String stamp = "${now.year.toString().padLeft(4, '0')}"

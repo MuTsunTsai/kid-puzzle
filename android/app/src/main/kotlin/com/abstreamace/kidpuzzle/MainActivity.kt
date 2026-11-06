@@ -59,7 +59,7 @@ class MainActivity : FlutterActivity() {
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
-		// 螢幕常亮：拼圖過程不會被自動鎖屏。
+		// 螢幕常亮：遊戲過程不會被自動鎖屏。
 		window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 	}
 

@@ -5,7 +5,7 @@
 	"display": "fullscreen",
 	"background_color": "#ff8a65",
 	"theme_color": "#ff8a65",
-	"description": "專為幼兒設計的益智遊戲集，目前包含拼圖模式。",
+	"description": "專為幼兒設計的益智遊戲集，包含拼圖、記憶遊戲等多種玩法。",
 	"orientation": "landscape",
 	"prefer_related_applications": false,
 	"icons": [
