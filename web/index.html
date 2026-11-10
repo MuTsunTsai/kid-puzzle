@@ -21,9 +21,13 @@
   <!-- 行動裝置 viewport：device-width + initial-scale=1 避免被當桌機頁面縮小；
        maximum-scale=1 + user-scalable=no 禁止使用者用雙指縮放（教學氣泡尺寸是
        設計好的、被縮放會破壞 layout，且幼兒可能誤觸縮放）。
-       viewport-fit=cover 讓內容填滿到瀏海螢幕的安全區之外（PWA 全螢幕用）。 -->
+       注意：Flutter 啟動時會把這個 tag 刪掉、換成它自己的（沒有 viewport-fit，見 engine 的
+       full_page_embedding_strategy.dart），這裡的設定只在載入畫面期間有效。
+       不要加 viewport-fit=cover：載入中途從 cover 切成非 cover，某些 iOS 版本的 Safari 在
+       第一次載入時不會讓 Flutter 重新量尺寸，整個畫面往右偏一個安全區、右邊被截掉
+       （重新整理後才正常）。 -->
   <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="description" content="專為幼兒設計的益智遊戲集，包含拼圖、記憶遊戲等多種玩法。">
 
   <!-- Open Graph：Facebook / LINE / Discord / Slack 等分享預覽。
