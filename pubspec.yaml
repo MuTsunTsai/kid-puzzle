@@ -1,7 +1,7 @@
 name: kid_puzzle
 description: "幼兒益智遊戲"
 publish_to: "none"
-version: 0.3.3+13
+version: 0.4.1+14
 
 environment:
   sdk: ^3.11.5
@@ -52,6 +52,9 @@ dependencies:
   # kid-puzzle-3d-assets 預先轉好的，格式跟這個版本綁定；升級時兩邊一起升、重新轉檔。
   # hooks 給 hook/build.dart 用（編譯材質與描邊 shader）。
   flutter_scene: 0.24.3
+  # 原生平台檢查 Flutter GPU 能不能用（interop_stub.dart 的 supports3d）
+  flutter_gpu:
+    sdk: flutter
   vector_math: ^2.4.4
   hooks: ^2.2.0
 

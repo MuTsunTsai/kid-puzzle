@@ -6,7 +6,7 @@
 
     <application
         android:label="幼兒益智遊戲"
-        android:name="${applicationName}"
+        android:name=".MainApplication"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

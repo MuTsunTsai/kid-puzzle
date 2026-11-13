@@ -58,5 +58,6 @@ String? webLaunchMode() => webLaunchModeImpl();
 /// 這個平台能不能跑 3D（flutter_scene）。
 ///
 /// web 後端在 OffscreenCanvas 上建 WebGL2 context，拿不到就直接拋錯、整頁灰掉
-/// （Safari 要到 iOS 17 才支援，iOS 16 不行）；其他平台一律 true。只檢查一次。
+/// （Safari 要到 iOS 17 才支援，iOS 16 不行）。原生平台要有 Impeller（Android 9 以上
+/// ——9 靠 MainApplication.kt 的 hack——、非 Vivante GPU），否則 Flutter GPU 不能用。只檢查一次。
 bool get supports3d => supports3dImpl;

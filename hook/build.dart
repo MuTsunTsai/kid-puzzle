@@ -16,6 +16,10 @@ void main(List<String> args) async {
 			buildInput: input,
 			buildOutput: output,
 			manifestFileName: "ink.shaderbundle.json",
+			// 跟 flutter_scene 全螢幕 pass 的 vertex shader（GLSL ES 3.00）一致。不指定時 GLES 版
+			// 編成 1.00，Impeller 走 OpenGL ES 的裝置（Galaxy A52 等 Vulkan 被停用的）連結時
+			// 「shader version mismatch」，描邊 pipeline 建不出來
+			glesLanguageVersion: 300,
 		);
 	});
 }

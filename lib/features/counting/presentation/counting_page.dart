@@ -24,6 +24,7 @@ import "../../puzzle/presentation/widgets/level_complete_overlay.dart";
 import "../../shared/board_close_button.dart";
 import "../../shared/cooldown_picker.dart";
 import "../../shared/screen_lock_option.dart";
+import "../domain/adaptive_quality.dart";
 import "../domain/camera_fit.dart";
 import "../domain/counting_round.dart";
 import "../domain/counting_species.dart";
@@ -120,6 +121,18 @@ const int _layoutAttempts = 40;
 
 /// 每試幾次換一組位置（其餘只重新分配哪隻站哪裡、朝哪邊）。
 const int _layoutRespotEvery = 5;
+
+/// 畫質等級，[AdaptiveQuality] 依實際幀率自動往下降（只降不升）：渲染解析度倍率（乘上
+/// 裝置的像素比）、反鋸齒、影子。描邊一直保留（成本跟像素數成正比，降解析度就跟著變便宜）。
+/// 實測 Galaxy A8（Android 9）滿畫質很卡。
+const List<({double pixelScale, bool fxaa, int shadowRes, int cascades, bool shadows})> _qualityLevels =
+		<({double pixelScale, bool fxaa, int shadowRes, int cascades, bool shadows})>[
+	(pixelScale: 1.0, fxaa: true, shadowRes: 1024, cascades: 4, shadows: true),
+	(pixelScale: 0.75, fxaa: true, shadowRes: 1024, cascades: 4, shadows: true),
+	(pixelScale: 0.6, fxaa: false, shadowRes: 512, cascades: 2, shadows: true),
+	(pixelScale: 0.5, fxaa: false, shadowRes: 512, cascades: 1, shadows: true),
+	(pixelScale: 0.5, fxaa: false, shadowRes: 512, cascades: 1, shadows: false),
+];
 
 /// 被點到時的彈跳時間（秒）與幅度。
 const double _bounceDuration = 0.45;
@@ -262,6 +275,11 @@ class _CountingStageState extends State<_CountingStage> {
 	/// 題目動物的冷卻抽樣（同其他模式抽類別）：最近當過題目的動物幾關內不會再出。
 	late final CooldownPicker<CountingSpecies> _targetPicker = CooldownPicker<CountingSpecies>(random: _random);
 
+	/// 這次開 App 降到的畫質等級：下次進來直接從這裡開始，不用每次都先卡一陣子。
+	static int _sessionQuality = 0;
+	final AdaptiveQuality _quality =
+			AdaptiveQuality(maxLevel: _qualityLevels.length - 1, level: _sessionQuality)..restart();
+
 	late final PerspectiveCamera _camera = PerspectiveCamera(
 		position: _camTarget + cameraDirOf(_pitchDeg) * 12.6,
 		target: _camTarget.clone(),
@@ -352,12 +370,14 @@ class _CountingStageState extends State<_CountingStage> {
 			final InkOutlinePass? ink = await InkOutlinePass.load();
 			if (ink != null) {
 				_inkPass = ink;
+				ink.onFailed = () => _disableInk(ink);
 				_scene.addRenderPass(ink);
 			}
 			// 數字語音包（第一次點動物就要用）：設定頁已經開始載，這裡不等它
 			unawaited(_voices.loadNumbers());
 			_groundMat = await loadFmatMaterial("assets/materials/ground.fmat");
 			_buildGround();
+			_applyQuality();
 			_sceneReady = true;
 			_applyCameraParams();
 			await _loadLevel();
@@ -496,6 +516,8 @@ class _CountingStageState extends State<_CountingStage> {
 			_round = CountingRound(targetCount: roster.targetCount, mode: widget.args.answerMode, random: _random);
 			_message = CountingStrings.question(roster.target.name);
 			_loading = false;
+			// 換關的載入卡頓不算進幀率
+			_quality.restart();
 		});
 		// 開場白「○○有幾隻呢？」
 		unawaited(_voices.speakWhenReady(howManyVoice(roster.target), _questionVoiceWait));
@@ -678,6 +700,19 @@ class _CountingStageState extends State<_CountingStage> {
 		if (_sceneReady) _applyCameraParams();
 	}
 
+	/// 描邊畫不出來（見 [InkOutlinePass.execute]）：拿掉描邊、場景顏色的 alpha 不再編碼深度
+	/// （不然沒有描邊 pass 把 alpha 改回來，合成會錯）。在繪製中途被呼叫，等這幀結束再改。
+	void _disableInk(InkOutlinePass ink) {
+		unawaited(AnalyticsService.instance.logTechFallback("ink_outline_failed"));
+		WidgetsBinding.instance.addPostFrameCallback((_) {
+			if (!identical(_inkPass, ink)) return;
+			_scene.removeRenderPass(ink);
+			_inkPass = null;
+			if (mounted) _applyCameraParams();
+		});
+		WidgetsBinding.instance.scheduleFrame();
+	}
+
 	/// 依目前的取景設定地面後退量、深度編碼與影子範圍。
 	void _applyCameraParams() {
 		final CameraFit? fit = _fit;
@@ -694,7 +729,24 @@ class _CountingStageState extends State<_CountingStage> {
 		_scene.directionalLight?.shadowMaxDistance = fit.far / 0.9;
 	}
 
+	/// 套用目前的畫質等級（解析度在 build 時給 SceneView）。
+	void _applyQuality() {
+		final ({double pixelScale, bool fxaa, int shadowRes, int cascades, bool shadows}) q =
+				_qualityLevels[_quality.level];
+		_scene.antiAliasingMode = q.fxaa ? AntiAliasingMode.fxaa : AntiAliasingMode.none;
+		_scene.directionalLight
+			?..castsShadow = q.shadows
+			..shadowMapResolution = q.shadowRes
+			..shadowCascadeCount = q.cascades;
+	}
+
 	void _onTick(Duration elapsed, double dt) {
+		if (!_loading && _quality.addFrame(dt)) {
+			_sessionQuality = _quality.level;
+			debugPrint("練習數數：幀率太低，畫質降到第 ${_quality.level} 級");
+			unawaited(AnalyticsService.instance.logTechFallback("counting_quality", value: _quality.level));
+			setState(_applyQuality);
+		}
 		// 分頁切回前景等情況 dt 可能很大，夾住避免一次跳太遠
 		final double step = min(dt, 0.1);
 		_glowTime += step;
@@ -901,6 +953,7 @@ class _CountingStageState extends State<_CountingStage> {
 										onTick: _onTick,
 										// 預先編譯 shader，避免第一次出現新著色組合時卡頓
 										warmUp: true,
+									pixelRatio: MediaQuery.devicePixelRatioOf(context) * _qualityLevels[_quality.level].pixelScale,
 									),
 								),
 							),

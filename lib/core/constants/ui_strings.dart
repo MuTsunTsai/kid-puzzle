@@ -138,6 +138,7 @@ class CountingStrings {
 
 	static const String unsupportedTitle = "這個遊戲需要較新的系統";
 	static const String unsupportedBody = "iPhone / iPad 請更新到 iOS 17 以上；其他裝置請改用最新版的 Chrome 或 Safari。";
+	static const String unsupportedBodyApp = "這台裝置無法顯示 3D 畫面（需要 Android 9 以上的系統）。";
 	static const String loadFailed = "載入失敗";
 
 	// 教學 ----
@@ -364,6 +365,7 @@ String _buildPreheatCharSet() {
 		CountingStrings.answerModeSubtitle,
 		CountingStrings.unsupportedTitle,
 		CountingStrings.unsupportedBody,
+		CountingStrings.unsupportedBodyApp,
 		CountingStrings.loadFailed,
 		CountingStrings.targetRangeTutorial,
 		CountingStrings.othersRangeTutorial,

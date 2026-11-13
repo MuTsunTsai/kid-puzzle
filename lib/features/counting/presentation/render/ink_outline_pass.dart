@@ -1,5 +1,7 @@
 import "dart:typed_data";
 
+import "package:flutter/foundation.dart" show VoidCallback, debugPrint;
+
 import "package:flutter_scene/gpu.dart" as gpu;
 import "package:flutter_scene/scene.dart";
 
@@ -30,6 +32,10 @@ class InkOutlinePass extends CustomRenderPass {
 	/// 已數過的動物在 alpha 上多加的值（2 的次方，大於場景深度範圍）。
 	double countedCode = 1024;
 
+	/// 畫不出來時（見 [execute]）呼叫一次：呼叫端要把這個 pass 拿掉、關掉深度編碼。
+	VoidCallback? onFailed;
+	bool _failed = false;
+
 	@override
 	String get name => "ink_outline";
 
@@ -40,7 +46,7 @@ class InkOutlinePass extends CustomRenderPass {
 	void execute(RenderPassContext context) {
 		final double w = context.dimensions.width;
 		final double h = context.dimensions.height;
-		if (w <= 0 || h <= 0) return;
+		if (_failed || w <= 0 || h <= 0) return;
 		final Float32List info = Float32List.fromList(<double>[
 			// 線的顏色：深咖啡（線性值）
 			0.2, 0.12, 0.09, 1.0,
@@ -49,7 +55,16 @@ class InkOutlinePass extends CustomRenderPass {
 			1.0, 0.56, 0.02, glowStrength,
 			glowRadius * h, countedCode, 0, 0,
 		]);
-		context.applyShader(shader, uniforms: <String, ByteData>{"InkInfo": ByteData.sublistView(info)});
+		// 有些裝置的驅動建不出這個 shader 的 pipeline（Galaxy A52 / Adreno：「Attempted to add an
+		// invalid command」→ Failed to append draw）。例外會中斷整幀、連場景都不畫，
+		// 所以吃掉它、改成沒有描邊（也沒有金色光輝）照常玩。
+		try {
+			context.applyShader(shader, uniforms: <String, ByteData>{"InkInfo": ByteData.sublistView(info)});
+		} catch (e) {
+			_failed = true;
+			debugPrint("描邊畫不出來，改成不描邊：$e");
+			onFailed?.call();
+		}
 	}
 
 	/// 載入描邊 shader（hook/build.dart 編譯的 ink shader bundle）；失敗時回傳 null，
