@@ -14,6 +14,7 @@ class LevelCompleteOverlay extends StatelessWidget {
 		super.key,
 		required this.region,
 		required this.onContinue,
+		this.leading,
 	});
 
 	/// 遮罩與互動範圍（一般帶入散落區的 [Rect]）。
@@ -21,6 +22,9 @@ class LevelCompleteOverlay extends StatelessWidget {
 
 	/// 使用者點擊 [region] 內任意處時觸發（一般用來載入下一關）。
 	final VoidCallback onContinue;
+
+	/// 文字卡裡、文字左邊另外顯示的東西（例如練習數數的答案數字圖）。
+	final Widget? leading;
 
 	@override
 	Widget build(BuildContext context) {
@@ -56,28 +60,39 @@ class LevelCompleteOverlay extends StatelessWidget {
 										),
 									],
 								),
-								child: Column(
+								child: Row(
 									mainAxisSize: MainAxisSize.min,
 									children: <Widget>[
-										const Text(
-											PuzzleStrings.levelComplete,
-											style: TextStyle(
-												fontSize: 36,
-												fontWeight: FontWeight.bold,
-												color: Color(0xFF1F8A4C),
-											),
-										).animate(onPlay: (AnimationController c) => c.repeat()).shimmer(
-													duration: 1800.ms,
-													delay: 600.ms,
-													color: Colors.amberAccent,
+										if (leading != null) ...<Widget>[leading!, const SizedBox(width: 32)],
+										Column(
+											mainAxisSize: MainAxisSize.min,
+											children: <Widget>[
+												// 往右挪約 1/4 字寬：結尾的全形「！」字形只佔左邊一小截、右邊是空白，
+												// 不補償的話這行看起來偏左，跟下一行對不齊
+												Transform.translate(
+													offset: const Offset(9, 0),
+													child: const Text(
+														PuzzleStrings.levelComplete,
+														style: TextStyle(
+															fontSize: 36,
+															fontWeight: FontWeight.bold,
+															color: Color(0xFF1F8A4C),
+														),
+													).animate(onPlay: (AnimationController c) => c.repeat()).shimmer(
+																duration: 1800.ms,
+																delay: 600.ms,
+																color: Colors.amberAccent,
+															),
 												),
-										const SizedBox(height: 12),
-										const Text(
-											PuzzleStrings.nextLevel,
-											style: TextStyle(
-												fontSize: 18,
-												color: Colors.black54,
-											),
+												const SizedBox(height: 12),
+												const Text(
+													PuzzleStrings.nextLevel,
+													style: TextStyle(
+														fontSize: 18,
+														color: Colors.black54,
+													),
+												),
+											],
 										),
 									],
 								),

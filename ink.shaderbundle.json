@@ -1,0 +1,6 @@
+{
+	"InkOutlineFragment": {
+		"type": "fragment",
+		"file": "shaders/ink_outline.frag"
+	}
+}

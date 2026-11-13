@@ -1,0 +1,36 @@
+// 地面：單色、不受光。
+// depth_offset：頂點沿視線方向往後退（× 到攝影機的距離）。沿視線移動不改變
+// 畫面上的位置，但腳底緊貼地面的地方不會被地面蓋掉；影子（shadow.fmat）退得比地面少。
+material {
+	name: "Ground",
+	shading_model: unlit,
+	blending: opaque,
+	culling: back,
+	parameters: [
+		// 線性色彩值（畫面上約 sRGB #B3CFA5，與原本受光的 PBR 地面相近）
+		{ type: vec3, name: ground_color, hint: source_color, default: [0.45, 0.62, 0.38] },
+		{ type: float, name: depth_offset, default: 0.03 },
+		// 畫面空間描邊用（見 toon.fmat）：地面寫負值，跟動物區分
+		{ type: float, name: encode_depth, default: 0.0 },
+		{ type: float, name: depth_bias, default: 0.0 },
+	],
+}
+
+vertex {
+	void Vertex(inout VertexInputs vertex) {
+		float dist = distance(vertex.camera_position, vertex.world_position);
+		vec3 away = normalize(vertex.world_position - vertex.camera_position);
+		vertex.world_position += away * material_params.depth_offset * dist;
+	}
+}
+
+fragment {
+	void Surface(inout MaterialInputs material) {
+		material.base_color = vec4(material_params.ground_color, 1.0);
+		if (material_params.encode_depth > 0.5) {
+			float d = max(-dot(v_viewvector, view_info.camera_forward.xyz) - material_params.depth_bias, 0.0) + 1.0;
+			material.base_color = vec4(material_params.ground_color / -d, -d);
+		}
+		PrepareMaterial(material);
+	}
+}

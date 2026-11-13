@@ -21,7 +21,8 @@
 	"files.exclude": {
 		".idea/": true,
 		".dart_tool/": true,
-		".flutter-plugins-dependencies": true
+		".flutter-plugins-dependencies": true,
+		"flutter_scene_generated/": true
 	},
 	"files.encoding": "utf8",
 	"files.eol": "\n"

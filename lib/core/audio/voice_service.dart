@@ -51,6 +51,16 @@ class VoiceService {
 		}
 	}
 
+	/// 預載某個模式專屬的單一語音檔（例如練習數數每種動物各一句），進入該模式時才載，
+	/// 不拖慢 app 啟動。
+	Future<void> preloadClip(String assetPath) => _backend.load(assetPath);
+
+	/// 播放 [preloadClip] 載入的語音（跟其他語音共用 channel，新一句會截掉舊一句）。
+	void speakClip(String assetPath) {
+		if (!enabled) return;
+		_backend.play(assetPath, channel: _voiceChannel);
+	}
+
 	/// 播放「進關卡」語音（隨機抽一個變體）。
 	void speakLevelStart() => _play(VoiceKind.levelStart);
 

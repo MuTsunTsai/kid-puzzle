@@ -1,6 +1,7 @@
 import "package:flutter/foundation.dart";
 import "package:hive_ce/hive.dart";
 
+import "../../features/counting/domain/counting_round.dart";
 import "../../features/puzzle/domain/services/cell_planner.dart";
 
 /// App 設定的持久化倉庫，包裝 Hive box "settings"。
@@ -38,6 +39,14 @@ class SettingsRepository {
 	/// 記憶遊戲：每關「配對組數」範圍上下界（一組 = 兩張相同卡片）。
 	static const String _kMemoryMinPairs = "memoryMinPairs";
 	static const String _kMemoryMaxPairs = "memoryMaxPairs";
+
+	/// 練習數數：題目動物 / 其他動物的隻數範圍、已數過提示（金色光輝）、作答方式（家長頁）。
+	static const String _kCountingTargetMin = "countingTargetMin";
+	static const String _kCountingTargetMax = "countingTargetMax";
+	static const String _kCountingOthersMin = "countingOthersMin";
+	static const String _kCountingOthersMax = "countingOthersMax";
+	static const String _kCountingGlow = "countingGlow";
+	static const String _kCountingAnswerMode = "countingAnswerMode";
 
 	/// 各畫面教學流程「最後看過的版本」存檔。
 	/// key 形如 "tutorialVersion.home"、"tutorialVersion.setup"。
@@ -289,6 +298,65 @@ class SettingsRepository {
 			});
 		} catch (e) {
 			debugPrint("SettingsRepository.setMemoryPairRange failed: $e");
+		}
+	}
+
+	int _intOr(String key, int fallback) {
+		final Object? raw = _box.get(key);
+		return raw is num ? raw.toInt() : fallback;
+	}
+
+	/// 練習數數：題目動物隻數範圍（slider 範圍 1~20，預設 1~7）。
+	int get countingTargetMin => _intOr(_kCountingTargetMin, 1);
+	int get countingTargetMax => _intOr(_kCountingTargetMax, 7);
+
+	/// 練習數數：其他動物隻數範圍（slider 範圍 0~10，預設 0~3）。
+	int get countingOthersMin => _intOr(_kCountingOthersMin, 0);
+	int get countingOthersMax => _intOr(_kCountingOthersMax, 3);
+
+	Future<void> setCountingRanges({
+		required int targetMin,
+		required int targetMax,
+		required int othersMin,
+		required int othersMax,
+	}) async {
+		try {
+			await _box.putAll(<String, Object?>{
+				_kCountingTargetMin: targetMin,
+				_kCountingTargetMax: targetMax,
+				_kCountingOthersMin: othersMin,
+				_kCountingOthersMax: othersMax,
+			});
+		} catch (e) {
+			debugPrint("SettingsRepository.setCountingRanges failed: $e");
+		}
+	}
+
+	/// 練習數數：已數過的動物要不要顯示金色光輝。預設 true。
+	bool get countingGlow => (_box.get(_kCountingGlow) as bool?) ?? true;
+
+	Future<void> setCountingGlow(bool value) async {
+		try {
+			await _box.put(_kCountingGlow, value);
+		} catch (e) {
+			debugPrint("SettingsRepository.setCountingGlow failed: $e");
+		}
+	}
+
+	/// 練習數數：作答方式（[CountingAnswerMode.name]）。預設點完自動過關。
+	CountingAnswerMode get countingAnswerMode {
+		final Object? raw = _box.get(_kCountingAnswerMode);
+		for (final CountingAnswerMode m in CountingAnswerMode.values) {
+			if (m.name == raw) return m;
+		}
+		return CountingAnswerMode.autoComplete;
+	}
+
+	Future<void> setCountingAnswerMode(CountingAnswerMode value) async {
+		try {
+			await _box.put(_kCountingAnswerMode, value.name);
+		} catch (e) {
+			debugPrint("SettingsRepository.setCountingAnswerMode failed: $e");
 		}
 	}
 

@@ -48,6 +48,13 @@ dependencies:
   firebase_analytics: ^12.4.1
   package_info_plus: ^10.2.2
 
+  # 3D（數數看）：flutter_scene 釘死版本，因為 assets/models/*.fsceneb 是在姊妹專案
+  # kid-puzzle-3d-assets 預先轉好的，格式跟這個版本綁定；升級時兩邊一起升、重新轉檔。
+  # hooks 給 hook/build.dart 用（編譯材質與描邊 shader）。
+  flutter_scene: 0.24.3
+  vector_math: ^2.4.4
+  hooks: ^2.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -65,5 +72,23 @@ flutter:
     - assets/images/sprites/
     - assets/audio/
     - assets/audio/voice/
+    - assets/audio/voice/counting/
     - assets/audio/sprites/
     - assets/data/
+    # 3D 模型（.fsceneb）、材質、描邊 shader：不直接打包，由 hook/build.dart 寫進
+    # flutter_scene_generated/，程式以原始路徑（assets/models/...）載入
+    - flutter_scene_generated/
+    - path: flutter_scene_generated/metal_ios/
+      platforms:
+        - ios
+    - path: flutter_scene_generated/metal_desktop/
+      platforms:
+        - macos
+    - path: flutter_scene_generated/opengl_es_vulkan/
+      platforms:
+        - android
+        - linux
+        - windows
+    - path: flutter_scene_generated/opengl_es/
+      platforms:
+        - web

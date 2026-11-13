@@ -1,0 +1,49 @@
+// 兩階色調（cel shading）：亮面 = 貼圖原色、暗面 = 貼圖色 × shade_color。
+// 光線方向固定在材質參數裡，不吃場景燈光，畫面明暗完全由這裡決定。
+material {
+	name: "Toon",
+	shading_model: unlit,
+	blending: opaque,
+	culling: back,
+	parameters: [
+		{ type: vec4, name: base_color_factor, default: [1, 1, 1, 1] },
+		// 光線「射出」的方向（世界座標），從左上前方打過來。
+		{ type: vec3, name: light_direction, default: [-0.5, -0.8, -0.45] },
+		// 暗面乘上的顏色：略偏冷紫，比純粹變暗更像插畫的陰影。
+		{ type: vec3, name: shade_color, hint: source_color, default: [0.72, 0.66, 0.8] },
+		// 亮暗分界（N·L 值）與交界的柔化寬度。
+		{ type: float, name: threshold, default: 0.1 },
+		{ type: float, name: softness, default: 0.03 },
+		{ type: sampler2d, name: base_color_texture, hint: default_white },
+		// 畫面空間描邊（shaders/ink_outline.frag）用：1 = 把「沿視線的深度 − depth_bias」
+		// + 1 寫進輸出的 alpha（≥ 1 = 動物；地面寫 ≤ -1，見 ground.fmat；落在 0～1 的是背景上
+		// 的半透明物，例如超出地面邊緣的影子）。輸出是預乘 alpha
+		// （rgb × a），所以 rgb 先除以 a，畫面顏色不變；後處理讀完會把 alpha 改回 1。
+		// 這樣不用另外畫一次深度預處理和動物遮罩。
+		{ type: float, name: encode_depth, default: 0.0 },
+		{ type: float, name: depth_bias, default: 0.0 },
+		// 已數過的動物：alpha 再加這個值當記號，畫面空間的光輝靠它辨認（見 ink_outline.frag）
+		{ type: float, name: counted_offset, default: 0.0 },
+	],
+}
+
+fragment {
+	void Surface(inout MaterialInputs material) {
+		vec4 tex = texture(base_color_texture, GetUV0());
+		vec3 base = SRGBToLinear(tex.rgb) * material_params.base_color_factor.rgb;
+		vec3 n = GetWorldNormal();
+		vec3 l = -normalize(material_params.light_direction);
+		float ndl = dot(n, l);
+		float lit = smoothstep(
+			material_params.threshold - material_params.softness,
+			material_params.threshold + material_params.softness,
+			ndl);
+		vec3 shade = mix(material_params.shade_color, vec3(1.0), lit);
+		material.base_color = vec4(base * shade, tex.a * material_params.base_color_factor.a);
+		if (material_params.encode_depth > 0.5) {
+			float d = max(-dot(v_viewvector, view_info.camera_forward.xyz) - material_params.depth_bias, 0.0) + 1.0 + material_params.counted_offset;
+			material.base_color = vec4(base * shade / d, d);
+		}
+		PrepareMaterial(material);
+	}
+}

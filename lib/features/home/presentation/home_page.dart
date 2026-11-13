@@ -165,22 +165,39 @@ class _HomePageState extends State<HomePage> with RouteAware {
 										text: HomeStrings.startTutorial,
 										onTap: _showcase.next,
 									),
-									child: Row(
+									// 四個模式排成 2 × 2（橫排四顆在手機上超出畫面寬度）
+									child: Column(
 										mainAxisSize: MainAxisSize.min,
 										children: <Widget>[
-											_StartButton(
-												label: HomeStrings.startInsetPuzzle,
-												onPressed: () => _openMode(AppRoutes.insetPuzzleSetup),
+											Row(
+												mainAxisSize: MainAxisSize.min,
+												children: <Widget>[
+													_StartButton(
+														label: HomeStrings.startInsetPuzzle,
+														onPressed: () => _openMode(AppRoutes.insetPuzzleSetup),
+													),
+													const SizedBox(width: 24),
+													_StartButton(
+														label: HomeStrings.startMultiPuzzle,
+														onPressed: () => _openMode(AppRoutes.puzzleSetup),
+													),
+												],
 											),
-											const SizedBox(width: 24),
-											_StartButton(
-												label: HomeStrings.startMultiPuzzle,
-												onPressed: () => _openMode(AppRoutes.puzzleSetup),
-											),
-											const SizedBox(width: 24),
-											_StartButton(
-												label: HomeStrings.startMemoryGame,
-												onPressed: () => _openMode(AppRoutes.memoryGameSetup),
+											const SizedBox(height: 20),
+											Row(
+												mainAxisSize: MainAxisSize.min,
+												children: <Widget>[
+													_StartButton(
+														label: HomeStrings.startMemoryGame,
+														onPressed: () => _openMode(AppRoutes.memoryGameSetup),
+													),
+													const SizedBox(width: 24),
+													// 瀏覽器不支援 3D 時照樣顯示，進去後提示升級（見 CountingPage）
+													_StartButton(
+														label: HomeStrings.startCounting,
+														onPressed: () => _openMode(AppRoutes.countingSetup),
+													),
+												],
 											),
 										],
 									),
@@ -268,6 +285,8 @@ class _StartButton extends StatelessWidget {
 				backgroundColor: Colors.white,
 				foregroundColor: AppColors.primary,
 				padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+				// 2 × 2 排列時每顆一樣寬，上下才對齊
+				minimumSize: const Size(240, 0),
 				shape: RoundedRectangleBorder(
 					borderRadius: BorderRadius.circular(48),
 				),

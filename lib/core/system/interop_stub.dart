@@ -23,3 +23,5 @@ void openExternalUrlImpl(String url) {
 String? webLaunchModeImpl() => null;
 
 ({int elapsedMs, bool swControlled})? webLoadTimingImpl() => null;
+
+const bool supports3dImpl = true;

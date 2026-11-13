@@ -1,4 +1,5 @@
 import "dart:js_interop";
+import "dart:js_interop_unsafe";
 
 import "package:flutter_web_plugins/url_strategy.dart";
 import "package:web/web.dart" as web;
@@ -181,6 +182,25 @@ bool _isSafari() {
 		return false;
 	}
 	return ua.contains("Safari");
+}
+
+// ===== 3D 支援 =====
+
+/// flutter_scene 的 web 後端需要 OffscreenCanvas 上的 WebGL2。檢查用的 context 立刻釋放，
+/// 不佔瀏覽器的 WebGL context 數量上限。
+final bool supports3dImpl = _checkSupports3d();
+
+bool _checkSupports3d() {
+	try {
+		if (!globalContext.has("OffscreenCanvas")) return false;
+		final JSObject? gl = web.OffscreenCanvas(1, 1).getContext("webgl2");
+		if (gl == null) return false;
+		(gl as web.WebGL2RenderingContext).getExtension("WEBGL_lose_context")
+				?.callMethod<JSAny?>("loseContext".toJS);
+		return true;
+	} catch (_) {
+		return false;
+	}
 }
 
 // ===== Analytics 用的環境資訊 =====

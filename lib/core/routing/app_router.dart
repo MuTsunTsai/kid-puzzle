@@ -1,5 +1,7 @@
 import "package:flutter/material.dart";
 
+import "../../features/counting/presentation/counting_page.dart";
+import "../../features/counting/presentation/counting_setup_page.dart";
 import "../../features/home/presentation/home_page.dart";
 import "../../features/inset_puzzle/presentation/inset_puzzle_page.dart";
 import "../../features/inset_puzzle/presentation/inset_puzzle_setup_page.dart";
@@ -26,6 +28,8 @@ class AppRoutes {
 	static const String insetPuzzle = "/inset-puzzle";
 	static const String memoryGameSetup = "/memory/setup";
 	static const String memoryGame = "/memory";
+	static const String countingSetup = "/counting/setup";
+	static const String counting = "/counting";
 	static const String parentHome = "/parent";
 	static const String parentGallery = "/parent/gallery";
 	static const String parentGalleryDetail = "/parent/gallery/detail";
@@ -56,6 +60,8 @@ class AppRouter {
 		AppRoutes.memoryGameSetup: (BuildContext context) =>
 				const MemoryGameSetupPage(),
 		AppRoutes.memoryGame: (BuildContext context) => const MemoryGamePage(),
+		AppRoutes.countingSetup: (BuildContext context) => const CountingSetupPage(),
+		AppRoutes.counting: (BuildContext context) => const CountingPage(),
 		AppRoutes.parentSprites: (BuildContext context) => const SpritesPage(),
 		AppRoutes.parentSpritesDetail: (BuildContext context) =>
 				const SpritesDetailPage(),

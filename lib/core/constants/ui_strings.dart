@@ -11,6 +11,8 @@
 //
 // 不在這裡的字串：純除錯字串、log、註解、asset path、不會渲染的程式碼字串。
 
+import "../../features/counting/domain/counting_species.dart";
+
 /// 首頁。
 class HomeStrings {
 	const HomeStrings._();
@@ -19,6 +21,7 @@ class HomeStrings {
 	static const String startInsetPuzzle = "嵌入拼圖";
 	static const String startMultiPuzzle = "多片拼圖";
 	static const String startMemoryGame = "記憶遊戲";
+	static const String startCounting = "練習數數";
 
 	// 教學 ----
 	static const String welcomeMessage = "歡迎來到《幼兒益智遊戲》！"
@@ -107,6 +110,49 @@ class MemoryStrings {
 	static const String gameTutorial = "每次翻開兩張卡片，"
 			"如果圖案一樣就會唸出名稱並消失；不一樣的話會自動翻回去。"
 			"把卡片全部消掉就過關囉！"
+			"長壓右上角的關閉圖示即可退出。";
+}
+
+/// 練習數數。
+class CountingStrings {
+	const CountingStrings._();
+
+	static String question(String name) => "$name有幾隻呢？";
+	static String counted(int n) => "$n！";
+	static String allCounted(int n, String name) => "答對了！一共有 $n 隻$name！";
+	static String wrongSpecies(String tapped) => "那是$tapped喔！";
+	static const String repeated = "這隻數過囉！";
+	static String askAnswer(String name) => "一共有幾隻$name？";
+	static const String wrongAnswer = "不對喔，再想想看！";
+
+	// 設定頁
+	static const String targetRangeTitle = "要數的動物";
+	static const String othersRangeTitle = "其他動物";
+	static const String glowLabel = "已數過提示";
+	static const String screenLockLabel = "鎖定畫面";
+	static const String startButton = "開始";
+
+	// 家長頁
+	static const String answerModeChoose = "練習數數：點完再選數字";
+	static const String answerModeSubtitle = "關閉時，點完所有要數的動物就自動過關";
+
+	static const String unsupportedTitle = "這個遊戲需要較新的系統";
+	static const String unsupportedBody = "iPhone / iPad 請更新到 iOS 17 以上；其他裝置請改用最新版的 Chrome 或 Safari。";
+	static const String loadFailed = "載入失敗";
+
+	// 教學 ----
+	static const String targetRangeTutorial = "在這邊可以選擇每一關要數的動物有幾隻，"
+			"會隨機從範圍中選一個～";
+	static const String othersRangeTutorial = "這邊是混在裡面、不用數的其他動物有幾隻；"
+			"越多越考驗眼力喔～";
+	static const String glowTutorial = "開啟後，數過的動物身上會發出金光，"
+			"比較不會重複數或漏數，適合剛開始練習的幼兒～";
+	static const String screenLockTutorial = SetupStrings.screenLockTutorial;
+	static const String gameTutorialAuto = "點一下題目說的動物，就會一隻一隻數出 1、2、3…"
+			"把牠們全部找出來就過關囉！"
+			"長壓右上角的關閉圖示即可退出。";
+	static const String gameTutorialChoose = "點一下題目說的動物來數數，"
+			"全部找出來之後，再選出一共有幾隻就過關囉！"
 			"長壓右上角的關閉圖示即可退出。";
 }
 
@@ -306,6 +352,25 @@ String _buildPreheatCharSet() {
 		MemoryStrings.ok,
 		MemoryStrings.rangeTutorial,
 		MemoryStrings.gameTutorial,
+		// CountingStrings（含動物名稱的句子，見下方 kCountingSpecies）
+		CountingStrings.repeated,
+		CountingStrings.wrongAnswer,
+		CountingStrings.targetRangeTitle,
+		CountingStrings.othersRangeTitle,
+		CountingStrings.glowLabel,
+		CountingStrings.screenLockLabel,
+		CountingStrings.startButton,
+		CountingStrings.answerModeChoose,
+		CountingStrings.answerModeSubtitle,
+		CountingStrings.unsupportedTitle,
+		CountingStrings.unsupportedBody,
+		CountingStrings.loadFailed,
+		CountingStrings.targetRangeTutorial,
+		CountingStrings.othersRangeTutorial,
+		CountingStrings.glowTutorial,
+		CountingStrings.gameTutorialAuto,
+		CountingStrings.gameTutorialChoose,
+		HomeStrings.startCounting,
 		// ParentStrings
 		ParentStrings.homeTitle,
 		ParentStrings.sectionContent,
@@ -395,9 +460,18 @@ String _buildPreheatCharSet() {
 		// 動態組成但會渲染的數字 / 標點 / 符號（保險起見補一些常見字元）
 		"0123456789",
 	];
+	// 練習數數含動物名稱的句子（名稱來自動物表）
+	final List<String> counting = <String>[
+		for (final CountingSpecies sp in kCountingSpecies) ...<String>[
+			CountingStrings.question(sp.name),
+			CountingStrings.allCounted(0, sp.name),
+			CountingStrings.wrongSpecies(sp.name),
+			CountingStrings.askAnswer(sp.name),
+		],
+	];
 	final Set<int> seen = <int>{};
 	final StringBuffer buf = StringBuffer();
-	for (final String s in all) {
+	for (final String s in <String>[...all, ...counting]) {
 		for (final int cp in s.runes) {
 			if (seen.add(cp)) {
 				buf.writeCharCode(cp);

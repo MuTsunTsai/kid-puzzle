@@ -13,6 +13,7 @@ import "../../../core/sprites/sprite_registry.dart";
 import "../../../core/storage/settings_repository.dart";
 import "../../../core/system/interop.dart";
 import "../../../shared/widgets/click_sound.dart";
+import "../../counting/domain/counting_round.dart";
 
 /// 家長區首頁：音效 / 語音 開關，以及圖庫入口（M8 之後）。
 ///
@@ -28,6 +29,7 @@ class _ParentHomePageState extends State<ParentHomePage> {
 	bool _audioEnabled = true;
 	bool _voiceEnabled = true;
 	bool _bigKidMode = false;
+	CountingAnswerMode _countingAnswerMode = CountingAnswerMode.autoComplete;
 	bool _loaded = false;
 
 	@override
@@ -40,6 +42,7 @@ class _ParentHomePageState extends State<ParentHomePage> {
 			_audioEnabled = repo.audioEnabled;
 			_voiceEnabled = repo.voiceEnabled;
 			_bigKidMode = repo.bigKidMode;
+			_countingAnswerMode = repo.countingAnswerMode;
 		});
 	}
 
@@ -91,6 +94,18 @@ class _ParentHomePageState extends State<ParentHomePage> {
 											.setUserProperty("big_kid_mode", AnalyticsService.flag(v)));
 									AnalyticsService.instance
 											.logBigKidModeToggled(enabled: v);
+								},
+							),
+							// 練習數數：點完全部自動過關，或點完再從幾個數字裡選答案
+							SwitchListTile(
+								secondary: const Icon(Icons.pin_outlined),
+								title: const Text(CountingStrings.answerModeChoose),
+								subtitle: const Text(CountingStrings.answerModeSubtitle),
+								value: _countingAnswerMode == CountingAnswerMode.chooseNumber,
+								onChanged: (bool v) {
+									final CountingAnswerMode m = v ? CountingAnswerMode.chooseNumber : CountingAnswerMode.autoComplete;
+									setState(() => _countingAnswerMode = m);
+									context.read<SettingsRepository>().setCountingAnswerMode(m);
 								},
 							),
 							const Divider(),

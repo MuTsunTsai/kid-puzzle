@@ -133,6 +133,10 @@ class SpriteRegistry {
 		]);
 	}
 
+	/// 只載入某類別的名稱語音（不載 sheet 圖），給只需要唸名稱的場景用
+	/// （例如練習數數借用「數字」類別唸 1、2、3）。
+	Future<void> preloadVoice(SpriteCategory category) => _voice.preload(category);
+
 	/// 額外把某類別 sheet 的 RGBA byte buffer 也展開、塞進 cache。
 	/// 給「需要 per-pixel alpha 查詢」的場景使用（例如關閉按鈕的隱藏判定）。
 	Future<void> preloadCategoryPixels(SpriteCategory category) async {

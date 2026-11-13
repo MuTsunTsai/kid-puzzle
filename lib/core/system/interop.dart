@@ -54,3 +54,9 @@ String? webLaunchMode() => webLaunchModeImpl();
 /// Web 頁面從開始載入（navigation start）到現在的毫秒數，以及頁面是否由
 /// Service Worker 提供（通常代表有快取、非首次造訪）；非 web 回 null。
 ({int elapsedMs, bool swControlled})? webLoadTiming() => webLoadTimingImpl();
+
+/// 這個平台能不能跑 3D（flutter_scene）。
+///
+/// web 後端在 OffscreenCanvas 上建 WebGL2 context，拿不到就直接拋錯、整頁灰掉
+/// （Safari 要到 iOS 17 才支援，iOS 16 不行）；其他平台一律 true。只檢查一次。
+bool get supports3d => supports3dImpl;
